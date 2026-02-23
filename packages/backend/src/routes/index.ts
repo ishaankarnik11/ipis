@@ -1,4 +1,8 @@
 import { Router, type Router as RouterType } from 'express';
+import authRoutes from './auth.routes.js';
+import usersRoutes from './users.routes.js';
+import configRoutes from './config.routes.js';
+import departmentsRoutes from './departments.routes.js';
 
 const router: RouterType = Router();
 
@@ -6,5 +10,17 @@ const router: RouterType = Router();
 router.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Auth routes
+router.use('/api/v1/auth', authRoutes);
+
+// User management routes (Admin only)
+router.use('/api/v1/users', usersRoutes);
+
+// System config routes (Admin only)
+router.use('/api/v1/config', configRoutes);
+
+// Department routes (Admin only)
+router.use('/api/v1/departments', departmentsRoutes);
 
 export default router;

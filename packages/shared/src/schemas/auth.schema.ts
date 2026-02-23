@@ -1,4 +1,3 @@
-// Auth schemas - placeholder, will be populated in Story 1.2
 import { z } from 'zod';
 
 export const loginSchema = z.object({
