@@ -1,0 +1,17 @@
+# Optional: Use this if you prefer Docker over a native PostgreSQL install.
+# For native install, create user 'ipis' with password 'ipis_dev' and database 'ipis_dev'.
+# Either approach uses the same DATABASE_URL: postgresql://ipis:ipis_dev@localhost:5432/ipis_dev
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ipis
+      POSTGRES_PASSWORD: ipis_dev
+      POSTGRES_DB: ipis_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

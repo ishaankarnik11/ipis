@@ -1,0 +1,101 @@
+# generated: 2026-02-23
+# project: BMAD_101
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-23
+project: BMAD_101
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Foundation, Authentication & User Management
+  epic-1: in-progress
+  1-1-monorepo-scaffold-and-project-infrastructure: done
+  1-2-authentication-api-login-session-and-logout: backlog
+  1-3-login-and-session-ui: backlog
+  1-4-user-and-role-management-api: backlog
+  1-5-user-management-and-system-config-ui: backlog
+  1-6-password-management-reset-and-first-login-flow: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Employee & Salary Data Management
+  epic-2: backlog
+  2-1-employee-salary-master-bulk-upload-api: backlog
+  2-2-individual-employee-management-api: backlog
+  2-3-employee-management-ui-list-add-edit-and-resign: backlog
+  2-4-bulk-upload-ui-and-failed-rows-download: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Project Lifecycle & Team Management
+  epic-3: backlog
+  3-1-project-management-api-create-approve-and-reject: backlog
+  3-2-team-roster-management-api: backlog
+  3-3-project-creation-and-status-ui: backlog
+  3-4-project-list-and-detail-ui: backlog
+  3-5-admin-approval-rejection-ui-and-pending-approvals-panel: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Profitability Calculation Engine
+  epic-4: backlog
+  4-1-employee-cost-rate-calculation: backlog
+  4-2-tm-profitability-calculator: backlog
+  4-3-fixed-cost-profitability-calculator: backlog
+  4-4-amc-and-infrastructure-calculators: backlog
+  4-5-snapshot-persistence-and-multi-level-profitability-surfacing: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Data Upload & Recalculation Pipeline
+  epic-5: backlog
+  5-1-timesheet-upload-and-atomic-validation-api: backlog
+  5-2-billing-revenue-upload-and-recalculation-trigger: backlog
+  5-3-upload-center-ui-and-progress-feedback: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Dashboards, Reporting & Calculation Traceability
+  epic-6: backlog
+  6-1-project-dashboard-and-kpi-tiles: backlog
+  6-2-executive-practice-department-and-company-wide-dashboards: backlog
+  6-3-ledger-drawer-api-and-data-contract: backlog
+  6-4-ledger-drawer-ui-component: backlog
+  6-5-employee-dashboard: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Export, Sharing & Audit
+  epic-7: backlog
+  7-1-pdf-export: backlog
+  7-2-shareable-report-links: backlog
+  7-3-audit-log-view: backlog
+  7-4-audit-event-instrumentation: backlog
+  epic-7-retrospective: optional

@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  FINANCE
+  HR
+  DELIVERY_MANAGER
+  DEPT_HEAD
+}
+
+model User {
+  id                 String      @id @default(uuid())
+  email              String      @unique
+  passwordHash       String      @map("password_hash")
+  name               String
+  role               UserRole
+  departmentId       String?     @map("department_id")
+  department         Department? @relation(fields: [departmentId], references: [id])
+  isActive           Boolean     @default(true) @map("is_active")
+  mustChangePassword Boolean     @default(false) @map("must_change_password")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Department {
+  id         String   @id @default(uuid())
+  name       String   @unique @db.VarChar(100)
+  headUserId String?  @map("head_user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  users      User[]
+
+  @@map("departments")
+}
+
+model SystemConfig {
+  id                     String   @id @default(uuid())
+  standardMonthlyHours   Int      @default(160) @map("standard_monthly_hours")
+  healthyMarginThreshold Decimal  @default(0.20) @map("healthy_margin_threshold")
+  atRiskMarginThreshold  Decimal  @default(0.05) @map("at_risk_margin_threshold")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}
