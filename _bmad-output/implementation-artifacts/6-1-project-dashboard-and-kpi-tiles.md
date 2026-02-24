@@ -42,6 +42,22 @@ so that I can immediately identify which projects are healthy, at risk, or in lo
    **When** `pnpm test` runs,
    **Then** tests cover: Delivery Manager scope filtering, MarginHealthBadge threshold rendering, AtRiskKPITile on loss projects, filter param propagation, sort behavior.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: DM navigates to project dashboard → sees only their own projects with Revenue, Cost, Profit, Margin % columns, monetary values formatted as currency (AC: 2, 7)
+- E2E-P2: Admin navigates to project dashboard → sees all projects including other DMs' projects (AC: 2)
+- E2E-P3: MarginHealthBadge renders correct colors — green for healthy margin (≥20%), amber for 10-19%, red for <10% on visible project rows (AC: 3)
+- E2E-P4: Loss project row has red-tinted background and shows deficit amount with currency formatting (AC: 4)
+- E2E-P5: User selects department filter → table re-queries showing only matching projects, filter persists on page refresh via URL params (AC: 5)
+- E2E-P6: Click Margin % column header → table sorts descending, click again → ascending (AC: 6)
+
+### Negative
+
+- E2E-N1: HR user navigates to `/dashboards/projects` — redirected to role landing page (unauthorized)
+- E2E-N2: Dashboard with no snapshot data for current period → empty state message shown, no crash
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Reports API — project dashboard endpoint (AC: 1, 2)
@@ -89,6 +105,13 @@ so that I can immediately identify which projects are healthy, at risk, or in lo
   - [ ] 7.5 Test: Filter params propagated to API
   - [ ] 7.6 Test: Sort by Margin % descending default
   - [ ] 7.7 Create `services/dashboard.service.test.ts` — RBAC scoping tests
+
+- [ ] Task 8: E2E Tests (E2E-P1 through E2E-N2)
+  - [ ] 8.1 Create `packages/e2e/tests/project-dashboard.spec.ts`
+  - [ ] 8.2 Seed data: ensure calculation_snapshots with PROJECT entity_type exist in `seed.ts` for multiple DMs
+  - [ ] 8.3 Implement E2E-P1 through E2E-P6 (positive scenarios)
+  - [ ] 8.4 Implement E2E-N1 through E2E-N2 (negative scenarios)
+  - [ ] 8.5 All existing + new E2E tests pass
 
 ## Dev Notes
 

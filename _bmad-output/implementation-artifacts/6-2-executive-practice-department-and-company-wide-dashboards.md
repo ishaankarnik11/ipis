@@ -46,6 +46,24 @@ so that leadership can identify systemic cost patterns and make resource allocat
    **When** `pnpm test` runs,
    **Then** tests cover: executive endpoint returns correct top-5/bottom-5 ordering, utilisation % formula, practice aggregation correctness, department scope filtering (DH sees own only), company rollup, DataPeriodIndicator period resolution.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: Finance user navigates to executive dashboard → sees KPI tiles (total revenue, cost, margin %, utilisation %) with monetary values formatted as currency (AC: 1, 2)
+- E2E-P2: Executive dashboard shows top-5 and bottom-5 project cards with MarginHealthBadge; clicking a project card navigates to Project Dashboard (AC: 2)
+- E2E-P3: Finance user views practice dashboard → sees "Top cost contributors by designation" with progress bars (AC: 3, 6)
+- E2E-P4: Department Head views department dashboard → sees only own department row with revenue, cost, profit, margin % and MarginHealthBadge (AC: 4, 7)
+- E2E-P5: Admin views department dashboard → sees all departments; clicking a row navigates to Project Dashboard filtered by department (AC: 4, 7)
+- E2E-P6: Company dashboard shows company-wide revenue, cost, profit, margin % with department breakdown array (AC: 5)
+- E2E-P7: DataPeriodIndicator shows "Data as of: [Month Year]" on all dashboard pages (AC: 8)
+
+### Negative
+
+- E2E-N1: DM user navigates to `/dashboards/executive` — redirected to role landing page (unauthorized)
+- E2E-N2: HR user navigates to `/dashboards/department` — redirected to role landing page (unauthorized)
+- E2E-N3: Dashboard with no snapshot data for current period → empty state message shown, no crash
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Executive report API (AC: 1)
@@ -102,6 +120,13 @@ so that leadership can identify systemic cost patterns and make resource allocat
   - [ ] 11.5 Test: Department — DH sees own department only
   - [ ] 11.6 Test: Company — single rollup row + department breakdown
   - [ ] 11.7 Create frontend test for DataPeriodIndicator rendering
+
+- [ ] Task 12: E2E Tests (E2E-P1 through E2E-N3)
+  - [ ] 12.1 Create `packages/e2e/tests/executive-dashboards.spec.ts`
+  - [ ] 12.2 Seed data: ensure calculation_snapshots with COMPANY, PRACTICE, DEPARTMENT entity_types exist in `seed.ts`
+  - [ ] 12.3 Implement E2E-P1 through E2E-P7 (positive scenarios)
+  - [ ] 12.4 Implement E2E-N1 through E2E-N3 (negative scenarios)
+  - [ ] 12.5 All existing + new E2E tests pass
 
 ## Dev Notes
 

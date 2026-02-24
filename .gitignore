@@ -35,6 +35,11 @@ pnpm-debug.log*
 # Playwright
 test-results/
 playwright-report/
+e2e-results/
+
+# E2E generated files
+packages/e2e/prisma/
+packages/e2e/fixtures/*.xlsx
 
 # CLI tools
 .claude/

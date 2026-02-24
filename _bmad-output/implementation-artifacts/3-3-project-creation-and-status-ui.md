@@ -50,6 +50,21 @@ so that I can establish projects correctly the first time and respond quickly to
     **When** the `ProjectStatusBadge` component renders,
     **Then** it uses antd `Tag` with correct colours: Pending Approval → blue, Active → green, Rejected → red, Completed → navy — always includes text label.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: DM creates a T&M project — fills common fields + adds team member with role and billing rate → redirected to detail page showing "Pending Approval" badge (AC: 1, 2, 6, 10)
+- E2E-P2: DM creates a Fixed Cost project — fills common fields + contract value, end date, budget → redirected to detail page showing "Pending Approval" badge (AC: 3, 6, 10)
+- E2E-P3: DM switches engagement model — selects T&M, sees team member section, switches to Fixed Cost, T&M section disappears and Fixed Cost section appears (AC: 1, 2, 3)
+- E2E-P4: DM edits and resubmits a rejected project — navigates to rejected project, clicks "Edit & Resubmit", form pre-populates, submits → status changes to "Pending Approval" (AC: 8, 9)
+
+### Negative
+
+- E2E-N1: DM submits form with missing required fields — validation errors shown inline, no navigation occurs (AC: 1)
+- E2E-N2: HR user navigates to `/projects/new` — redirected to their role landing page (unauthorized access)
+- E2E-N3: DM double-clicks submit — button shows loading spinner and is disabled during submission, only one API call fires (AC: 7)
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Projects API service (AC: 6, 9)
@@ -80,11 +95,18 @@ so that I can establish projects correctly the first time and respond quickly to
   - [ ] 5.1 Add `/projects/new` and `/projects/:id/edit` routes
   - [ ] 5.2 RoleGuard for Delivery Manager
 
-- [ ] Task 6: Tests (AC: 1-10)
+- [ ] Task 6: Unit Tests (AC: 1-10)
   - [ ] 6.1 Create `pages/projects/CreateEditProject.test.tsx`
   - [ ] 6.2 Test: Engagement model select shows correct sections
   - [ ] 6.3 Test: Submit disabled while loading
   - [ ] 6.4 Test: ProjectStatusBadge renders correct colours
+
+- [ ] Task 7: E2E Tests (E2E-P1 through E2E-N3)
+  - [ ] 7.1 Create `packages/e2e/tests/project-creation.spec.ts`
+  - [ ] 7.2 Seed data: add test projects (one PENDING_APPROVAL, one REJECTED with rejection reason) in `seed.ts`
+  - [ ] 7.3 Implement E2E-P1 through E2E-P4 (positive scenarios)
+  - [ ] 7.4 Implement E2E-N1 through E2E-N3 (negative scenarios)
+  - [ ] 7.5 All existing + new E2E tests pass
 
 ## Dev Notes
 

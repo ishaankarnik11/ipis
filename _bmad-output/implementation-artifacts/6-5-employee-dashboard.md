@@ -50,6 +50,24 @@ so that I can identify high-cost low-revenue team members and make informed staf
     **When** `pnpm test` runs,
     **Then** tests cover: Admin/Finance full visibility, Department Head scope filtering, HR 403, under-utilisation highlight (< 50%), loss-row background on negative contribution, profitability rank ordering, filter param propagation.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: Admin navigates to employee dashboard → sees all employees with Rank, Name, Designation, Department, Billable Utilisation, Revenue Contribution, Cost, Profit Contribution, Margin % columns (AC: 1, 4)
+- E2E-P2: Department Head views employee dashboard → sees only employees in their department (AC: 2)
+- E2E-P3: Employee with billable utilisation < 50% → Billable Utilisation cell shows amber text (AC: 5)
+- E2E-P4: Employee with negative profit contribution → row background is `#FFF2F0` (AC: 6)
+- E2E-P5: User selects department filter → table re-queries showing only matching employees, filter persists via URL params (AC: 7)
+- E2E-P6: Table sorted by profitability rank ascending by default — highest revenue contributors first (AC: 8)
+- E2E-P7: Click employee name → navigates to detail view showing month-by-month history and project assignments (AC: 9)
+
+### Negative
+
+- E2E-N1: HR user navigates to `/dashboards/employees` — gets HTTP 403, redirected to role landing page (AC: 3)
+- E2E-N2: DM user navigates to `/dashboards/employees` — redirected to role landing page (unauthorized)
+- E2E-N3: Employee dashboard with no snapshot data for current period → empty state message shown, no crash
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Employee reports API (AC: 1, 2, 3)
@@ -96,6 +114,13 @@ so that I can identify high-cost low-revenue team members and make informed staf
   - [ ] 7.7 Test: Profitability rank ordering (highest revenue first)
   - [ ] 7.8 Test: Filter params propagated to API
   - [ ] 7.9 Add backend tests to `dashboard.service.test.ts`
+
+- [ ] Task 8: E2E Tests (E2E-P1 through E2E-N3)
+  - [ ] 8.1 Create `packages/e2e/tests/employee-dashboard.spec.ts`
+  - [ ] 8.2 Seed data: ensure EMPLOYEE calculation_snapshots exist in `seed.ts` with varied utilisation and profit values
+  - [ ] 8.3 Implement E2E-P1 through E2E-P7 (positive scenarios)
+  - [ ] 8.4 Implement E2E-N1 through E2E-N3 (negative scenarios)
+  - [ ] 8.5 All existing + new E2E tests pass
 
 ## Dev Notes
 

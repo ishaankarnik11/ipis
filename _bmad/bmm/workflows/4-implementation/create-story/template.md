@@ -14,6 +14,18 @@ so that {{benefit}}.
 
 1. [Add acceptance criteria from epics/PRD]
 
+## E2E Test Scenarios (UI stories only)
+
+<!-- Required for any story that adds or modifies frontend UI. Each scenario becomes a Playwright test case. -->
+
+### Positive
+
+- E2E-P1: [Happy-path user journey — describe what the user does and what they see]
+
+### Negative
+
+- E2E-N1: [Error/edge-case scenario — invalid input, unauthorized access, failed API, etc.]
+
 ## Tasks / Subtasks
 
 - [ ] Task 1 (AC: #)

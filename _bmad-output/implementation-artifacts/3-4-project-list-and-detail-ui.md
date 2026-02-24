@@ -30,6 +30,21 @@ so that project status and financial details are visible at a glance and Deliver
    **When** the breadcrumb renders,
    **Then** it shows "Projects / [Project Name]" with "Projects" as a clickable link.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: DM sees own projects in the project list table with correct columns (Name, Client, Model, Status, Start Date, End Date) — no Delivery Manager column (AC: 1)
+- E2E-P2: Admin sees all projects with an additional Delivery Manager column, including pending approval projects (AC: 2)
+- E2E-P3: DM clicks a project row → navigates to detail page showing all project fields with formatted currency, status badge, and team roster (AC: 3, 5)
+- E2E-P4: Finance user views a Fixed Cost project detail → % Completion input is visible and editable, saves successfully (AC: 4)
+
+### Negative
+
+- E2E-N1: HR user navigates to `/projects` — redirected to their role landing page (unauthorized for project list)
+- E2E-N2: DM views a T&M project detail → % Completion input is NOT visible (only for Fixed Cost) (AC: 4)
+- E2E-N3: Finance user enters % completion value outside 0-100 range → validation error, no API call
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Project List page (AC: 1, 2)
@@ -49,12 +64,19 @@ so that project status and financial details are visible at a glance and Deliver
   - [ ] 3.2 RoleGuard for DM, Admin, Finance, DH
   - [ ] 3.3 Add "Projects" to sidebar
 
-- [ ] Task 4: Tests (AC: 1-5)
+- [ ] Task 4: Unit Tests (AC: 1-5)
   - [ ] 4.1 Create `pages/projects/ProjectList.test.tsx`
   - [ ] 4.2 Create `pages/projects/ProjectDetail.test.tsx`
   - [ ] 4.3 Test: DM sees own projects, Admin sees all
   - [ ] 4.4 Test: % completion input visible for Fixed Cost only
   - [ ] 4.5 Test: Breadcrumb navigation
+
+- [ ] Task 5: E2E Tests (E2E-P1 through E2E-N3)
+  - [ ] 5.1 Create `packages/e2e/tests/project-list-detail.spec.ts`
+  - [ ] 5.2 Seed data: ensure test projects with various statuses and engagement models exist in `seed.ts`
+  - [ ] 5.3 Implement E2E-P1 through E2E-P4 (positive scenarios)
+  - [ ] 5.4 Implement E2E-N1 through E2E-N3 (negative scenarios)
+  - [ ] 5.5 All existing + new E2E tests pass
 
 ## Dev Notes
 

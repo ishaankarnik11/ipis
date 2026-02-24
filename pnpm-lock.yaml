@@ -105,6 +105,24 @@ importers:
       '@playwright/test':
         specifier: ^1.50.0
         version: 1.58.2
+      '@prisma/client':
+        specifier: ^6.4.0
+        version: 6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3)
+      '@types/bcrypt':
+        specifier: ^5.0.2
+        version: 5.0.2
+      bcrypt:
+        specifier: ^5.1.1
+        version: 5.1.1
+      prisma:
+        specifier: ^6.4.0
+        version: 6.19.2(typescript@5.9.3)
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
+      xlsx:
+        specifier: ^0.18.5
+        version: 0.18.5
 
   packages/frontend:
     dependencies:

@@ -46,6 +46,22 @@ so that I can trust the numbers and investigate any unexpected result without le
    **When** `pnpm test` runs,
    **Then** tests cover: drawer open on row click, API call with correct project ID and period, dotted underline on derived figures, loss-row background, metadata footer content, mobile width override, Escape/backdrop close.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: Finance user clicks a project row on the dashboard → Ledger Drawer opens from right with project name and period in title (AC: 1)
+- E2E-P2: Drawer shows Revenue, Cost, Profit, Margin % KPI tiles at top and employee breakdown table below with correct columns (Name, Designation, Hours, Cost/Hour, Contribution) (AC: 2, 3)
+- E2E-P3: Derived figures (Cost/Hour, Margin %) have dotted underline; hovering shows formula tooltip (AC: 4)
+- E2E-P4: Loss project ledger — largest contributor row has `#FFF2F0` background (AC: 5)
+- E2E-P5: Metadata footer shows "Calculated: [relative time] · Engine v[version]" (AC: 6)
+- E2E-P6: User presses Escape → Drawer closes; reopening same project does not trigger new API call (cache warm) (AC: 8)
+
+### Negative
+
+- E2E-N1: HR user clicks project row on dashboard — Ledger Drawer does not open (HR has no dashboard access)
+- E2E-N2: Ledger API returns error → Drawer shows inline error message, no crash
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: LedgerDrawer component (AC: 1, 2, 7, 8)
@@ -94,6 +110,13 @@ so that I can trust the numbers and investigate any unexpected result without le
   - [ ] 8.6 Test: Metadata footer shows engine version + timestamp
   - [ ] 8.7 Test: Mobile width override (< 768px → 100%)
   - [ ] 8.8 Test: Escape/backdrop closes drawer
+
+- [ ] Task 9: E2E Tests (E2E-P1 through E2E-N2)
+  - [ ] 9.1 Create `packages/e2e/tests/ledger-drawer.spec.ts`
+  - [ ] 9.2 Seed data: ensure calculation_snapshots with breakdown_json containing employee inputs exist in `seed.ts`
+  - [ ] 9.3 Implement E2E-P1 through E2E-P6 (positive scenarios)
+  - [ ] 9.4 Implement E2E-N1 through E2E-N2 (negative scenarios)
+  - [ ] 9.5 All existing + new E2E tests pass
 
 ## Dev Notes
 

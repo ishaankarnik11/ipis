@@ -58,6 +58,23 @@ so that I can track upload status, download error reports for failed rows, and k
     **When** `pnpm test` runs,
     **Then** tests cover: zone visibility by role, UploadConfirmationCard display on replacement, progress bar updates from mocked SSE events, error panel on 422, error report download trigger, DataPeriodIndicator rendering with correct period text.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: HR user sees the salary upload zone with template download link, but NOT timesheet/billing zones (AC: 1, 2)
+- E2E-P2: Finance user sees timesheet and billing zones, but NOT salary zone (AC: 2)
+- E2E-P3: HR uploads a valid salary .xlsx → progress bar reaches 100%, success state shown (AC: 4, 5)
+- E2E-P4: HR uploads salary .xlsx with partial errors → "Download Error Report" button appears after completion (AC: 7)
+- E2E-P5: Upload History Log table shows past uploads with Type, Period, Status tags (green/orange/red), and pagination (AC: 8)
+- E2E-P6: DataPeriodIndicator shows "Data as of: [Month Year]" in the Upload Center header (AC: 9)
+
+### Negative
+
+- E2E-N1: DM user navigates to `/uploads` — redirected to role landing page (unauthorized for upload center)
+- E2E-N2: Timesheet upload with all invalid rows → structured error panel lists mismatched employee IDs/project names, no download option (AC: 6)
+- E2E-N3: SSE connection drops during upload → inline "Connection lost — refresh to check status" warning shown without page crash (AC: 11)
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Upload Center page layout (AC: 1, 2, 10)
@@ -101,7 +118,7 @@ so that I can track upload status, download error reports for failed rows, and k
 - [ ] Task 8: Router integration (AC: 1)
   - [ ] 8.1 Add `/uploads` route in router — guarded for Finance, HR, Admin
 
-- [ ] Task 9: Tests (AC: 12)
+- [ ] Task 9: Unit Tests (AC: 12)
   - [ ] 9.1 Create `pages/upload/upload-center.test.tsx`
   - [ ] 9.2 Test: Zone visibility by role (Finance sees timesheet+billing, HR sees salary)
   - [ ] 9.3 Test: UploadConfirmationCard shown on period with existing data
@@ -109,6 +126,13 @@ so that I can track upload status, download error reports for failed rows, and k
   - [ ] 9.5 Test: Error panel on 422 validation rejection
   - [ ] 9.6 Test: Error report download trigger on partial salary upload
   - [ ] 9.7 Test: DataPeriodIndicator renders correct period text
+
+- [ ] Task 10: E2E Tests (E2E-P1 through E2E-N3)
+  - [ ] 10.1 Create `packages/e2e/tests/upload-center.spec.ts`
+  - [ ] 10.2 Seed data: ensure upload history records exist in `seed.ts`
+  - [ ] 10.3 Implement E2E-P1 through E2E-P6 (positive scenarios)
+  - [ ] 10.4 Implement E2E-N1 through E2E-N3 (negative scenarios)
+  - [ ] 10.5 All existing + new E2E tests pass
 
 ## Dev Notes
 

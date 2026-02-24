@@ -30,6 +30,21 @@ so that no project enters the reporting pipeline without formal review, and Deli
    **When** rendered for an Admin user,
    **Then** "Pending Approvals" navigation item is visible and links to `/admin/pending-approvals`; the item shows a badge count of pending projects if count > 0.
 
+## E2E Test Scenarios
+
+### Positive
+
+- E2E-P1: Admin navigates to `/admin/pending-approvals` — table shows pending projects with correct columns (Name, DM, Model, Contract Value, Submission Date, action buttons) (AC: 1)
+- E2E-P2: Admin clicks "Approve" on a pending project → row disappears from table, success notification shown (AC: 2)
+- E2E-P3: Admin clicks "Reject" → modal opens, enters rejection comment, submits → row disappears, success notification shown (AC: 3)
+- E2E-P4: Admin sidebar shows "Pending Approvals" item with badge count > 0, badge updates after approve/reject (AC: 5)
+
+### Negative
+
+- E2E-N1: Admin clicks "Confirm Rejection" with empty comment → validation error "Rejection reason is required", modal stays open, no API call (AC: 4)
+- E2E-N2: DM user navigates to `/admin/pending-approvals` — redirected to their role landing page (unauthorized access)
+- E2E-N3: HR user navigates to `/admin/pending-approvals` — redirected to their role landing page (unauthorized access)
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Pending Approvals page (AC: 1, 2, 3, 4)
@@ -46,12 +61,19 @@ so that no project enters the reporting pipeline without formal review, and Deli
   - [ ] 3.1 Add `/admin/pending-approvals` route
   - [ ] 3.2 RoleGuard for Admin only
 
-- [ ] Task 4: Tests (AC: 1-5)
+- [ ] Task 4: Unit Tests (AC: 1-5)
   - [ ] 4.1 Create `pages/admin/PendingApprovals.test.tsx`
   - [ ] 4.2 Test: Table shows pending projects
   - [ ] 4.3 Test: Approve removes row
   - [ ] 4.4 Test: Reject requires comment
   - [ ] 4.5 Test: Badge count renders
+
+- [ ] Task 5: E2E Tests (E2E-P1 through E2E-N3)
+  - [ ] 5.1 Create `packages/e2e/tests/pending-approvals.spec.ts`
+  - [ ] 5.2 Seed data: ensure pending-approval projects exist in `seed.ts` for Admin to act on
+  - [ ] 5.3 Implement E2E-P1 through E2E-P4 (positive scenarios)
+  - [ ] 5.4 Implement E2E-N1 through E2E-N3 (negative scenarios)
+  - [ ] 5.5 All existing + new E2E tests pass
 
 ## Dev Notes
 
