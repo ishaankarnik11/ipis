@@ -45,9 +45,9 @@ describe('ResetPassword Page', () => {
     // Never resolve to keep loading state
     mockValidateResetToken.mockReturnValue(new Promise(() => {}));
 
-    renderResetPassword();
+    const { container } = renderResetPassword();
 
-    expect(screen.getByRole('img', { name: /loading/i }) || document.querySelector('.ant-spin')).toBeTruthy();
+    expect(container.querySelector('.ant-spin')).toBeTruthy();
   });
 
   it('should show error message for invalid/expired token (AC 2)', async () => {

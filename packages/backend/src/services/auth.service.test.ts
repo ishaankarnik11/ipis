@@ -294,10 +294,11 @@ describe('auth.service', () => {
       await resetPassword('some-uuid-token', 'newpassword123');
 
       expect(mockHash).toHaveBeenCalledWith('newpassword123', 10);
-      expect(mockTransaction).toHaveBeenCalledWith([
-        expect.anything(), // user.update
-        expect.anything(), // passwordResetToken.update
-      ]);
+      // $transaction is called with an array of Prisma client promises
+      expect(mockTransaction).toHaveBeenCalledTimes(1);
+      const transactionArg = mockTransaction.mock.calls[0][0];
+      expect(Array.isArray(transactionArg)).toBe(true);
+      expect(transactionArg).toHaveLength(2);
     });
 
     it('should throw UnauthorizedError for invalid token', async () => {
