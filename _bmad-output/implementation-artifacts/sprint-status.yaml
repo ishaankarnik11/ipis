@@ -63,7 +63,7 @@ development_status:
   # Epic 3: Project Lifecycle & Team Management
   epic-3: in-progress
   3-1-project-management-api-create-approve-and-reject: done
-  3-2-team-roster-management-api: in-progress
+  3-2-team-roster-management-api: done
   3-3-project-creation-and-status-ui: ready-for-dev
   3-4-project-list-and-detail-ui: ready-for-dev
   3-5-admin-approval-rejection-ui-and-pending-approvals-panel: ready-for-dev

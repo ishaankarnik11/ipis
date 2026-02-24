@@ -13,6 +13,15 @@ vi.mock('../lib/prisma.js', () => ({
       findMany: vi.fn(),
       findUnique: vi.fn(),
     },
+    employee: {
+      findUnique: vi.fn(),
+    },
+    employeeProject: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      delete: vi.fn(),
+    },
   },
 }));
 
@@ -35,6 +44,11 @@ const mockProjectFindUnique = prisma.project.findUnique as ReturnType<typeof vi.
 const mockProjectUpdate = prisma.project.update as ReturnType<typeof vi.fn>;
 const mockUserFindMany = prisma.user.findMany as ReturnType<typeof vi.fn>;
 const mockUserFindUnique = prisma.user.findUnique as ReturnType<typeof vi.fn>;
+const mockEmployeeFindUnique = prisma.employee.findUnique as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectCreate = prisma.employeeProject.create as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectFindUnique = prisma.employeeProject.findUnique as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectFindMany = prisma.employeeProject.findMany as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectDelete = prisma.employeeProject.delete as ReturnType<typeof vi.fn>;
 
 const dmUser = { id: 'dm-1', role: 'DELIVERY_MANAGER', email: 'dm@test.com' };
 const adminUser = { id: 'admin-1', role: 'ADMIN', email: 'admin@test.com' };
@@ -343,6 +357,242 @@ describe('project.service', () => {
       mockProjectFindUnique.mockResolvedValue(null);
 
       await expect(projectService.resubmitProject('proj-1', dmUser)).rejects.toThrow('Project not found');
+    });
+  });
+
+  // ── Team Roster Service Tests ──────────────────────────────────────
+
+  const tmProject = {
+    id: 'proj-tm',
+    deliveryManagerId: 'dm-1',
+    engagementModel: 'TIME_AND_MATERIALS',
+    status: 'ACTIVE',
+  };
+
+  const fcProject = {
+    id: 'proj-fc',
+    deliveryManagerId: 'dm-1',
+    engagementModel: 'FIXED_COST',
+    status: 'ACTIVE',
+  };
+
+  describe('addTeamMember', () => {
+    it('should add a team member and return the record', async () => {
+      mockProjectFindUnique.mockResolvedValue(fcProject);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
+      mockEmployeeProjectCreate.mockResolvedValue({
+        projectId: 'proj-fc',
+        employeeId: 'emp-1',
+        role: 'Developer',
+        billingRatePaise: null,
+        assignedAt: new Date('2026-02-25'),
+      });
+
+      const result = await projectService.addTeamMember(
+        'proj-fc',
+        { employeeId: 'emp-1', role: 'Developer' },
+        dmUser,
+      );
+
+      expect(result.employeeId).toBe('emp-1');
+      expect(result.role).toBe('Developer');
+      expect(result.billingRatePaise).toBeNull();
+    });
+
+    it('should require billingRatePaise for T&M projects', async () => {
+      mockProjectFindUnique.mockResolvedValue(tmProject);
+
+      await expect(
+        projectService.addTeamMember(
+          'proj-tm',
+          { employeeId: 'emp-1', role: 'Developer' },
+          dmUser,
+        ),
+      ).rejects.toThrow('billingRatePaise is required for T&M projects');
+    });
+
+    it('should accept billingRatePaise for T&M projects', async () => {
+      mockProjectFindUnique.mockResolvedValue(tmProject);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
+      mockEmployeeProjectCreate.mockResolvedValue({
+        projectId: 'proj-tm',
+        employeeId: 'emp-1',
+        role: 'Developer',
+        billingRatePaise: BigInt(500000),
+        assignedAt: new Date('2026-02-25'),
+      });
+
+      const result = await projectService.addTeamMember(
+        'proj-tm',
+        { employeeId: 'emp-1', role: 'Developer', billingRatePaise: 500000 },
+        dmUser,
+      );
+
+      expect(result.billingRatePaise).toBe(500000);
+    });
+
+    it('should throw ForbiddenError for non-owning DM', async () => {
+      mockProjectFindUnique.mockResolvedValue({
+        ...fcProject,
+        deliveryManagerId: 'dm-other',
+      });
+
+      await expect(
+        projectService.addTeamMember(
+          'proj-fc',
+          { employeeId: 'emp-1', role: 'Developer' },
+          dmUser,
+        ),
+      ).rejects.toThrow('Access denied');
+    });
+
+    it('should throw ConflictError for duplicate assignment (P2002)', async () => {
+      mockProjectFindUnique.mockResolvedValue(fcProject);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
+      const prismaError = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+      mockEmployeeProjectCreate.mockRejectedValue(prismaError);
+
+      await expect(
+        projectService.addTeamMember(
+          'proj-fc',
+          { employeeId: 'emp-1', role: 'Developer' },
+          dmUser,
+        ),
+      ).rejects.toThrow('Employee is already assigned to this project');
+    });
+
+    it('should throw NotFoundError for non-existent project', async () => {
+      mockProjectFindUnique.mockResolvedValue(null);
+
+      await expect(
+        projectService.addTeamMember(
+          'nope',
+          { employeeId: 'emp-1', role: 'Developer' },
+          dmUser,
+        ),
+      ).rejects.toThrow('Project not found');
+    });
+
+    it('should throw NotFoundError for non-existent employee', async () => {
+      mockProjectFindUnique.mockResolvedValue(fcProject);
+      mockEmployeeFindUnique.mockResolvedValue(null);
+
+      await expect(
+        projectService.addTeamMember(
+          'proj-fc',
+          { employeeId: 'emp-none', role: 'Developer' },
+          dmUser,
+        ),
+      ).rejects.toThrow('Employee not found');
+    });
+
+    it('should throw ValidationError for non-ACTIVE project', async () => {
+      mockProjectFindUnique.mockResolvedValue({
+        ...fcProject,
+        status: 'PENDING_APPROVAL',
+      });
+
+      await expect(
+        projectService.addTeamMember(
+          'proj-fc',
+          { employeeId: 'emp-1', role: 'Developer' },
+          dmUser,
+        ),
+      ).rejects.toThrow('Project must be in ACTIVE status');
+    });
+
+    it('should throw ValidationError for resigned employee', async () => {
+      mockProjectFindUnique.mockResolvedValue(fcProject);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1', isResigned: true });
+
+      await expect(
+        projectService.addTeamMember(
+          'proj-fc',
+          { employeeId: 'emp-1', role: 'Developer' },
+          dmUser,
+        ),
+      ).rejects.toThrow('Cannot assign a resigned employee to a project');
+    });
+  });
+
+  describe('getTeamMembers', () => {
+    it('should return team members with employee details', async () => {
+      mockProjectFindUnique.mockResolvedValue(fcProject);
+      mockEmployeeProjectFindMany.mockResolvedValue([
+        {
+          employeeId: 'emp-1',
+          role: 'Developer',
+          billingRatePaise: BigInt(500000),
+          assignedAt: new Date('2026-02-25'),
+          employee: { name: 'Alice', designation: 'Senior Dev' },
+        },
+      ]);
+
+      const result = await projectService.getTeamMembers('proj-fc', dmUser);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Alice');
+      expect(result[0].designation).toBe('Senior Dev');
+      expect(result[0].billingRatePaise).toBe(500000);
+    });
+
+    it('should throw ForbiddenError for non-owning DM', async () => {
+      mockProjectFindUnique.mockResolvedValue({
+        ...fcProject,
+        deliveryManagerId: 'dm-other',
+      });
+
+      await expect(
+        projectService.getTeamMembers('proj-fc', dmUser),
+      ).rejects.toThrow('Access denied');
+    });
+
+    it('should allow Finance user to view team members', async () => {
+      mockProjectFindUnique.mockResolvedValue({
+        ...fcProject,
+        deliveryManagerId: 'dm-other',
+      });
+      mockEmployeeProjectFindMany.mockResolvedValue([]);
+
+      const result = await projectService.getTeamMembers('proj-fc', financeUser);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('removeTeamMember', () => {
+    it('should remove a team member', async () => {
+      mockProjectFindUnique.mockResolvedValue(fcProject);
+      mockEmployeeProjectDelete.mockResolvedValue({});
+
+      await projectService.removeTeamMember('proj-fc', 'emp-1', dmUser);
+
+      expect(mockEmployeeProjectDelete).toHaveBeenCalledWith({
+        where: {
+          projectId_employeeId: { projectId: 'proj-fc', employeeId: 'emp-1' },
+        },
+      });
+    });
+
+    it('should throw ForbiddenError for non-owning DM', async () => {
+      mockProjectFindUnique.mockResolvedValue({
+        ...fcProject,
+        deliveryManagerId: 'dm-other',
+      });
+
+      await expect(
+        projectService.removeTeamMember('proj-fc', 'emp-1', dmUser),
+      ).rejects.toThrow('Access denied');
+    });
+
+    it('should throw NotFoundError for non-existent team member', async () => {
+      mockProjectFindUnique.mockResolvedValue(fcProject);
+      const prismaError = Object.assign(new Error('Record not found'), { code: 'P2025' });
+      mockEmployeeProjectDelete.mockRejectedValue(prismaError);
+
+      await expect(
+        projectService.removeTeamMember('proj-fc', 'emp-none', dmUser),
+      ).rejects.toThrow('Team member not found');
     });
   });
 });

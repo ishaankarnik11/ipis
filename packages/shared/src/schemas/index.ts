@@ -30,7 +30,9 @@ export {
   createProjectSchema,
   rejectProjectSchema,
   updateProjectSchema,
+  addTeamMemberSchema,
   type CreateProjectInput,
   type RejectProjectInput,
   type UpdateProjectInput,
+  type AddTeamMemberInput,
 } from './project.schema.js';

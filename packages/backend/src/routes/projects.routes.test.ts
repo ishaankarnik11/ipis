@@ -16,6 +16,15 @@ vi.mock('../lib/prisma.js', () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    employee: {
+      findUnique: vi.fn(),
+    },
+    employeeProject: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      delete: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -52,6 +61,11 @@ const mockProjectCreate = prisma.project.create as ReturnType<typeof vi.fn>;
 const mockProjectFindMany = prisma.project.findMany as ReturnType<typeof vi.fn>;
 const mockProjectFindUnique = prisma.project.findUnique as ReturnType<typeof vi.fn>;
 const mockProjectUpdate = prisma.project.update as ReturnType<typeof vi.fn>;
+const mockEmployeeFindUnique = prisma.employee.findUnique as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectCreate = prisma.employeeProject.create as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectFindUnique = prisma.employeeProject.findUnique as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectFindMany = prisma.employeeProject.findMany as ReturnType<typeof vi.fn>;
+const mockEmployeeProjectDelete = prisma.employeeProject.delete as ReturnType<typeof vi.fn>;
 
 describe('Project Routes', () => {
   const app = createApp();
@@ -374,6 +388,275 @@ describe('Project Routes', () => {
           where: {},
         }),
       );
+    });
+  });
+
+  // ── Team Roster Integration Tests ─────────────────────────────────
+
+  const fcProjectForTeam = {
+    id: 'proj-fc',
+    deliveryManagerId: 'dm-1',
+    engagementModel: 'FIXED_COST',
+    status: 'ACTIVE',
+  };
+
+  const tmProjectForTeam = {
+    id: 'proj-tm',
+    deliveryManagerId: 'dm-1',
+    engagementModel: 'TIME_AND_MATERIALS',
+    status: 'ACTIVE',
+  };
+
+  const makeDeptHead = () => ({
+    id: 'dh-1',
+    email: 'dh@test.com',
+    passwordHash: hashedPassword,
+    name: 'Test DH',
+    role: 'DEPT_HEAD',
+    isActive: true,
+    departmentId: 'dept-1',
+    mustChangePassword: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  describe('POST /api/v1/projects/:id/team-members', () => {
+    it('should add team member as DM — 201 (AC: 1)', async () => {
+      const cookies = await loginAs(makeDM());
+      mockUserFindUnique.mockResolvedValue(makeDM());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
+      mockEmployeeProjectCreate.mockResolvedValue({
+        projectId: 'proj-fc',
+        employeeId: 'emp-1',
+        role: 'Developer',
+        billingRatePaise: null,
+        assignedAt: new Date('2026-02-25'),
+      });
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.employeeId).toBe('emp-1');
+      expect(res.body.data.role).toBe('Developer');
+    });
+
+    it('should return 400 for T&M project without billingRatePaise (AC: 2)', async () => {
+      const cookies = await loginAs(makeDM());
+      mockUserFindUnique.mockResolvedValue(makeDM());
+      mockProjectFindUnique.mockResolvedValue(tmProjectForTeam);
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-tm/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should return 403 for other DM project (AC: 6)', async () => {
+      const otherDM = {
+        ...makeDM(),
+        id: 'dm-other',
+        email: 'other@test.com',
+      };
+      const cookies = await loginAs(otherDM);
+      mockUserFindUnique.mockResolvedValue(otherDM);
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should return 409 for duplicate assignment (AC: 8)', async () => {
+      const cookies = await loginAs(makeDM());
+      mockUserFindUnique.mockResolvedValue(makeDM());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
+      const prismaError = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+      mockEmployeeProjectCreate.mockRejectedValue(prismaError);
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('CONFLICT');
+    });
+
+    it('should return 403 for HR user (AC: 7)', async () => {
+      const cookies = await loginAs(makeHR());
+      mockUserFindUnique.mockResolvedValue(makeHR());
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should return 403 for Finance user (AC: 7)', async () => {
+      const cookies = await loginAs(makeFinance());
+      mockUserFindUnique.mockResolvedValue(makeFinance());
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should return 403 for DEPT_HEAD user (AC: 7)', async () => {
+      const cookies = await loginAs(makeDeptHead());
+      mockUserFindUnique.mockResolvedValue(makeDeptHead());
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('should add team member as Admin — 201 (Admin bypass)', async () => {
+      const cookies = await loginAs(makeAdmin());
+      mockUserFindUnique.mockResolvedValue(makeAdmin());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
+      mockEmployeeProjectCreate.mockResolvedValue({
+        projectId: 'proj-fc',
+        employeeId: 'emp-1',
+        role: 'Developer',
+        billingRatePaise: null,
+        assignedAt: new Date('2026-02-25'),
+      });
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.employeeId).toBe('emp-1');
+    });
+
+    it('should return 400 for resigned employee', async () => {
+      const cookies = await loginAs(makeDM());
+      mockUserFindUnique.mockResolvedValue(makeDM());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1', isResigned: true });
+
+      const res = await request(app)
+        .post('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies)
+        .send({ employeeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', role: 'Developer' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('GET /api/v1/projects/:id/team-members', () => {
+    it('should return team members with employee details (AC: 3)', async () => {
+      const cookies = await loginAs(makeDM());
+      mockUserFindUnique.mockResolvedValue(makeDM());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeProjectFindMany.mockResolvedValue([
+        {
+          employeeId: 'emp-1',
+          role: 'Developer',
+          billingRatePaise: BigInt(500000),
+          assignedAt: new Date('2026-02-25'),
+          employee: { name: 'Alice Smith', designation: 'Senior Developer' },
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].name).toBe('Alice Smith');
+      expect(res.body.data[0].designation).toBe('Senior Developer');
+      expect(res.body.data[0].billingRatePaise).toBe(500000);
+    });
+
+    it('should return team members for Admin (Admin bypass)', async () => {
+      const cookies = await loginAs(makeAdmin());
+      mockUserFindUnique.mockResolvedValue(makeAdmin());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeProjectFindMany.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+    });
+
+    it('should return team members for Finance user (Finance access)', async () => {
+      const cookies = await loginAs(makeFinance());
+      mockUserFindUnique.mockResolvedValue(makeFinance());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeProjectFindMany.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get('/api/v1/projects/proj-fc/team-members')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+    });
+  });
+
+  describe('DELETE /api/v1/projects/:id/team-members/:employeeId', () => {
+    it('should remove team member — 200 (AC: 4)', async () => {
+      const cookies = await loginAs(makeDM());
+      mockUserFindUnique.mockResolvedValue(makeDM());
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+      mockEmployeeProjectDelete.mockResolvedValue({});
+
+      const res = await request(app)
+        .delete('/api/v1/projects/proj-fc/team-members/emp-1')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('should return 403 for other DM project (AC: 6)', async () => {
+      const otherDM = {
+        ...makeDM(),
+        id: 'dm-other',
+        email: 'other@test.com',
+      };
+      const cookies = await loginAs(otherDM);
+      mockUserFindUnique.mockResolvedValue(otherDM);
+      mockProjectFindUnique.mockResolvedValue(fcProjectForTeam);
+
+      const res = await request(app)
+        .delete('/api/v1/projects/proj-fc/team-members/emp-1')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN');
     });
   });
 });

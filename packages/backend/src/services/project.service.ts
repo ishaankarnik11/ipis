@@ -1,9 +1,9 @@
-import type { CreateProjectInput, UpdateProjectInput } from '@ipis/shared';
+import type { CreateProjectInput, UpdateProjectInput, AddTeamMemberInput } from '@ipis/shared';
 import type { EngagementModel, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { sendEmail } from '../lib/email.js';
 import { logger } from '../lib/logger.js';
-import { ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js';
 
 interface RequestUser {
   id: string;
@@ -279,4 +279,126 @@ export async function resubmitProject(id: string, user: RequestUser) {
       }
     })
     .catch((err) => logger.error(err, 'Failed to send project resubmission email'));
+}
+
+// ── Team Roster Management ──────────────────────────────────────────
+
+async function loadProjectForTeam(
+  projectId: string,
+  user: RequestUser,
+  options?: { requireActive?: boolean; additionalRoles?: string[] },
+) {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, deliveryManagerId: true, engagementModel: true, status: true },
+  });
+
+  if (!project) {
+    throw new NotFoundError('Project not found');
+  }
+
+  const bypassRoles = ['ADMIN', ...(options?.additionalRoles ?? [])];
+  if (!bypassRoles.includes(user.role) && project.deliveryManagerId !== user.id) {
+    throw new ForbiddenError('Access denied');
+  }
+
+  if (options?.requireActive && project.status !== 'ACTIVE') {
+    throw new ValidationError('Project must be in ACTIVE status');
+  }
+
+  return project;
+}
+
+export async function addTeamMember(
+  projectId: string,
+  data: AddTeamMemberInput,
+  user: RequestUser,
+) {
+  const project = await loadProjectForTeam(projectId, user, { requireActive: true });
+
+  // T&M billing rate validation
+  if (project.engagementModel === 'TIME_AND_MATERIALS' && data.billingRatePaise == null) {
+    throw new ValidationError('billingRatePaise is required for T&M projects');
+  }
+
+  // Check employee exists and is not resigned
+  const employee = await prisma.employee.findUnique({
+    where: { id: data.employeeId },
+    select: { id: true, isResigned: true },
+  });
+
+  if (!employee) {
+    throw new NotFoundError('Employee not found');
+  }
+
+  if (employee.isResigned) {
+    throw new ValidationError('Cannot assign a resigned employee to a project');
+  }
+
+  try {
+    const record = await prisma.employeeProject.create({
+      data: {
+        projectId,
+        employeeId: data.employeeId,
+        role: data.role,
+        billingRatePaise: data.billingRatePaise ?? null,
+      },
+    });
+
+    return {
+      employeeId: record.employeeId,
+      role: record.role,
+      billingRatePaise: record.billingRatePaise != null ? Number(record.billingRatePaise) : null,
+      assignedAt: record.assignedAt,
+    };
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      throw new ConflictError('Employee is already assigned to this project');
+    }
+    throw error;
+  }
+}
+
+export async function getTeamMembers(projectId: string, user: RequestUser) {
+  await loadProjectForTeam(projectId, user, { additionalRoles: ['FINANCE'] });
+
+  const members = await prisma.employeeProject.findMany({
+    where: { projectId },
+    include: {
+      employee: {
+        select: { name: true, designation: true },
+      },
+    },
+    orderBy: { assignedAt: 'asc' },
+  });
+
+  return members.map((m) => ({
+    employeeId: m.employeeId,
+    name: m.employee.name,
+    designation: m.employee.designation,
+    role: m.role,
+    billingRatePaise: m.billingRatePaise != null ? Number(m.billingRatePaise) : null,
+    assignedAt: m.assignedAt,
+  }));
+}
+
+export async function removeTeamMember(
+  projectId: string,
+  employeeId: string,
+  user: RequestUser,
+) {
+  await loadProjectForTeam(projectId, user, { requireActive: true });
+
+  try {
+    await prisma.employeeProject.delete({
+      where: {
+        projectId_employeeId: { projectId, employeeId },
+      },
+    });
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+      throw new NotFoundError('Team member not found');
+    }
+    throw error;
+  }
 }

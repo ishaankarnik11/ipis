@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from 'express';
-import { createProjectSchema, rejectProjectSchema, updateProjectSchema } from '@ipis/shared';
+import { createProjectSchema, rejectProjectSchema, updateProjectSchema, addTeamMemberSchema } from '@ipis/shared';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { rbacMiddleware } from '../middleware/rbac.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -84,6 +84,46 @@ router.post(
   rbacMiddleware(['DELIVERY_MANAGER']),
   asyncHandler(async (req, res) => {
     await projectService.resubmitProject(req.params.id as string, req.user!);
+    res.json({ success: true });
+  }),
+);
+
+// ── Team Roster Routes ──────────────────────────────────────────────
+
+// POST /api/v1/projects/:id/team-members — Add team member (DM + Admin)
+router.post(
+  '/:id/team-members',
+  authMiddleware,
+  rbacMiddleware(['DELIVERY_MANAGER', 'ADMIN']),
+  validate(addTeamMemberSchema),
+  asyncHandler(async (req, res) => {
+    const member = await projectService.addTeamMember(req.params.id as string, req.body, req.user!);
+    res.status(201).json({ data: member });
+  }),
+);
+
+// GET /api/v1/projects/:id/team-members — List team members (DM + Admin + Finance)
+router.get(
+  '/:id/team-members',
+  authMiddleware,
+  rbacMiddleware(['DELIVERY_MANAGER', 'ADMIN', 'FINANCE']),
+  asyncHandler(async (req, res) => {
+    const members = await projectService.getTeamMembers(req.params.id as string, req.user!);
+    res.json({ data: members });
+  }),
+);
+
+// DELETE /api/v1/projects/:id/team-members/:employeeId — Remove team member (DM + Admin)
+router.delete(
+  '/:id/team-members/:employeeId',
+  authMiddleware,
+  rbacMiddleware(['DELIVERY_MANAGER', 'ADMIN']),
+  asyncHandler(async (req, res) => {
+    await projectService.removeTeamMember(
+      req.params.id as string,
+      req.params.employeeId as string,
+      req.user!,
+    );
     res.json({ success: true });
   }),
 );
