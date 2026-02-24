@@ -20,6 +20,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.996.0",
     "@ipis/shared": "workspace:*",
     "@prisma/client": "^6.4.0",
     "bcrypt": "^5.1.1",

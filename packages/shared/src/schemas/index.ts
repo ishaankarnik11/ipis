@@ -19,6 +19,18 @@ export {
 export {
   employeeRowSchema,
   bulkUploadResponseSchema,
+  createEmployeeSchema,
+  updateEmployeeSchema,
   type EmployeeRowInput,
   type BulkUploadResponse,
+  type CreateEmployeeInput,
+  type UpdateEmployeeInput,
 } from './employee.schema';
+export {
+  createProjectSchema,
+  rejectProjectSchema,
+  updateProjectSchema,
+  type CreateProjectInput,
+  type RejectProjectInput,
+  type UpdateProjectInput,
+} from './project.schema';
