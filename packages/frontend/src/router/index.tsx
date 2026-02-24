@@ -10,6 +10,7 @@ import ChangePassword from '../pages/auth/ChangePassword';
 import UserManagement from '../pages/admin/UserManagement';
 import SystemConfig from '../pages/admin/SystemConfig';
 import AuditLog from '../pages/admin/AuditLog';
+import EmployeeList from '../pages/employees/EmployeeList';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -67,8 +68,13 @@ export const router = createBrowserRouter([
             ],
           },
 
-          // Shared routes
-          { path: '/employees', element: <PlaceholderPage title="Employees" /> },
+          // Employee management (HR, Admin, Finance)
+          {
+            element: <RoleGuard allowedRoles={['HR', 'ADMIN', 'FINANCE']} />,
+            children: [
+              { path: '/employees', element: <EmployeeList /> },
+            ],
+          },
           { path: '/projects', element: <PlaceholderPage title="Projects" /> },
           { path: '/dashboards/executive', element: <PlaceholderPage title="Executive Dashboard" /> },
           { path: '/dashboards/department', element: <PlaceholderPage title="Department Dashboard" /> },

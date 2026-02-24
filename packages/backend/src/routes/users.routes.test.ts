@@ -308,8 +308,19 @@ describe('User & Department Routes', () => {
       expect(res.body.data[0]).toEqual({ id: 'dept-1', name: 'Engineering' });
     });
 
-    it('should return 403 for non-admin', async () => {
+    it('should return 200 for FINANCE (allowed by RBAC)', async () => {
       const cookies = await loginAs('FINANCE');
+      mockDeptFindMany.mockResolvedValue([{ id: 'dept-1', name: 'Engineering' }]);
+
+      const res = await request(app)
+        .get('/api/v1/departments')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(200);
+    });
+
+    it('should return 403 for unauthorized roles', async () => {
+      const cookies = await loginAs('DELIVERY_MANAGER');
 
       const res = await request(app)
         .get('/api/v1/departments')

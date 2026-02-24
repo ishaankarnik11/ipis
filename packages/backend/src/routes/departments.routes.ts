@@ -6,11 +6,11 @@ import * as userService from '../services/user.service.js';
 
 const router: RouterType = Router();
 
-// GET /api/v1/departments — List all departments (Admin only)
+// GET /api/v1/departments — List all departments
 router.get(
   '/',
   authMiddleware,
-  rbacMiddleware(['ADMIN']),
+  rbacMiddleware(['ADMIN', 'HR', 'FINANCE']),
   asyncHandler(async (_req, res) => {
     const departments = await userService.getAllDepartments();
     res.json({ data: departments });

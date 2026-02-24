@@ -1,6 +1,6 @@
 # Story 2.3: Employee Management UI — List, Add, Edit & Resign
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -44,44 +44,44 @@ so that I can maintain accurate employee records without requiring database acce
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: API client functions (AC: 1, 4, 5, 6)
-  - [ ] 1.1 Create `services/employees.api.ts` — `getAll()`, `create(data)`, `update(id, data)`, `resign(id)`
-  - [ ] 1.2 Define query keys: `employeeKeys = { all: ['employees'] as const, detail: (id) => ['employees', id] as const }`
-  - [ ] 1.3 Export query keys as constants — never inline in components
+- [x] Task 1: API client functions (AC: 1, 4, 5, 6)
+  - [x] 1.1 Create `services/employees.api.ts` — `getAll()`, `create(data)`, `update(id, data)`, `resign(id)`
+  - [x] 1.2 Define query keys: `employeeKeys = { all: ['employees'] as const, detail: (id) => ['employees', id] as const }`
+  - [x] 1.3 Export query keys as constants — never inline in components
 
-- [ ] Task 2: Employee List page (AC: 1, 2, 7)
-  - [ ] 2.1 Create `pages/employees/EmployeeList.tsx`
-  - [ ] 2.2 antd `Table` with `size="small"`, columns: Employee Code, Name, Designation, Department, Billable, Status
-  - [ ] 2.3 Conditional CTC column: visible only if `useAuth()` returns Finance or Admin role; formatted via `formatCurrency()`, right-aligned, `tabular-nums`
-  - [ ] 2.4 Status column: antd `Tag` — green "Active" / red "Resigned"
-  - [ ] 2.5 Action buttons visible on row hover: Edit, Mark as Resigned (only for active employees)
-  - [ ] 2.6 Search input above table: debounced 300ms, filters by employeeCode or name (client-side filter)
+- [x] Task 2: Employee List page (AC: 1, 2, 7)
+  - [x] 2.1 Create `pages/employees/EmployeeList.tsx`
+  - [x] 2.2 antd `Table` with `size="small"`, columns: Employee Code, Name, Designation, Department, Billable, Status
+  - [x] 2.3 Conditional CTC column: visible only if `useAuth()` returns Finance or Admin role; formatted via `formatCurrency()`, right-aligned, `tabular-nums`
+  - [x] 2.4 Status column: antd `Tag` — green "Active" / red "Resigned"
+  - [x] 2.5 Action buttons visible on row hover: Edit, Mark as Resigned (only for active employees)
+  - [x] 2.6 Search input above table: debounced 300ms, filters by employeeCode or name (client-side filter)
 
-- [ ] Task 3: Add/Edit Employee Modal (AC: 3, 4, 5, 8)
-  - [ ] 3.1 Create `pages/employees/EmployeeFormModal.tsx` — antd `Modal` + `Form`
-  - [ ] 3.2 Fields: Employee Code (required, disabled on edit), Name (required), Department Select (required, fetched from GET /api/v1/departments), Designation (required), Annual CTC InputNumber with ₹ prefix (required, positive integer), Joining Date DatePicker, Billable Checkbox (default: true)
-  - [ ] 3.3 On blur validation for required fields
-  - [ ] 3.4 On submit: POST (create) or PATCH (edit), close modal, invalidate `['employees']`, show Notification
+- [x] Task 3: Add/Edit Employee Modal (AC: 3, 4, 5, 8)
+  - [x] 3.1 Create `pages/employees/EmployeeFormModal.tsx` — antd `Modal` + `Form`
+  - [x] 3.2 Fields: Employee Code (required, disabled on edit), Name (required), Department Select (required, fetched from GET /api/v1/departments), Designation (required), Annual CTC InputNumber with ₹ prefix (required, positive integer), Joining Date DatePicker, Billable Checkbox (default: true)
+  - [x] 3.3 On blur validation for required fields
+  - [x] 3.4 On submit: POST (create) or PATCH (edit), close modal, invalidate `['employees']`, show Notification
 
-- [ ] Task 4: Resign confirmation (AC: 6)
-  - [ ] 4.1 Resign button opens antd `Modal.confirm` with message "Mark [name] as resigned? This cannot be undone."
-  - [ ] 4.2 On confirm: call `PATCH /api/v1/employees/:id/resign`, invalidate `['employees']`
-  - [ ] 4.3 After resign: Edit and Resign actions disappear for that row
+- [x] Task 4: Resign confirmation (AC: 6)
+  - [x] 4.1 Resign button opens antd `Modal.confirm` with message "Mark [name] as resigned? This cannot be undone."
+  - [x] 4.2 On confirm: call `PATCH /api/v1/employees/:id/resign`, invalidate `['employees']`
+  - [x] 4.3 After resign: Edit and Resign actions disappear for that row
 
-- [ ] Task 5: Route + navigation (AC: 1)
-  - [ ] 5.1 Add `/employees` route in `router/index.tsx`
-  - [ ] 5.2 Add "Employees" to sidebar navigation for HR, Admin, Finance roles
-  - [ ] 5.3 Add `RoleGuard` for employee pages
+- [x] Task 5: Route + navigation (AC: 1)
+  - [x] 5.1 Add `/employees` route in `router/index.tsx`
+  - [x] 5.2 Add "Employees" to sidebar navigation for HR, Admin, Finance roles
+  - [x] 5.3 Add `RoleGuard` for employee pages
 
-- [ ] Task 6: Tests (AC: 1-8)
-  - [ ] 6.1 Create `pages/employees/EmployeeList.test.tsx`
-  - [ ] 6.2 Test: HR sees table without CTC column
-  - [ ] 6.3 Test: Finance sees table with CTC column formatted correctly
-  - [ ] 6.4 Test: Add Employee modal opens with correct fields
-  - [ ] 6.5 Test: Edit modal pre-populates data
-  - [ ] 6.6 Test: Resign confirmation modal appears
-  - [ ] 6.7 Test: Search filters table by name/code
-  - [ ] 6.8 Test: Required field blur validation
+- [x] Task 6: Tests (AC: 1-8)
+  - [x] 6.1 Create `pages/employees/EmployeeList.test.tsx`
+  - [x] 6.2 Test: HR sees table without CTC column
+  - [x] 6.3 Test: Finance sees table with CTC column formatted correctly
+  - [x] 6.4 Test: Add Employee modal opens with correct fields
+  - [x] 6.5 Test: Edit modal pre-populates data
+  - [x] 6.6 Test: Resign confirmation modal appears
+  - [x] 6.7 Test: Search filters table by name/code
+  - [x] 6.8 Test: Required field blur validation
 
 ## Dev Notes
 
@@ -169,6 +169,35 @@ packages/frontend/src/layouts/           # Add Employees nav item for HR/Admin/F
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
+
 ### Debug Log References
+- Test failures resolved: CTC currency text matching (split elements), modal title text duplicates (button vs dialog), Billable "Yes" count (scoped to table)
+- Code review fixes: M1 resign error handler, M2 mutation submission tests, M3 departments RBAC
+
 ### Completion Notes List
+- Created `employees.api.ts` with typed API client functions (`getEmployees`, `createEmployee`, `updateEmployee`, `resignEmployee`) and exported query keys as constants
+- Created `EmployeeList.tsx` following established UserManagement pattern: antd Table (size="small"), role-based CTC column visibility via `useAuth()`, Status tags (green Active / red Resigned), action buttons hidden on hover for active employees only, debounced 300ms search filtering by code/name
+- Created `EmployeeFormModal.tsx` with antd Form + Modal: separate create/update mutations, Employee Code disabled on edit, Department Select populated from departments API, CTC InputNumber with ₹ prefix (converts rupees to paise on submit), DatePicker for joining date, Billable checkbox defaulting to true, validation on blur
+- Updated `router/index.tsx`: replaced Employees placeholder with real EmployeeList component wrapped in RoleGuard for HR, Admin, Finance
+- Updated `config/navigation.ts`: added Admin and Finance roles to Employees nav item
+- Created 15 component tests covering all 8 ACs: role-based column visibility, modal interactions, form validation, search filtering, resign confirmation, status badges, department name mapping
+- **Code Review Fixes Applied:**
+  - M1: Added `onError` handler to resign mutation in EmployeeList.tsx — displays error message on failure
+  - M2: Added 3 mutation submission tests (create form wiring, resign API call, resign success message) — 18 frontend tests total for this component
+  - M3: Updated `GET /departments` RBAC from `['ADMIN']` to `['ADMIN', 'HR', 'FINANCE']` — HR and Finance can now fetch department list for employee form Select
+
 ### File List
+- `packages/frontend/src/services/employees.api.ts` (new)
+- `packages/frontend/src/pages/employees/EmployeeList.tsx` (new)
+- `packages/frontend/src/pages/employees/EmployeeFormModal.tsx` (new)
+- `packages/frontend/src/pages/employees/EmployeeList.test.tsx` (new)
+- `packages/frontend/src/router/index.tsx` (modified — replaced placeholder, added RoleGuard)
+- `packages/frontend/src/config/navigation.ts` (modified — added Admin, Finance to Employees roles)
+- `packages/backend/src/routes/departments.routes.ts` (modified — RBAC expanded to HR, Finance)
+- `packages/backend/src/routes/departments.routes.test.ts` (modified — updated RBAC tests)
+- `packages/backend/src/routes/users.routes.test.ts` (modified — updated departments RBAC test)
+
+### Change Log
+- 2026-02-24: Story 2.3 implementation complete — Employee Management UI with List, Add, Edit, Resign, Search, and role-based CTC visibility. 15 tests all passing, 88 frontend tests total, 257 backend tests all pass.
+- 2026-02-24: Code review fixes — M1 resign error handler, M2 mutation tests (+3), M3 departments RBAC for HR/Finance. 91 frontend, 260 backend, 40 shared = 391 total tests, all passing.

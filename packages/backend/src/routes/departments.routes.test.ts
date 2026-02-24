@@ -91,8 +91,32 @@ describe('Department Routes', () => {
       expect(res.body.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('should return 403 for non-ADMIN authenticated users', async () => {
+    it('should return 200 for HR users', async () => {
+      const cookies = await loginAs('HR');
+      mockDeptFindMany.mockResolvedValue([{ id: 'dept-1', name: 'Engineering' }]);
+
+      const res = await request(app)
+        .get('/api/v1/departments')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+    });
+
+    it('should return 200 for FINANCE users', async () => {
       const cookies = await loginAs('FINANCE');
+      mockDeptFindMany.mockResolvedValue([{ id: 'dept-1', name: 'Engineering' }]);
+
+      const res = await request(app)
+        .get('/api/v1/departments')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+    });
+
+    it('should return 403 for unauthorized roles', async () => {
+      const cookies = await loginAs('DELIVERY_MANAGER');
 
       const res = await request(app)
         .get('/api/v1/departments')
