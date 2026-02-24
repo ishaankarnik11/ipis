@@ -57,13 +57,13 @@ development_status:
   2-1-employee-salary-master-bulk-upload-api: done
   2-2-individual-employee-management-api: review
   2-3-employee-management-ui-list-add-edit-and-resign: done
-  2-4-bulk-upload-ui-and-failed-rows-download: in-progress
+  2-4-bulk-upload-ui-and-failed-rows-download: done
   epic-2-retrospective: optional
 
   # Epic 3: Project Lifecycle & Team Management
   epic-3: in-progress
   3-1-project-management-api-create-approve-and-reject: done
-  3-2-team-roster-management-api: ready-for-dev
+  3-2-team-roster-management-api: in-progress
   3-3-project-creation-and-status-ui: ready-for-dev
   3-4-project-list-and-detail-ui: ready-for-dev
   3-5-admin-approval-rejection-ui-and-pending-approvals-panel: ready-for-dev

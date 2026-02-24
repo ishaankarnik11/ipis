@@ -1,6 +1,6 @@
 # Story 2.4: Bulk Upload UI & Failed Rows Download
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -48,46 +48,46 @@ so that I can efficiently import all employees and quickly identify and fix any 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Upload Center page skeleton (AC: 1)
-  - [ ] 1.1 Create `pages/upload/UploadCenter.tsx` — page shell with section for salary uploads
-  - [ ] 1.2 antd `Upload.Dragger` with label "Upload Employee Salary Master (.xlsx)"
-  - [ ] 1.3 "Download Sample Template" link below the dragger
-  - [ ] 1.4 Add `/uploads` route in `router/index.tsx`
-  - [ ] 1.5 Add "Upload Center" to sidebar for HR role
+- [x] Task 1: Upload Center page skeleton (AC: 1)
+  - [x] 1.1 Create `pages/upload/UploadCenter.tsx` — page shell with section for salary uploads
+  - [x] 1.2 antd `Upload.Dragger` with label "Upload Employee Salary Master (.xlsx)"
+  - [x] 1.3 "Download Sample Template" link below the dragger
+  - [x] 1.4 Add `/uploads` route in `router/index.tsx`
+  - [x] 1.5 Add "Upload Center" to sidebar for HR role
 
-- [ ] Task 2: Upload API functions (AC: 2, 3)
-  - [ ] 2.1 Create `services/uploads.api.ts` — `uploadSalaryFile(file)`, `downloadTemplate()`
-  - [ ] 2.2 Define query keys: `uploadKeys = { history: ['uploads', 'history'] as const }`
-  - [ ] 2.3 `downloadTemplate()` triggers browser download of template xlsx
+- [x] Task 2: Upload API functions (AC: 2, 3)
+  - [x] 2.1 Create `services/uploads.api.ts` — `uploadSalaryFile(file)`, `downloadTemplate()`
+  - [x] 2.2 Define query keys: `uploadKeys = { history: ['uploads', 'history'] as const }`
+  - [x] 2.3 `downloadTemplate()` triggers browser download of template xlsx
 
-- [ ] Task 3: File upload interaction (AC: 3, 6, 7)
-  - [ ] 3.1 `beforeUpload` hook: reject non-xlsx with message
-  - [ ] 3.2 On valid file: disable upload button, show `Spin` indicator
-  - [ ] 3.3 Call `POST /api/v1/employees/bulk-upload` via `useMutation`
-  - [ ] 3.4 On success: render `UploadConfirmationCard` with results
+- [x] Task 3: File upload interaction (AC: 3, 6, 7)
+  - [x] 3.1 `beforeUpload` hook: reject non-xlsx with message
+  - [x] 3.2 On valid file: disable upload button, show `Spin` indicator
+  - [x] 3.3 Call `POST /api/v1/employees/bulk-upload` via `useMutation`
+  - [x] 3.4 On success: render `UploadConfirmationCard` with results
 
-- [ ] Task 4: UploadConfirmationCard component (AC: 3, 4, 5, 9)
-  - [ ] 4.1 Create `components/UploadConfirmationCard.tsx`
-  - [ ] 4.2 Show: filename, total rows, imported count, failed count, error type summary
-  - [ ] 4.3 "Download Failed Rows" button — visible only when `failed > 0`
-  - [ ] 4.4 Download generates `.xlsx` with failed rows + error column (client-side generation from API response data using `xlsx` package)
-  - [ ] 4.5 Re-upload button to try corrected file
+- [x] Task 4: UploadConfirmationCard component (AC: 3, 4, 5, 9)
+  - [x] 4.1 Create `components/UploadConfirmationCard.tsx`
+  - [x] 4.2 Show: filename, total rows, imported count, failed count, error type summary
+  - [x] 4.3 "Download Failed Rows" button — visible only when `failed > 0`
+  - [x] 4.4 Download generates `.xlsx` with failed rows + error column (client-side generation from API response data using `xlsx` package)
+  - [x] 4.5 Re-upload button to try corrected file
 
-- [ ] Task 5: UploadHistoryLog component (AC: 8)
-  - [ ] 5.1 Create `components/UploadHistoryLog.tsx`
-  - [ ] 5.2 antd `Table` showing recent salary uploads: File Type, Upload Date, Uploaded By, Records Imported
-  - [ ] 5.3 Ordered newest first
-  - [ ] 5.4 Data source: `GET /api/v1/uploads/history?type=SALARY` (to be built in Epic 5, for now use mock or the bulk upload response)
+- [x] Task 5: UploadHistoryLog component (AC: 8)
+  - [x] 5.1 Create `components/UploadHistoryLog.tsx`
+  - [x] 5.2 antd `Table` showing recent salary uploads: File Type, Upload Date, Uploaded By, Records Imported
+  - [x] 5.3 Ordered newest first
+  - [x] 5.4 Data source: `GET /api/v1/uploads/history?type=SALARY` (to be built in Epic 5, for now use mock or the bulk upload response)
 
-- [ ] Task 6: Tests (AC: 1-9)
-  - [ ] 6.1 Create `pages/upload/UploadCenter.test.tsx`
-  - [ ] 6.2 Test: Upload.Dragger renders with correct label
-  - [ ] 6.3 Test: Non-xlsx file rejected before upload
-  - [ ] 6.4 Test: Loading state during upload
-  - [ ] 6.5 Test: UploadConfirmationCard shows correct counts
-  - [ ] 6.6 Test: Download Failed Rows button visible when failures exist
-  - [ ] 6.7 Test: Download Failed Rows button absent when all succeed
-  - [ ] 6.8 Test: Template download link present
+- [x] Task 6: Tests (AC: 1-9)
+  - [x] 6.1 Create `pages/upload/UploadCenter.test.tsx`
+  - [x] 6.2 Test: Upload.Dragger renders with correct label
+  - [x] 6.3 Test: Non-xlsx file rejected before upload
+  - [x] 6.4 Test: Loading state during upload
+  - [x] 6.5 Test: UploadConfirmationCard shows correct counts
+  - [x] 6.6 Test: Download Failed Rows button visible when failures exist
+  - [x] 6.7 Test: Download Failed Rows button absent when all succeed
+  - [x] 6.8 Test: Template download link present
 
 ## Dev Notes
 
@@ -193,6 +193,35 @@ packages/frontend/src/layouts/           # Add Upload Center nav item for HR
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
+
 ### Debug Log References
+- antd v6 Spin `tip` prop deprecated → replaced with `description`
+- api.ts `post()` uses JSON.stringify → added `postForm()` helper for FormData uploads
+
 ### Completion Notes List
+- Created UploadCenter page with Upload.Dragger for salary file uploads (AC 1)
+- Implemented downloadTemplate() using anchor element for same-origin cookie-authenticated download (AC 2)
+- File upload via useMutation with beforeUpload validation rejecting non-.xlsx files (AC 3, 6, 7)
+- UploadConfirmationCard shows filename, total/imported/failed counts, error summary (AC 3, 9)
+- Download Failed Rows button generates client-side .xlsx using SheetJS, hidden when no failures (AC 4, 9)
+- Re-upload button in UploadConfirmationCard for corrected file upload (AC 5)
+- UploadHistoryLog shows current session upload data; full history deferred to Epic 5 API (AC 8)
+- Added `postForm()` to api.ts for FormData uploads preserving 401 interceptor
+- 14 tests covering all ACs — all 105 project tests pass with zero regressions
+
+### Change Log
+- 2026-02-24: Story 2.4 implementation complete — Upload Center UI with bulk upload, failed rows download, and upload history
+- 2026-02-25: Code review fixes — H1: fixed UploadFile→File type mismatch (moved upload trigger to beforeUpload where RcFile is native File); H2: removed redundant handleDrop causing duplicate error toasts; M1: added test for Download Failed Rows click behavior; M2: added test for upload error path; M3: xlsx lazy-loaded via dynamic import; M4: UploadHistoryLog now accepts recentUploads prop and shows current session data
+
 ### File List
+- packages/frontend/src/pages/upload/UploadCenter.tsx (new)
+- packages/frontend/src/pages/upload/UploadCenter.test.tsx (new)
+- packages/frontend/src/components/UploadConfirmationCard.tsx (new)
+- packages/frontend/src/components/UploadHistoryLog.tsx (new)
+- packages/frontend/src/services/uploads.api.ts (new)
+- packages/frontend/src/services/api.ts (modified — added postForm)
+- packages/frontend/src/router/index.tsx (modified — added /uploads route)
+- packages/frontend/src/config/navigation.ts (modified — added Upload Center nav item for HR)
+- packages/frontend/package.json (modified — added xlsx dependency)
+- pnpm-lock.yaml (modified — xlsx dependency lockfile)

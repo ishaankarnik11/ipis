@@ -11,6 +11,7 @@ import UserManagement from '../pages/admin/UserManagement';
 import SystemConfig from '../pages/admin/SystemConfig';
 import AuditLog from '../pages/admin/AuditLog';
 import EmployeeList from '../pages/employees/EmployeeList';
+import UploadCenter from '../pages/upload/UploadCenter';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -73,6 +74,14 @@ export const router = createBrowserRouter([
             element: <RoleGuard allowedRoles={['HR', 'ADMIN', 'FINANCE']} />,
             children: [
               { path: '/employees', element: <EmployeeList /> },
+            ],
+          },
+
+          // Upload Center (HR only)
+          {
+            element: <RoleGuard allowedRoles={['HR']} />,
+            children: [
+              { path: '/uploads', element: <UploadCenter /> },
             ],
           },
           { path: '/projects', element: <PlaceholderPage title="Projects" /> },
