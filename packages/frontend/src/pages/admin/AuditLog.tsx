@@ -1,5 +1,5 @@
-import { useMemo, useCallback } from 'react';
-import { Table, Tag, Select, DatePicker, Input, Space, Empty } from 'antd';
+import { useMemo, useCallback, useRef, useEffect } from 'react';
+import { Table, Tag, Select, DatePicker, Input, Space, Empty, Alert } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
@@ -47,9 +47,9 @@ const actionColorMap: Record<string, string> = {
   SETTINGS_UPDATED: 'blue',
 };
 
-let debounceTimer: ReturnType<typeof setTimeout>;
-
 export default function AuditLog() {
+  const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(debounceTimer.current), []);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const page = parseInt(searchParams.get('page') || '1');
@@ -64,7 +64,7 @@ export default function AuditLog() {
     [page, pageSize, actions.join(','), startDate, endDate, actorEmail],
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: auditKeys.list(filters),
     queryFn: () => getAuditLog(filters),
     placeholderData: keepPreviousData,
@@ -95,8 +95,8 @@ export default function AuditLog() {
 
   const handleActorSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
       updateParams({ actorEmail: value || undefined });
     }, 300);
   };
@@ -181,6 +181,16 @@ export default function AuditLog() {
           allowClear
         />
       </Space>
+
+      {isError && (
+        <Alert
+          type="error"
+          title="Failed to load audit log"
+          description="An error occurred while fetching audit events. Please try again."
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <Table<AuditEvent>
         columns={columns}

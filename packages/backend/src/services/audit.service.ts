@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 
 export interface AuditLogFilters {
@@ -16,16 +17,20 @@ export async function getAuditLog(
   filters: AuditLogFilters,
   pagination: AuditLogPagination,
 ) {
-  const where: Record<string, unknown> = {};
+  const where: Prisma.AuditEventWhereInput = {};
 
   if (filters.actions && filters.actions.length > 0) {
     where.action = { in: filters.actions };
   }
 
   if (filters.startDate || filters.endDate) {
-    const createdAt: Record<string, Date> = {};
+    const createdAt: Prisma.DateTimeFilter = {};
     if (filters.startDate) createdAt.gte = new Date(filters.startDate);
-    if (filters.endDate) createdAt.lte = new Date(filters.endDate);
+    if (filters.endDate) {
+      const end = new Date(filters.endDate);
+      end.setUTCHours(23, 59, 59, 999);
+      createdAt.lte = end;
+    }
     where.createdAt = createdAt;
   }
 

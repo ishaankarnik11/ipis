@@ -1,6 +1,6 @@
 # Story 7.3: Audit Log View
 
-Status: review
+Status: done
 
 ## Story
 
@@ -187,6 +187,7 @@ Claude Opus 4.6
 
 ### Change Log
 - 2026-02-24: Story 7.3 implemented — audit_events table, API, UI, and tests (26 total new tests)
+- 2026-02-24: Code review (R1) — fixed 5 issues: date range end-of-day boundary bug, module-level debounce timer leak, Prisma where clause typing, error state UI feedback, removed false index.ts file list entry
 
 ### File List
 - packages/backend/prisma/schema.prisma (modified — added AuditEvent model + User relation)
@@ -195,7 +196,6 @@ Claude Opus 4.6
 - packages/backend/src/services/audit.service.test.ts (new)
 - packages/backend/src/routes/audit.routes.ts (new)
 - packages/backend/src/routes/audit.routes.test.ts (new)
-- packages/backend/src/routes/index.ts (modified — registered audit routes)
 - packages/frontend/src/services/audit.api.ts (new)
 - packages/frontend/src/pages/admin/AuditLog.tsx (new)
 - packages/frontend/src/pages/admin/audit-log.test.tsx (new)

@@ -90,10 +90,10 @@ describe('audit.service', () => {
       );
 
       const where = mockFindMany.mock.calls[0][0].where;
-      expect(where.createdAt).toEqual({
-        gte: new Date('2026-01-01'),
-        lte: new Date('2026-01-31'),
-      });
+      expect(where.createdAt.gte).toEqual(new Date('2026-01-01'));
+      const expectedEnd = new Date('2026-01-31');
+      expectedEnd.setUTCHours(23, 59, 59, 999);
+      expect(where.createdAt.lte).toEqual(expectedEnd);
     });
 
     it('should apply actor email ILIKE filter', async () => {

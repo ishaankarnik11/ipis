@@ -1,6 +1,8 @@
 import { Router, type Router as RouterType } from 'express';
+import { createEmployeeSchema, updateEmployeeSchema } from '@ipis/shared';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { rbacMiddleware } from '../middleware/rbac.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import { uploadSingle } from '../middleware/upload.middleware.js';
 import { ValidationError } from '../lib/errors.js';
@@ -35,6 +37,63 @@ router.get(
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=employee-salary-template.xlsx');
     res.send(buffer);
+  }),
+);
+
+// POST /api/v1/employees — Create individual employee (HR only)
+router.post(
+  '/',
+  authMiddleware,
+  rbacMiddleware(['HR']),
+  validate(createEmployeeSchema),
+  asyncHandler(async (req, res) => {
+    const employee = await employeeService.createEmployee(req.body);
+    res.status(201).json({ data: employee });
+  }),
+);
+
+// GET /api/v1/employees — List all employees (HR, Admin, Finance)
+router.get(
+  '/',
+  authMiddleware,
+  rbacMiddleware(['HR', 'ADMIN', 'FINANCE']),
+  asyncHandler(async (req, res) => {
+    const employees = await employeeService.getAll(req.user!);
+    res.json({ data: employees, meta: { total: employees.length } });
+  }),
+);
+
+// GET /api/v1/employees/:id — Get single employee (HR, Admin, Finance)
+router.get(
+  '/:id',
+  authMiddleware,
+  rbacMiddleware(['HR', 'ADMIN', 'FINANCE']),
+  asyncHandler(async (req, res) => {
+    const employee = await employeeService.getById(req.params.id!, req.user!);
+    res.json({ data: employee });
+  }),
+);
+
+// PATCH /api/v1/employees/:id — Update employee (HR only)
+router.patch(
+  '/:id',
+  authMiddleware,
+  rbacMiddleware(['HR']),
+  validate(updateEmployeeSchema),
+  asyncHandler(async (req, res) => {
+    const employee = await employeeService.updateEmployee(req.params.id!, req.body);
+    res.json({ data: employee });
+  }),
+);
+
+// PATCH /api/v1/employees/:id/resign — Resign employee (HR only)
+router.patch(
+  '/:id/resign',
+  authMiddleware,
+  rbacMiddleware(['HR']),
+  asyncHandler(async (req, res) => {
+    await employeeService.resignEmployee(req.params.id!);
+    res.json({ success: true });
   }),
 );
 

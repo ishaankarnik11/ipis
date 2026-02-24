@@ -1,7 +1,26 @@
-import { employeeRowSchema } from '@ipis/shared';
+import { employeeRowSchema, type CreateEmployeeInput, type UpdateEmployeeInput } from '@ipis/shared';
+import type { UserRole } from '@ipis/shared';
 import { prisma } from '../lib/prisma.js';
 import { parseExcelToRows } from '../lib/excel.js';
 import { logger } from '../lib/logger.js';
+import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js';
+
+interface AuthUser {
+  id: string;
+  role: UserRole;
+  email: string;
+}
+
+/** Convert BigInt fields to Number for JSON serialization */
+function serializeEmployee(emp: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...emp };
+  for (const key of Object.keys(result)) {
+    if (typeof result[key] === 'bigint') {
+      result[key] = Number(result[key]);
+    }
+  }
+  return result;
+}
 
 interface FailedRow {
   row: number;
@@ -110,15 +129,166 @@ export async function bulkUpload(buffer: Buffer) {
     });
   }
 
+  let importedCount = 0;
   if (validRows.length > 0) {
-    await prisma.employee.createMany({ data: validRows });
+    const { count } = await prisma.employee.createMany({
+      data: validRows,
+      skipDuplicates: true,
+    });
+    importedCount = count;
   }
 
-  logger.info({ imported: validRows.length, failed: failedRows.length }, 'Bulk upload completed');
+  const skipped = validRows.length - importedCount;
+  logger.info({ imported: importedCount, failed: failedRows.length, skipped }, 'Bulk upload completed');
 
   return {
-    imported: validRows.length,
-    failed: failedRows.length,
+    imported: importedCount,
+    failed: failedRows.length + skipped,
     failedRows,
   };
+}
+
+const baseSelect = {
+  id: true,
+  employeeCode: true,
+  name: true,
+  designation: true,
+  departmentId: true,
+  isBillable: true,
+  isResigned: true,
+} as const;
+
+const selectWithCtc = {
+  ...baseSelect,
+  annualCtcPaise: true,
+  joiningDate: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const selectWithoutCtc = {
+  ...baseSelect,
+  joiningDate: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function selectForRole(role: UserRole) {
+  return role === 'HR' ? selectWithoutCtc : selectWithCtc;
+}
+
+export async function createEmployee(input: CreateEmployeeInput) {
+  try {
+    const employee = await prisma.employee.create({
+      data: {
+        employeeCode: input.employeeCode,
+        name: input.name,
+        departmentId: input.departmentId,
+        designation: input.designation,
+        annualCtcPaise: BigInt(input.annualCtcPaise),
+        joiningDate: input.joiningDate ? new Date(input.joiningDate) : null,
+        isBillable: input.isBillable,
+      },
+    });
+
+    return serializeEmployee({
+      id: employee.id,
+      employeeCode: employee.employeeCode,
+      name: employee.name,
+      designation: employee.designation,
+      annualCtcPaise: employee.annualCtcPaise,
+      isBillable: employee.isBillable,
+      isResigned: employee.isResigned,
+    });
+  } catch (err: unknown) {
+    if (typeof err === 'object' && err !== null && 'code' in err) {
+      const prismaErr = err as { code: string };
+      if (prismaErr.code === 'P2002') {
+        throw new ConflictError(`Employee code ${input.employeeCode} already exists`);
+      }
+      if (prismaErr.code === 'P2003') {
+        throw new ValidationError('Department not found');
+      }
+    }
+    throw err;
+  }
+}
+
+export async function getAll(user: AuthUser) {
+  const employees = await prisma.employee.findMany({
+    select: selectForRole(user.role),
+    orderBy: { employeeCode: 'asc' },
+  });
+  return employees.map(serializeEmployee);
+}
+
+export async function getById(id: string, user: AuthUser) {
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    select: selectForRole(user.role),
+  });
+
+  if (!employee) {
+    throw new NotFoundError('Employee not found');
+  }
+
+  return serializeEmployee(employee);
+}
+
+export async function updateEmployee(id: string, data: UpdateEmployeeInput) {
+  return prisma.$transaction(async (tx) => {
+    const employee = await tx.employee.findUnique({
+      where: { id },
+      select: { id: true, isResigned: true },
+    });
+
+    if (!employee) {
+      throw new NotFoundError('Employee not found');
+    }
+
+    if (employee.isResigned) {
+      throw new ValidationError('Cannot edit a resigned employee');
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (data.designation !== undefined) updateData.designation = data.designation;
+    if (data.annualCtcPaise !== undefined) updateData.annualCtcPaise = BigInt(data.annualCtcPaise);
+    if (data.departmentId !== undefined) updateData.departmentId = data.departmentId;
+    if (data.isBillable !== undefined) updateData.isBillable = data.isBillable;
+
+    try {
+      const updated = await tx.employee.update({
+        where: { id },
+        data: updateData,
+      });
+      return serializeEmployee(updated);
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === 'P2003') {
+        throw new ValidationError('Department not found');
+      }
+      throw err;
+    }
+  });
+}
+
+export async function resignEmployee(id: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const employee = await tx.employee.findUnique({
+      where: { id },
+      select: { id: true, isResigned: true },
+    });
+
+    if (!employee) {
+      throw new NotFoundError('Employee not found');
+    }
+
+    if (employee.isResigned) {
+      throw new ValidationError('Employee is already resigned');
+    }
+
+    await tx.employee.update({
+      where: { id },
+      data: { isResigned: true },
+    });
+  });
 }

@@ -209,4 +209,14 @@ describe('AuditLog', () => {
 
     expect(screen.getByText('Audit Log')).toBeInTheDocument();
   });
+
+  it('should show error alert when API fails', async () => {
+    mockGetAuditLog.mockRejectedValue(new Error('Network error'));
+
+    renderAuditLog();
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load audit log')).toBeInTheDocument();
+    });
+  });
 });

@@ -1,6 +1,6 @@
 # Story 2.1: Employee Salary Master — Bulk Upload API
 
-Status: review
+Status: done
 
 ## Story
 
@@ -284,5 +284,21 @@ claude-opus-4-6
 - packages/backend/src/middleware/upload.middleware.ts (new)
 - packages/backend/src/lib/logger.ts (modified — added annualCtcPaise to redact)
 
+### Code Review Record
+
+**Review R1** — 2026-02-24 — claude-opus-4-6
+
+| ID | Sev | Category | Finding | Fix |
+|----|-----|----------|---------|-----|
+| H1 | HIGH | Concurrency | `createMany` lacks `skipDuplicates: true` — concurrent uploads with overlapping employee codes cause unhandled P2002 crash | Added `skipDuplicates: true`, use returned `count` for accurate imported tally, report skipped rows in `failed` total |
+| M1 | MEDIUM | Validation | `joining_date` accepts any string (e.g. "banana") — no date format validation | Added `isoDateString` refine validator with `Date.parse()` check to `employeeRowSchema` and `createEmployeeSchema` |
+| M2 | MEDIUM | Type Safety | `serializeEmployee` generic `<T>` return type lies — function always returns `Record<string, unknown>` | Changed signature to accept and return `Record<string, unknown>` honestly |
+| M3 | MEDIUM | Testing | CTC redaction test title claims "should not log annual_ctc_paise in any log call" but actually tests broader CTC exclusion | Updated test description to "should not include CTC data in any log call arguments" |
+| M4 | MEDIUM | Security | multer `fileFilter` only checks MIME type — attacker can rename `.exe` to have xlsx MIME | Added `file.originalname.toLowerCase().endsWith('.xlsx')` extension check alongside MIME validation |
+| L1 | LOW | Data Quality | String fields in `employeeRowSchema` accept whitespace-only values (e.g. `"   "`) | Added `.trim()` before `.min(1)` on `employee_code`, `name`, `department`, `designation` |
+
+All HIGH and MEDIUM findings fixed. 245 backend tests pass, 0 regressions.
+
 ### Change Log
 - 2026-02-24: Story 2.1 implemented — Employee Salary Master Bulk Upload API (all 7 tasks, 32 tests passing)
+- 2026-02-24: Code review R1 — 6 findings (1H, 4M, 1L) all fixed, 245 tests passing

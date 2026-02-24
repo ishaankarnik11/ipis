@@ -52,7 +52,7 @@ development_status:
 
   # Epic 2: Employee & Salary Data Management
   epic-2: in-progress
-  2-1-employee-salary-master-bulk-upload-api: review
+  2-1-employee-salary-master-bulk-upload-api: done
   2-2-individual-employee-management-api: review
   2-3-employee-management-ui-list-add-edit-and-resign: ready-for-dev
   2-4-bulk-upload-ui-and-failed-rows-download: ready-for-dev
@@ -96,6 +96,6 @@ development_status:
   epic-7: in-progress
   7-1-pdf-export: ready-for-dev
   7-2-shareable-report-links: ready-for-dev
-  7-3-audit-log-view: ready-for-dev
+  7-3-audit-log-view: done
   7-4-audit-event-instrumentation: ready-for-dev
   epic-7-retrospective: optional

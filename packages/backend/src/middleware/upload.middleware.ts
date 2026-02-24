@@ -8,7 +8,7 @@ export const uploadSingle = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype !== XLSX_MIME) {
+    if (file.mimetype !== XLSX_MIME || !file.originalname.toLowerCase().endsWith('.xlsx')) {
       cb(new ValidationError('Only .xlsx files are accepted'));
       return;
     }

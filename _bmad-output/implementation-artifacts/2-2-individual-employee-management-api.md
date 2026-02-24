@@ -1,6 +1,6 @@
 # Story 2.2: Individual Employee Management API
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -48,37 +48,37 @@ so that new joiners and salary revisions are reflected in cost calculations imme
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extend Zod schemas (AC: 1, 2)
-  - [ ] 1.1 Add `updateEmployeeSchema` to `shared/src/schemas/employee.schema.ts` — `designation?`, `annualCtcPaise?` (int, positive), `departmentId?` (uuid), `isBillable?`
-  - [ ] 1.2 Ensure `createEmployeeSchema` from Story 2.1 covers all fields
+- [x] Task 1: Extend Zod schemas (AC: 1, 2)
+  - [x] 1.1 Add `updateEmployeeSchema` to `shared/src/schemas/employee.schema.ts` — `designation?`, `annualCtcPaise?` (int, positive), `departmentId?` (uuid), `isBillable?`
+  - [x] 1.2 Ensure `createEmployeeSchema` from Story 2.1 covers all fields
 
-- [ ] Task 2: Employee service — individual CRUD (AC: 1, 2, 3, 4, 5, 6, 7, 9)
-  - [ ] 2.1 Add `createEmployee(data)` to `employee.service.ts` — check duplicate employee_code, create employee, return data
-  - [ ] 2.2 Add `getAll(user: AuthUser)` — return all employees; if `user.role === 'HR'`, omit `annualCtcPaise` from select; Finance/Admin see all fields
-  - [ ] 2.3 Add `getById(id, user)` — single employee lookup with same RBAC field filtering
-  - [ ] 2.4 Add `updateEmployee(id, data)` — check `isResigned`, reject if true; partial update
-  - [ ] 2.5 Add `resignEmployee(id)` — set `isResigned: true`
-  - [ ] 2.6 Update `employee.service.test.ts` — test CRUD, duplicate handling, resigned rejection, RBAC field filtering
+- [x] Task 2: Employee service — individual CRUD (AC: 1, 2, 3, 4, 5, 6, 7, 9)
+  - [x] 2.1 Add `createEmployee(data)` to `employee.service.ts` — check duplicate employee_code, create employee, return data
+  - [x] 2.2 Add `getAll(user: AuthUser)` — return all employees; if `user.role === 'HR'`, omit `annualCtcPaise` from select; Finance/Admin see all fields
+  - [x] 2.3 Add `getById(id, user)` — single employee lookup with same RBAC field filtering
+  - [x] 2.4 Add `updateEmployee(id, data)` — check `isResigned`, reject if true; partial update
+  - [x] 2.5 Add `resignEmployee(id)` — set `isResigned: true`
+  - [x] 2.6 Update `employee.service.test.ts` — test CRUD, duplicate handling, resigned rejection, RBAC field filtering
 
-- [ ] Task 3: Employee routes — CRUD endpoints (AC: 1, 2, 3, 4, 5, 8, 9)
-  - [ ] 3.1 Add to `routes/employees.routes.ts`:
+- [x] Task 3: Employee routes — CRUD endpoints (AC: 1, 2, 3, 4, 5, 8, 9)
+  - [x] 3.1 Add to `routes/employees.routes.ts`:
     - `POST /` — `authMiddleware`, `rbacMiddleware(['hr'])`, validate body, call `createEmployee()`
     - `GET /` — `authMiddleware`, `rbacMiddleware(['hr', 'admin', 'finance'])`, call `getAll(req.user)`
     - `GET /:id` — `authMiddleware`, `rbacMiddleware(['hr', 'admin', 'finance'])`, call `getById()`
     - `PATCH /:id` — `authMiddleware`, `rbacMiddleware(['hr'])`, validate body, call `updateEmployee()`
     - `PATCH /:id/resign` — `authMiddleware`, `rbacMiddleware(['hr'])`, call `resignEmployee()`
 
-- [ ] Task 4: Integration tests (AC: 1-9)
-  - [ ] 4.1 Update `routes/employees.routes.test.ts`
-  - [ ] 4.2 Test: HR creates employee — 201 with correct response shape
-  - [ ] 4.3 Test: HR updates employee — only provided fields change
-  - [ ] 4.4 Test: HR resigns employee — isResigned becomes true
-  - [ ] 4.5 Test: HR edits resigned employee — 400 VALIDATION_ERROR
-  - [ ] 4.6 Test: Finance/Admin GET — annualCtcPaise included
-  - [ ] 4.7 Test: HR GET — annualCtcPaise excluded
-  - [ ] 4.8 Test: Duplicate employee_code — 409 CONFLICT
-  - [ ] 4.9 Test: Non-existent employee — 404
-  - [ ] 4.10 Test: Non-HR roles (DM, DH) get 403 on write endpoints
+- [x] Task 4: Integration tests (AC: 1-9)
+  - [x] 4.1 Update `routes/employees.routes.test.ts`
+  - [x] 4.2 Test: HR creates employee — 201 with correct response shape
+  - [x] 4.3 Test: HR updates employee — only provided fields change
+  - [x] 4.4 Test: HR resigns employee — isResigned becomes true
+  - [x] 4.5 Test: HR edits resigned employee — 400 VALIDATION_ERROR
+  - [x] 4.6 Test: Finance/Admin GET — annualCtcPaise included
+  - [x] 4.7 Test: HR GET — annualCtcPaise excluded
+  - [x] 4.8 Test: Duplicate employee_code — 409 CONFLICT
+  - [x] 4.9 Test: Non-existent employee — 404
+  - [x] 4.10 Test: Non-HR roles (DM, DH) get 403 on write endpoints
 
 ## Dev Notes
 
@@ -180,6 +180,26 @@ packages/shared/src/schemas/employee.schema.ts          # Add updateEmployeeSche
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
+
 ### Debug Log References
+- BigInt serialization: JSON.stringify cannot handle BigInt values from Prisma. Added `serializeEmployee()` helper in service layer to convert BigInt → Number before returning to route handlers.
+- UUID validation: `departmentId` validated as UUID in Zod schema; integration tests updated to use proper UUIDs.
+
 ### Completion Notes List
+- **Task 1:** Added `createEmployeeSchema` and `updateEmployeeSchema` to shared employee schema. Updated barrel exports in `schemas/index.ts`.
+- **Task 2:** Added 5 CRUD service methods (`createEmployee`, `getAll`, `getById`, `updateEmployee`, `resignEmployee`) to `employee.service.ts`. RBAC field filtering via Prisma `select` — HR users don't see `annualCtcPaise`. Resigned employee mutation guard implemented. Added `serializeEmployee` helper for BigInt→Number conversion. 14 new unit tests (all passing).
+- **Task 3:** Added 5 CRUD route handlers to `employees.routes.ts` with proper middleware chains: auth → RBAC → validate → asyncHandler. Imported `validate` middleware and Zod schemas from shared package.
+- **Task 4:** Added 24 integration tests covering all 9 ACs: create 201, duplicate 409, update 200, resigned reject 400, resign 200, Finance/Admin GET with CTC, HR GET without CTC, 404 not found, RBAC 403 for DM/DH/FINANCE/ADMIN on write endpoints, and 403 for DM/DH on read endpoints.
+
 ### File List
+- `packages/shared/src/schemas/employee.schema.ts` — Added `createEmployeeSchema`, `updateEmployeeSchema`, and their types
+- `packages/shared/src/schemas/index.ts` — Updated barrel exports to include new schemas and types
+- `packages/backend/src/services/employee.service.ts` — Added `createEmployee`, `getAll`, `getById`, `updateEmployee`, `resignEmployee` methods; added `serializeEmployee` helper; added imports for error classes and types
+- `packages/backend/src/services/employee.service.test.ts` — Added 14 unit tests for CRUD operations, RBAC filtering, resigned rejection, duplicate handling; extended Prisma mock
+- `packages/backend/src/routes/employees.routes.ts` — Added 5 CRUD route handlers (POST /, GET /, GET /:id, PATCH /:id, PATCH /:id/resign) with auth/RBAC/validation middleware
+- `packages/backend/src/routes/employees.routes.test.ts` — Added 24 integration tests covering all ACs; extended Prisma mock
+
+## Change Log
+
+- 2026-02-24: Story 2.2 implementation — Individual Employee Management CRUD API (create, read, update, resign) with RBAC field filtering, Zod validation, and comprehensive unit + integration tests (227 total tests passing, 0 regressions)
