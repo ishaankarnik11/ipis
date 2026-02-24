@@ -21,7 +21,7 @@ vi.mock('../lib/prisma.js', () => ({
 
 // Mock email service
 vi.mock('../services/email.service.js', () => ({
-  sendPasswordResetEmail: vi.fn(),
+  sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock config
@@ -298,14 +298,23 @@ describe('Auth Routes', () => {
 
   describe('POST /api/v1/auth/reset-password', () => {
     it('should return success on valid token and password (AC 3)', async () => {
-      mockTokenFindFirst.mockResolvedValue({
+      const tokenRecord = {
         id: 'token-1',
         userId: 'user-1',
         tokenHash: 'hash',
         usedAt: null,
         expiresAt: new Date(Date.now() + 3600000),
+      };
+
+      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+        return fn({
+          passwordResetToken: {
+            findFirst: vi.fn().mockResolvedValue(tokenRecord),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          user: { update: vi.fn().mockResolvedValue({}) },
+        });
       });
-      mockTransaction.mockResolvedValue([]);
 
       const res = await request(app)
         .post('/api/v1/auth/reset-password')
@@ -316,7 +325,15 @@ describe('Auth Routes', () => {
     });
 
     it('should return 401 for invalid token', async () => {
-      mockTokenFindFirst.mockResolvedValue(null);
+      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+        return fn({
+          passwordResetToken: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            update: vi.fn(),
+          },
+          user: { update: vi.fn() },
+        });
+      });
 
       const res = await request(app)
         .post('/api/v1/auth/reset-password')
@@ -382,6 +399,33 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('should set mustChangePassword to false when changing password (AC 6)', async () => {
+      // Login as a user with mustChangePassword: true
+      const mustChangeUser = { ...activeUser(), mustChangePassword: true };
+      mockFindUnique.mockResolvedValue(mustChangeUser);
+      const loginRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'admin@test.com', password: 'correct-password' });
+      const cookies = loginRes.headers['set-cookie'];
+
+      mockFindUnique.mockResolvedValue(mustChangeUser);
+      mockUserUpdate.mockResolvedValue({});
+
+      const res = await request(app)
+        .post('/api/v1/auth/change-password')
+        .set('Cookie', cookies)
+        .send({ newPassword: 'newpass123' });
+
+      expect(res.status).toBe(200);
+      expect(mockUserUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            mustChangePassword: false,
+          }),
+        }),
+      );
     });
   });
 

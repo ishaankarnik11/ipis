@@ -35,7 +35,7 @@ vi.mock('../lib/config.js', () => ({
 
 // Mock email service
 vi.mock('./email.service.js', () => ({
-  sendPasswordResetEmail: vi.fn(),
+  sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { prisma } from '../lib/prisma.js';
@@ -280,29 +280,55 @@ describe('auth.service', () => {
   });
 
   describe('resetPassword', () => {
-    it('should update password and mark token as used in a transaction', async () => {
-      mockTokenFindFirst.mockResolvedValue({
+    it('should update password and mark token as used in an interactive transaction', async () => {
+      const tokenRecord = {
         id: 'token-1',
         userId: 'user-1',
         tokenHash: 'some-hash',
         usedAt: null,
         expiresAt: new Date(Date.now() + 3600000),
-      });
+      };
       mockHash.mockResolvedValue('new-hashed-password');
-      mockTransaction.mockResolvedValue([]);
+
+      const mockTxTokenFindFirst = vi.fn().mockResolvedValue(tokenRecord);
+      const mockTxUserUpdate = vi.fn().mockResolvedValue({});
+      const mockTxTokenUpdate = vi.fn().mockResolvedValue({});
+
+      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+        return fn({
+          passwordResetToken: {
+            findFirst: mockTxTokenFindFirst,
+            update: mockTxTokenUpdate,
+          },
+          user: { update: mockTxUserUpdate },
+        });
+      });
 
       await resetPassword('some-uuid-token', 'newpassword123');
 
       expect(mockHash).toHaveBeenCalledWith('newpassword123', 10);
-      // $transaction is called with an array of Prisma client promises
       expect(mockTransaction).toHaveBeenCalledTimes(1);
-      const transactionArg = mockTransaction.mock.calls[0][0];
-      expect(Array.isArray(transactionArg)).toBe(true);
-      expect(transactionArg).toHaveLength(2);
+      expect(mockTxUserUpdate).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { passwordHash: 'new-hashed-password' },
+      });
+      expect(mockTxTokenUpdate).toHaveBeenCalledWith({
+        where: { id: 'token-1' },
+        data: { usedAt: expect.any(Date) },
+      });
     });
 
     it('should throw UnauthorizedError for invalid token', async () => {
-      mockTokenFindFirst.mockResolvedValue(null);
+      mockHash.mockResolvedValue('new-hashed-password');
+      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+        return fn({
+          passwordResetToken: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            update: vi.fn(),
+          },
+          user: { update: vi.fn() },
+        });
+      });
 
       await expect(resetPassword('bad-token', 'newpassword123')).rejects.toThrow(UnauthorizedError);
       await expect(resetPassword('bad-token', 'newpassword123')).rejects.toThrow(

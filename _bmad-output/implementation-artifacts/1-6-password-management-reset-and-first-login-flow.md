@@ -1,6 +1,6 @@
 # Story 1.6: Password Management — Reset & First-Login Flow
 
-Status: review
+Status: done
 
 ## Story
 
@@ -307,11 +307,35 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-02-24: Implemented Story 1.6 — Password management (reset & first-login flow). Added password_reset_tokens Prisma migration, 4 new auth service functions, email service stub, 4 new API routes with rate limiting, 3 new frontend pages (ForgotPassword, ResetPassword, ChangePassword), AuthGuard mustChangePassword enforcement, "Forgot password?" link on Login page, and comprehensive test coverage.
+- 2026-02-24: Code review — 9 issues found (2 HIGH, 4 MEDIUM, 3 LOW). All HIGH and MEDIUM issues fixed: (H1) TOCTOU race in resetPassword fixed via interactive Prisma transaction, (H2) unhandled promise rejection in sendPasswordResetEmail fixed with .catch(), (M1) deprecated Alert `message` prop updated to `title` for antd v6, (M2) added mustChangePassword integration test, (M3) type-safe query param casting on validate-reset-token, (M4) added @@index on token_hash column. 224 tests passing (134 backend, 54 frontend, 36 shared).
+
+### Senior Developer Review (AI)
+
+**Reviewer:** Dell on 2026-02-24
+**Outcome:** Approved with fixes applied
+
+**Issues Found:** 2 HIGH, 4 MEDIUM, 3 LOW — all HIGH and MEDIUM fixed in-place.
+
+HIGH fixes:
+- H1: resetPassword TOCTOU race — converted batch $transaction to interactive transaction with find-inside-lock pattern
+- H2: void sendPasswordResetEmail — replaced with .catch() to prevent unhandled rejection crashes
+
+MEDIUM fixes:
+- M1: Alert deprecated `message` → `title` prop (antd v6) in ForgotPassword, ResetPassword, ChangePassword
+- M2: Added integration test verifying mustChangePassword cleared on change-password endpoint
+- M3: Type-safe query param: `typeof req.query['token'] === 'string'` guard on validate-reset-token
+- M4: Added @@index([tokenHash]) on password_reset_tokens + migration
+
+LOW (noted, not fixed):
+- L1: No expired/used token cleanup mechanism
+- L2: Dead code guard condition in AuthGuard (pathname !== '/change-password' unreachable)
+- L3: changePassword doesn't verify current password (by design for first-login flow)
 
 ### File List
 
 New files:
 - packages/backend/prisma/migrations/20260224071804_add_password_reset_tokens/migration.sql
+- packages/backend/prisma/migrations/20260224075918_add_token_hash_index/migration.sql
 - packages/backend/src/services/email.service.ts
 - packages/frontend/src/pages/auth/ForgotPassword.tsx
 - packages/frontend/src/pages/auth/ForgotPassword.test.tsx

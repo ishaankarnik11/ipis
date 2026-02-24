@@ -41,13 +41,13 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: Foundation, Authentication & User Management
-  epic-1: in-progress
+  epic-1: done
   1-1-monorepo-scaffold-and-project-infrastructure: done
   1-2-authentication-api-login-session-and-logout: done
   1-3-login-and-session-ui: done
   1-4-user-and-role-management-api: done
   1-5-user-management-and-system-config-ui: done
-  1-6-password-management-reset-and-first-login-flow: review
+  1-6-password-management-reset-and-first-login-flow: done
   epic-1-retrospective: optional
 
   # Epic 2: Employee & Salary Data Management

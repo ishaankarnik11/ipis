@@ -47,7 +47,7 @@ export default function ChangePassword() {
         </Text>
 
         {error && (
-          <Alert type="error" message={error} style={{ marginBottom: 16 }} showIcon />
+          <Alert type="error" title={error} style={{ marginBottom: 16 }} showIcon />
         )}
 
         <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">

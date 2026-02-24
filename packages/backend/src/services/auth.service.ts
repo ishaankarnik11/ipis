@@ -82,7 +82,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
   });
 
   const resetUrl = `${config.frontendUrl}/reset-password?token=${plaintext}`;
-  void sendPasswordResetEmail(email, resetUrl);
+  sendPasswordResetEmail(email, resetUrl).catch(() => {});
 }
 
 export async function validateResetToken(token: string): Promise<boolean> {
@@ -101,31 +101,31 @@ export async function validateResetToken(token: string): Promise<boolean> {
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
   const hash = hashToken(token);
-
-  const record = await prisma.passwordResetToken.findFirst({
-    where: {
-      tokenHash: hash,
-      usedAt: null,
-      expiresAt: { gt: new Date() },
-    },
-  });
-
-  if (!record) {
-    throw new UnauthorizedError('Invalid or expired reset token');
-  }
-
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-  await prisma.$transaction([
-    prisma.user.update({
+  await prisma.$transaction(async (tx) => {
+    const record = await tx.passwordResetToken.findFirst({
+      where: {
+        tokenHash: hash,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!record) {
+      throw new UnauthorizedError('Invalid or expired reset token');
+    }
+
+    await tx.user.update({
       where: { id: record.userId },
       data: { passwordHash },
-    }),
-    prisma.passwordResetToken.update({
+    });
+
+    await tx.passwordResetToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },
-    }),
-  ]);
+    });
+  });
 }
 
 export async function changePassword(userId: string, newPassword: string): Promise<void> {

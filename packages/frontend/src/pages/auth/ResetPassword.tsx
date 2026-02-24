@@ -67,7 +67,7 @@ export default function ResetPassword() {
           <>
             <Alert
               type="error"
-              message="This reset link has expired or already been used. Request a new one."
+              title="This reset link has expired or already been used. Request a new one."
               style={{ marginBottom: 16 }}
               showIcon
             />
@@ -76,7 +76,7 @@ export default function ResetPassword() {
         ) : (
           <>
             {error && (
-              <Alert type="error" message={error} style={{ marginBottom: 16 }} showIcon />
+              <Alert type="error" title={error} style={{ marginBottom: 16 }} showIcon />
             )}
 
             <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">

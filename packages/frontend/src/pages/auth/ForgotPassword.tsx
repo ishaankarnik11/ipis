@@ -35,7 +35,7 @@ export default function ForgotPassword() {
           <>
             <Alert
               type="success"
-              message="If that email is registered, a reset link has been sent."
+              title="If that email is registered, a reset link has been sent."
               style={{ marginBottom: 16 }}
               showIcon
             />
@@ -44,7 +44,7 @@ export default function ForgotPassword() {
         ) : (
           <>
             {error && (
-              <Alert type="error" message={error} style={{ marginBottom: 16 }} showIcon />
+              <Alert type="error" title={error} style={{ marginBottom: 16 }} showIcon />
             )}
 
             <Form form={form} layout="vertical" onFinish={handleSubmit} autoComplete="off">

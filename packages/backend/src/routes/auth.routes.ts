@@ -92,7 +92,7 @@ router.post(
 router.get(
   '/validate-reset-token',
   asyncHandler(async (req, res) => {
-    const token = req.query['token'] as string;
+    const token = typeof req.query['token'] === 'string' ? req.query['token'] : '';
     if (!token) {
       res.json({ data: { valid: false } });
       return;
