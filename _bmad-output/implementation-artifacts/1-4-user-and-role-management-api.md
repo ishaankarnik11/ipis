@@ -1,6 +1,6 @@
 # Story 1.4: User & Role Management API
 
-Status: review
+Status: done
 
 ## Story
 
@@ -279,6 +279,7 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-02-24: Implemented Story 1.4 — User & Role Management API. Added Zod schemas, user/config services, CRUD routes, department endpoint, seed data, and comprehensive test suite. 114 total tests pass (78 backend + 36 shared).
+- 2026-02-24: **Code Review Fixes** — Added department join to USER_SELECT + flattenUser helper (departmentName in responses); replaced `as never` with proper Prisma/shared types; added P2025 → NotFoundError handling in updateUser; added 404 test + updated all mocks with department data in unit and integration tests. 223 total tests pass (133 backend + 36 shared + 54 frontend).
 
 ### File List
 
@@ -299,3 +300,8 @@ Modified files:
 - `packages/shared/src/schemas/index.ts` (added user schema exports)
 - `packages/backend/src/routes/index.ts` (mounted users, config, departments routes)
 - `packages/backend/prisma/seed.ts` (added 4 more departments and dept_head user)
+
+Modified files (code review):
+- `packages/backend/src/services/user.service.ts` (department join, flattenUser, proper types, NotFoundError)
+- `packages/backend/src/services/user.service.test.ts` (department mock data, 404 test)
+- `packages/backend/src/routes/users.routes.test.ts` (department mock data, departmentName assertions)

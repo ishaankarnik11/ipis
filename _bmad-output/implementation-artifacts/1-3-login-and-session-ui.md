@@ -1,6 +1,6 @@
 # Story 1.3: Login & Session UI
 
-Status: review
+Status: done
 
 ## Story
 
@@ -330,6 +330,10 @@ Claude Opus 4.6 (claude-opus-4-6)
 | Created `hooks/useAuth.test.ts` | 4 unit tests for auth hooks |
 | Created `pages/auth/Login.test.tsx` | 6 unit tests for login page |
 | Created `router/guards.test.tsx` | 7 unit tests for route guards |
+| **Code Review Fix**: Removed unused `useAuth()` call in Login.tsx | Dead code — `mustChangePassword` unused in Login component |
+| **Code Review Fix**: Fixed Alert prop `message` → `title` in Login.tsx | antd v6 deprecated `message` in favor of `title` |
+| **Code Review Fix**: Added 30s timeout to flaky Login redirect test | Prevent intermittent CI timeout at default 15s |
+| **Code Review Fix**: Extracted shared types to `services/types.ts` | Deduplicated DataResponse/ListResponse/SuccessResponse across 3 API files |
 
 ### File List
 
@@ -347,9 +351,19 @@ Claude Opus 4.6 (claude-opus-4-6)
 - `packages/frontend/src/pages/auth/Login.test.tsx`
 - `packages/frontend/src/router/guards.test.tsx`
 
+**New files (code review):**
+- `packages/frontend/src/services/types.ts`
+
 **Modified files:**
 - `packages/frontend/src/App.tsx`
 - `packages/frontend/vite.config.ts`
 - `packages/frontend/tsconfig.json`
 - `packages/frontend/package.json`
 - `pnpm-lock.yaml`
+
+**Modified files (code review):**
+- `packages/frontend/src/pages/auth/Login.tsx`
+- `packages/frontend/src/pages/auth/Login.test.tsx`
+- `packages/frontend/src/services/auth.api.ts`
+- `packages/frontend/src/services/users.api.ts`
+- `packages/frontend/src/services/config.api.ts`

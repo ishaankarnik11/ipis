@@ -98,6 +98,7 @@ describe('User & Department Routes', () => {
         role: args.data.role,
         isActive: true,
         departmentId: args.data.departmentId || null,
+        department: null,
       }));
 
       const res = await request(app)
@@ -125,8 +126,8 @@ describe('User & Department Routes', () => {
       const adminCookies = await loginAs('ADMIN');
 
       const users = [
-        { id: 'u1', name: 'A', email: 'a@t.com', role: 'ADMIN', departmentId: null, isActive: true },
-        { id: 'u2', name: 'B', email: 'b@t.com', role: 'HR', departmentId: 'dept-1', isActive: false },
+        { id: 'u1', name: 'A', email: 'a@t.com', role: 'ADMIN', departmentId: null, department: null, isActive: true },
+        { id: 'u2', name: 'B', email: 'b@t.com', role: 'HR', departmentId: 'dept-1', department: { name: 'Engineering' }, isActive: false },
       ];
       mockUserFindMany.mockResolvedValue(users);
 
@@ -143,6 +144,7 @@ describe('User & Department Routes', () => {
         email: 'a@t.com',
         role: 'ADMIN',
         departmentId: null,
+        departmentName: null,
         isActive: true,
       });
     });
@@ -158,6 +160,7 @@ describe('User & Department Routes', () => {
         email: 'a@t.com',
         role: 'ADMIN',
         departmentId: null,
+        department: null,
         isActive: true,
       });
 
@@ -168,6 +171,7 @@ describe('User & Department Routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.name).toBe('Updated Name');
+      expect(res.body.data.departmentName).toBeNull();
     });
 
     it('should deactivate user via isActive: false (AC 4)', async () => {
@@ -179,6 +183,7 @@ describe('User & Department Routes', () => {
         email: 'a@t.com',
         role: 'ADMIN',
         departmentId: null,
+        department: null,
         isActive: false,
       });
 

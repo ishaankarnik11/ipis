@@ -1,5 +1,6 @@
 import type { SystemConfigInput } from '@ipis/shared';
 import { get, put } from './api';
+import type { DataResponse, SuccessResponse } from './types';
 
 export const configKeys = {
   current: ['config'] as const,
@@ -9,14 +10,6 @@ export interface SystemConfig {
   standardMonthlyHours: number;
   healthyMarginThreshold: number;
   atRiskMarginThreshold: number;
-}
-
-interface DataResponse<T> {
-  data: T;
-}
-
-interface SuccessResponse {
-  success: boolean;
 }
 
 export function getConfig(): Promise<DataResponse<SystemConfig>> {

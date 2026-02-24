@@ -44,8 +44,8 @@ development_status:
   epic-1: in-progress
   1-1-monorepo-scaffold-and-project-infrastructure: done
   1-2-authentication-api-login-session-and-logout: done
-  1-3-login-and-session-ui: review
-  1-4-user-and-role-management-api: review
+  1-3-login-and-session-ui: done
+  1-4-user-and-role-management-api: done
   1-5-user-management-and-system-config-ui: done
   1-6-password-management-reset-and-first-login-flow: review
   epic-1-retrospective: optional

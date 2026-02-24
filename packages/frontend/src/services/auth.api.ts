@@ -1,5 +1,6 @@
 import type { UserRole } from '@ipis/shared';
 import { get, post } from './api';
+import type { DataResponse, SuccessResponse } from './types';
 
 export const authKeys = {
   me: ['auth', 'me'] as const,
@@ -12,14 +13,6 @@ export interface AuthUser {
   email: string;
   departmentId: string | null;
   mustChangePassword: boolean;
-}
-
-interface DataResponse<T> {
-  data: T;
-}
-
-interface SuccessResponse {
-  success: boolean;
 }
 
 export interface LoginUser {

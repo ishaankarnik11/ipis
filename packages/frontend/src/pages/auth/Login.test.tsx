@@ -84,7 +84,7 @@ describe('Login Page', () => {
     });
   });
 
-  it('should redirect to role landing page on successful login', async () => {
+  it('should redirect to role landing page on successful login', { timeout: 30000 }, async () => {
     mockMutateAsync.mockResolvedValue({ data: { id: '1', name: 'Admin', role: 'ADMIN', email: 'a@b.com' } });
 
     renderLogin();

@@ -1,0 +1,12 @@
+export interface DataResponse<T> {
+  data: T;
+}
+
+export interface ListResponse<T> {
+  data: T[];
+  meta: { total: number };
+}
+
+export interface SuccessResponse {
+  success: boolean;
+}

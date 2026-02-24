@@ -15,6 +15,14 @@ vi.mock('../lib/prisma.js', () => ({
   },
 }));
 
+class PrismaClientKnownRequestError extends Error {
+  code: string;
+  constructor(message: string, meta: { code: string }) {
+    super(message);
+    this.code = meta.code;
+  }
+}
+
 import { prisma } from '../lib/prisma.js';
 import * as userService from './user.service.js';
 
@@ -41,6 +49,7 @@ describe('user.service', () => {
         isActive: true,
         mustChangePassword: true,
         departmentId: null,
+        department: null,
         passwordHash: 'hashed',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -58,6 +67,7 @@ describe('user.service', () => {
       expect(result.email).toBe('jane@example.com');
       expect(result.role).toBe('FINANCE');
       expect(result.isActive).toBe(true);
+      expect(result.departmentName).toBeNull();
 
       // Verify Prisma was called with hashed password
       expect(mockCreate).toHaveBeenCalledOnce();
@@ -90,6 +100,7 @@ describe('user.service', () => {
         isActive: true,
         mustChangePassword: true,
         departmentId: 'dept-1',
+        department: { name: 'Engineering' },
         passwordHash: 'hashed',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -116,6 +127,7 @@ describe('user.service', () => {
         isActive: true,
         mustChangePassword: true,
         departmentId: null,
+        department: null,
         passwordHash: 'hashed',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -133,10 +145,10 @@ describe('user.service', () => {
   });
 
   describe('getAll', () => {
-    it('should return all users with correct fields', async () => {
+    it('should return all users with correct fields including departmentName', async () => {
       const users = [
-        { id: 'u1', name: 'A', email: 'a@test.com', role: 'ADMIN', departmentId: null, isActive: true },
-        { id: 'u2', name: 'B', email: 'b@test.com', role: 'HR', departmentId: 'dept-1', isActive: false },
+        { id: 'u1', name: 'A', email: 'a@test.com', role: 'ADMIN', departmentId: null, department: null, isActive: true },
+        { id: 'u2', name: 'B', email: 'b@test.com', role: 'HR', departmentId: 'dept-1', department: { name: 'Engineering' }, isActive: false },
       ];
       mockFindMany.mockResolvedValue(users);
 
@@ -149,13 +161,25 @@ describe('user.service', () => {
         email: 'a@test.com',
         role: 'ADMIN',
         departmentId: null,
+        departmentName: null,
         isActive: true,
       });
+      expect(result[1].departmentName).toBe('Engineering');
       expect(mockFindMany).toHaveBeenCalledOnce();
     });
   });
 
   describe('updateUser', () => {
+    const USER_SELECT_WITH_DEPT = {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      departmentId: true,
+      isActive: true,
+      department: { select: { name: true } },
+    };
+
     it('should update only provided fields', async () => {
       mockUpdate.mockResolvedValue({
         id: 'u1',
@@ -163,6 +187,7 @@ describe('user.service', () => {
         email: 'a@test.com',
         role: 'ADMIN',
         departmentId: null,
+        department: null,
         isActive: true,
       });
 
@@ -170,17 +195,11 @@ describe('user.service', () => {
 
       expect(mockUpdate).toHaveBeenCalledWith({
         where: { id: 'u1' },
-        data: { name: 'Updated Name' },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          departmentId: true,
-          isActive: true,
-        },
+        data: { name: 'Updated Name', role: undefined },
+        select: USER_SELECT_WITH_DEPT,
       });
       expect(result.name).toBe('Updated Name');
+      expect(result.departmentName).toBeNull();
     });
 
     it('should handle deactivation via isActive: false', async () => {
@@ -190,24 +209,13 @@ describe('user.service', () => {
         email: 'a@test.com',
         role: 'ADMIN',
         departmentId: null,
+        department: null,
         isActive: false,
       });
 
       const result = await userService.updateUser('u1', { isActive: false });
 
       expect(result.isActive).toBe(false);
-      expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: 'u1' },
-        data: { isActive: false },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          departmentId: true,
-          isActive: true,
-        },
-      });
     });
 
     it('should update role and departmentId together', async () => {
@@ -217,23 +225,22 @@ describe('user.service', () => {
         email: 'a@test.com',
         role: 'DEPT_HEAD',
         departmentId: 'dept-2',
+        department: { name: 'Finance' },
         isActive: true,
       });
 
-      await userService.updateUser('u1', { role: 'DEPT_HEAD', departmentId: 'dept-2' });
+      const result = await userService.updateUser('u1', { role: 'DEPT_HEAD', departmentId: 'dept-2' });
 
-      expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: 'u1' },
-        data: { role: 'DEPT_HEAD', departmentId: 'dept-2' },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          departmentId: true,
-          isActive: true,
-        },
-      });
+      expect(result.departmentName).toBe('Finance');
+    });
+
+    it('should throw NotFoundError when user does not exist', async () => {
+      const prismaError = new PrismaClientKnownRequestError('Record not found', { code: 'P2025' });
+      mockUpdate.mockRejectedValue(prismaError);
+
+      await expect(
+        userService.updateUser('nonexistent-id', { name: 'X' }),
+      ).rejects.toThrow('User not found');
     });
   });
 

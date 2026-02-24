@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams, Link } from 'react-router';
 import { Form, Input, Button, Alert, Typography, Card } from 'antd';
-import { useLogin, useAuth } from '../../hooks/useAuth';
+import { useLogin } from '../../hooks/useAuth';
 import type { UserRole } from '@ipis/shared';
 import { getRoleLandingPage } from '../../hooks/useAuth';
 
@@ -10,7 +10,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const loginMutation = useLogin();
-  const { mustChangePassword } = useAuth();
   const [form] = Form.useForm();
 
   const expired = searchParams.get('expired') === 'true';
@@ -48,7 +47,7 @@ export default function Login() {
         {resetSuccess && (
           <Alert
             type="success"
-            message="Password updated. Please log in."
+            title="Password updated. Please log in."
             style={{ marginBottom: 16 }}
             showIcon
           />

@@ -1,6 +1,7 @@
 import type { UserRole } from '@ipis/shared';
 import type { CreateUserInput, UpdateUserInput } from '@ipis/shared';
 import { get, post, patch } from './api';
+import type { DataResponse, ListResponse } from './types';
 
 export const userKeys = {
   all: ['users'] as const,
@@ -24,15 +25,6 @@ export interface CreatedUser extends User {
 export interface Department {
   id: string;
   name: string;
-}
-
-interface DataResponse<T> {
-  data: T;
-}
-
-interface ListResponse<T> {
-  data: T[];
-  meta: { total: number };
 }
 
 export function getUsers(): Promise<ListResponse<User>> {

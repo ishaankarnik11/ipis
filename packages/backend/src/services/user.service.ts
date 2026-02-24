@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
+import type { UserRole } from '@prisma/client';
+import type { CreateUserInput, UpdateUserInput } from '@ipis/shared';
 import { prisma } from '../lib/prisma.js';
-import { ConflictError } from '../lib/errors.js';
+import { ConflictError, NotFoundError } from '../lib/errors.js';
 
 const SALT_ROUNDS = 10;
 
@@ -12,18 +14,19 @@ const USER_SELECT = {
   role: true,
   departmentId: true,
   isActive: true,
+  department: { select: { name: true } },
 } as const;
+
+function flattenUser(user: { department: { name: string } | null; [key: string]: unknown }) {
+  const { department, ...rest } = user;
+  return { ...rest, departmentName: department?.name ?? null };
+}
 
 function generateTemporaryPassword(): string {
   return crypto.randomUUID().slice(0, 12);
 }
 
-export async function createUser(data: {
-  name: string;
-  email: string;
-  role: string;
-  departmentId?: string | null;
-}) {
+export async function createUser(data: CreateUserInput) {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) {
     throw new ConflictError('A user with this email already exists');
@@ -36,7 +39,7 @@ export async function createUser(data: {
     data: {
       name: data.name,
       email: data.email,
-      role: data.role as never,
+      role: data.role as UserRole,
       departmentId: data.departmentId ?? null,
       passwordHash,
       isActive: true,
@@ -45,13 +48,14 @@ export async function createUser(data: {
     select: USER_SELECT,
   });
 
-  return { ...user, temporaryPassword };
+  return { ...flattenUser(user), temporaryPassword };
 }
 
 export async function getAll() {
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     select: USER_SELECT,
   });
+  return users.map(flattenUser);
 }
 
 export async function getAllDepartments() {
@@ -64,18 +68,21 @@ export async function getAllDepartments() {
   });
 }
 
-export async function updateUser(
-  id: string,
-  data: {
-    name?: string;
-    role?: string;
-    departmentId?: string | null;
-    isActive?: boolean;
-  },
-) {
-  return prisma.user.update({
-    where: { id },
-    data: data as never,
-    select: USER_SELECT,
-  });
+export async function updateUser(id: string, data: UpdateUserInput) {
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        ...data,
+        role: data.role ? (data.role as UserRole) : undefined,
+      },
+      select: USER_SELECT,
+    });
+    return flattenUser(user);
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+      throw new NotFoundError('User not found');
+    }
+    throw error;
+  }
 }
