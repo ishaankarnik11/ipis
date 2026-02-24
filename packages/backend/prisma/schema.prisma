@@ -51,8 +51,27 @@ model Department {
   headUserId String?  @map("head_user_id")
   createdAt  DateTime @default(now()) @map("created_at")
   users      User[]
+  employees  Employee[]
 
   @@map("departments")
+}
+
+model Employee {
+  id             String    @id @default(uuid())
+  employeeCode   String    @unique @map("employee_code")
+  name           String
+  departmentId   String    @map("department_id")
+  department     Department @relation(fields: [departmentId], references: [id])
+  designation    String
+  annualCtcPaise BigInt    @map("annual_ctc_paise")
+  overheadPaise  BigInt    @default(18000000) @map("overhead_paise")
+  joiningDate    DateTime? @map("joining_date")
+  isBillable     Boolean   @default(true) @map("is_billable")
+  isResigned     Boolean   @default(false) @map("is_resigned")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("employees")
 }
 
 model SystemConfig {

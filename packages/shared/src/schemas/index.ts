@@ -16,3 +16,9 @@ export {
   type UpdateUserInput,
   type SystemConfigInput,
 } from './user.schema';
+export {
+  employeeRowSchema,
+  bulkUploadResponseSchema,
+  type EmployeeRowInput,
+  type BulkUploadResponse,
+} from './employee.schema';

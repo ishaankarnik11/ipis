@@ -1,6 +1,6 @@
 # Story 2.1: Employee Salary Master — Bulk Upload API
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -52,49 +52,49 @@ so that the complete salary master is available for profitability calculations w
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Prisma migration for employees table (AC: 6)
-  - [ ] 1.1 Add `Employee` model to `schema.prisma` with all columns from AC 6
-  - [ ] 1.2 Add `employee_code` unique constraint
-  - [ ] 1.3 Add `department_id` foreign key relation to `Department` model
-  - [ ] 1.4 Run `pnpm --filter backend migrate` and verify migration
+- [x] Task 1: Prisma migration for employees table (AC: 6)
+  - [x] 1.1 Add `Employee` model to `schema.prisma` with all columns from AC 6
+  - [x] 1.2 Add `employee_code` unique constraint
+  - [x] 1.3 Add `department_id` foreign key relation to `Department` model
+  - [x] 1.4 Run `pnpm --filter backend migrate` and verify migration
 
-- [ ] Task 2: Zod schemas for employee (AC: 7)
-  - [ ] 2.1 Create `shared/src/schemas/employee.schema.ts` — `employeeRowSchema`, `bulkUploadResponseSchema`
-  - [ ] 2.2 Export from `shared/src/schemas/index.ts`
-  - [ ] 2.3 Export from `shared/src/index.ts`
+- [x] Task 2: Zod schemas for employee (AC: 7)
+  - [x] 2.1 Create `shared/src/schemas/employee.schema.ts` — `employeeRowSchema`, `bulkUploadResponseSchema`
+  - [x] 2.2 Export from `shared/src/schemas/index.ts`
+  - [x] 2.3 Export from `shared/src/index.ts`
 
-- [ ] Task 3: Employee service — bulk upload (AC: 1, 2, 3, 4, 9)
-  - [ ] 3.1 Create `services/employee.service.ts`
-  - [ ] 3.2 Add `bulkUpload(file: Buffer)` — parse Excel via `xlsx`, validate each row against `employeeRowSchema`, batch-lookup departments, collect valid/invalid
-  - [ ] 3.3 Insert valid rows via `prisma.employee.createMany({ data: validRows })`
-  - [ ] 3.4 Return `{ imported, failed, failedRows }` — each failed row includes row number and specific error
-  - [ ] 3.5 Handle duplicate `employee_code` as `409 CONFLICT` in failedRows
-  - [ ] 3.6 Create `services/employee.service.test.ts` — unit tests with mocked Prisma
+- [x] Task 3: Employee service — bulk upload (AC: 1, 2, 3, 4, 9)
+  - [x] 3.1 Create `services/employee.service.ts`
+  - [x] 3.2 Add `bulkUpload(file: Buffer)` — parse Excel via `xlsx`, validate each row against `employeeRowSchema`, batch-lookup departments, collect valid/invalid
+  - [x] 3.3 Insert valid rows via `prisma.employee.createMany({ data: validRows })`
+  - [x] 3.4 Return `{ imported, failed, failedRows }` — each failed row includes row number and specific error
+  - [x] 3.5 Handle duplicate `employee_code` as `409 CONFLICT` in failedRows
+  - [x] 3.6 Create `services/employee.service.test.ts` — unit tests with mocked Prisma
 
-- [ ] Task 4: Excel parsing utility (AC: 1, 5)
-  - [ ] 4.1 Create `lib/excel.ts` — `parseExcelToRows(buffer: Buffer): ParsedRow[]` using `xlsx` package
-  - [ ] 4.2 Add `generateSampleTemplate(): Buffer` — returns `.xlsx` buffer with correct headers
-  - [ ] 4.3 Write tests for parsing and template generation
+- [x] Task 4: Excel parsing utility (AC: 1, 5)
+  - [x] 4.1 Create `lib/excel.ts` — `parseExcelToRows(buffer: Buffer): ParsedRow[]` using `xlsx` package
+  - [x] 4.2 Add `generateSampleTemplate(): Buffer` — returns `.xlsx` buffer with correct headers
+  - [x] 4.3 Write tests for parsing and template generation
 
-- [ ] Task 5: Employee routes — bulk upload + template (AC: 1, 5, 8)
-  - [ ] 5.1 Create `routes/employees.routes.ts` — mount at `/api/v1/employees`
-  - [ ] 5.2 `POST /bulk-upload` — `authMiddleware`, `rbacMiddleware(['hr'])`, multer single file upload, call `employeeService.bulkUpload()`
-  - [ ] 5.3 `GET /sample-template` — `authMiddleware`, `rbacMiddleware(['hr'])`, return `.xlsx` download
-  - [ ] 5.4 Register in `routes/index.ts`
+- [x] Task 5: Employee routes — bulk upload + template (AC: 1, 5, 8)
+  - [x] 5.1 Create `routes/employees.routes.ts` — mount at `/api/v1/employees`
+  - [x] 5.2 `POST /bulk-upload` — `authMiddleware`, `rbacMiddleware(['hr'])`, multer single file upload, call `employeeService.bulkUpload()`
+  - [x] 5.3 `GET /sample-template` — `authMiddleware`, `rbacMiddleware(['hr'])`, return `.xlsx` download
+  - [x] 5.4 Register in `routes/index.ts`
 
-- [ ] Task 6: Upload middleware (multer) (AC: 1)
-  - [ ] 6.1 Create `middleware/upload.middleware.ts` — multer config for `.xlsx` files, memory storage, 10MB limit
-  - [ ] 6.2 File type validation (reject non-xlsx)
+- [x] Task 6: Upload middleware (multer) (AC: 1)
+  - [x] 6.1 Create `middleware/upload.middleware.ts` — multer config for `.xlsx` files, memory storage, 10MB limit
+  - [x] 6.2 File type validation (reject non-xlsx)
 
-- [ ] Task 7: Integration tests (AC: 1-10)
-  - [ ] 7.1 Create `routes/employees.routes.test.ts`
-  - [ ] 7.2 Test: HR uploads valid file — all rows imported, response shape correct
-  - [ ] 7.3 Test: HR uploads mixed valid/invalid — valid imported, invalid returned with specific errors
-  - [ ] 7.4 Test: HR re-uploads corrected rows — new rows imported
-  - [ ] 7.5 Test: Duplicate employee_code — 409 in failedRows
-  - [ ] 7.6 Test: Non-HR roles (Admin, Finance, DM, DH) get 403
-  - [ ] 7.7 Test: Sample template download returns xlsx
-  - [ ] 7.8 Test: CTC not in log output (pino redact)
+- [x] Task 7: Integration tests (AC: 1-10)
+  - [x] 7.1 Create `routes/employees.routes.test.ts`
+  - [x] 7.2 Test: HR uploads valid file — all rows imported, response shape correct
+  - [x] 7.3 Test: HR uploads mixed valid/invalid — valid imported, invalid returned with specific errors
+  - [x] 7.4 Test: HR re-uploads corrected rows — new rows imported
+  - [x] 7.5 Test: Duplicate employee_code — 409 in failedRows
+  - [x] 7.6 Test: Non-HR roles (Admin, Finance, DM, DH) get 403
+  - [x] 7.7 Test: Sample template download returns xlsx
+  - [x] 7.8 Test: CTC not in log output (pino redact)
 
 ## Dev Notes
 
@@ -253,6 +253,36 @@ packages/shared/src/index.ts            # Export employee schemas
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-opus-4-6
+
 ### Debug Log References
+- Integration test for sample-template download initially failed due to supertest binary response handling — fixed with `.buffer(true)` and custom parser.
+
 ### Completion Notes List
+- Task 1: Added Employee model to Prisma schema with all AC 6 columns. Migration `20260224073445_add_employee_model` applied successfully. Added `employees` relation to Department model.
+- Task 2: Created `employeeRowSchema` and `bulkUploadResponseSchema` in shared package. Exported from barrel files.
+- Task 3: Implemented `employee.service.ts` with `bulkUpload()` — row-level validation (not atomic), department name→id lookup, duplicate detection (existing DB + within batch), CTC conversion to paise. 9 unit tests passing.
+- Task 4: Created `lib/excel.ts` with `parseExcelToRows()` and `generateSampleTemplate()` using xlsx (SheetJS). 6 tests passing.
+- Task 5: Created `employees.routes.ts` with `POST /bulk-upload` and `GET /sample-template`. Middleware chain: authMiddleware → rbacMiddleware(['HR']) → asyncHandler. Registered in routes/index.ts.
+- Task 6: Created `upload.middleware.ts` — multer memory storage, 10MB limit, xlsx MIME validation.
+- Task 7: 17 integration tests covering all ACs — valid upload, mixed rows, corrected rows, duplicate codes, RBAC for all 4 non-HR roles, template download, CTC redaction, unauthenticated access.
+- AC 10: Added `*.annualCtcPaise` and `*.annual_ctc_paise` to pino redact config in `logger.ts`.
+- Pre-existing: 1 test failure in `users.routes.test.ts` (expects old user response shape without `departmentName`) — from uncommitted story 1-5 changes, not related to this story.
+
 ### File List
+- packages/backend/prisma/schema.prisma (modified — added Employee model, employees relation on Department)
+- packages/backend/prisma/migrations/20260224073445_add_employee_model/migration.sql (new)
+- packages/shared/src/schemas/employee.schema.ts (new)
+- packages/shared/src/schemas/index.ts (modified — added employee exports)
+- packages/backend/src/services/employee.service.ts (new)
+- packages/backend/src/services/employee.service.test.ts (new — 9 unit tests)
+- packages/backend/src/lib/excel.ts (new)
+- packages/backend/src/lib/excel.test.ts (new — 6 tests)
+- packages/backend/src/routes/employees.routes.ts (new)
+- packages/backend/src/routes/employees.routes.test.ts (new — 17 integration tests)
+- packages/backend/src/routes/index.ts (modified — registered employees routes)
+- packages/backend/src/middleware/upload.middleware.ts (new)
+- packages/backend/src/lib/logger.ts (modified — added annualCtcPaise to redact)
+
+### Change Log
+- 2026-02-24: Story 2.1 implemented — Employee Salary Master Bulk Upload API (all 7 tasks, 32 tests passing)

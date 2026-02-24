@@ -3,6 +3,7 @@ import authRoutes from './auth.routes.js';
 import usersRoutes from './users.routes.js';
 import configRoutes from './config.routes.js';
 import departmentsRoutes from './departments.routes.js';
+import employeesRoutes from './employees.routes.js';
 
 const router: RouterType = Router();
 
@@ -22,5 +23,8 @@ router.use('/api/v1/config', configRoutes);
 
 // Department routes (Admin only)
 router.use('/api/v1/departments', departmentsRoutes);
+
+// Employee routes (HR only)
+router.use('/api/v1/employees', employeesRoutes);
 
 export default router;
