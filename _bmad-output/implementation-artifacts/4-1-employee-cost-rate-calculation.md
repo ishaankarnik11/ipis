@@ -1,6 +1,6 @@
 # Story 4.1: Employee Cost Rate Calculation
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -36,26 +36,26 @@ so that every profitability calculation uses a correct, consistent, and traceabl
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Cost rate calculator (AC: 1, 3, 4)
-  - [ ] 1.1 Create `services/calculation-engine/cost-rate.calculator.ts`
-  - [ ] 1.2 Implement `calculateCostPerHour({ annualCtcPaise, overheadPaise, standardMonthlyHours })` — pure function
-  - [ ] 1.3 Input validation: throw RangeError if standardMonthlyHours <= 0
-  - [ ] 1.4 Return `Math.round((annualCtcPaise + overheadPaise) / 12 / standardMonthlyHours)`
+- [x] Task 1: Cost rate calculator (AC: 1, 3, 4)
+  - [x] 1.1 Create `services/calculation-engine/cost-rate.calculator.ts`
+  - [x] 1.2 Implement `calculateCostPerHour({ annualCtcPaise, overheadPaise, standardMonthlyHours })` — pure function
+  - [x] 1.3 Input validation: throw RangeError if standardMonthlyHours <= 0
+  - [x] 1.4 Return `Math.round((annualCtcPaise + overheadPaise) / 12 / standardMonthlyHours)`
 
-- [ ] Task 2: Types (AC: 1)
-  - [ ] 2.1 Create `services/calculation-engine/types.ts` — `CostRateInput`, `CalculationResult` types
+- [x] Task 2: Types (AC: 1)
+  - [x] 2.1 Create `services/calculation-engine/types.ts` — `CostRateInput`, `CalculationResult` types
 
-- [ ] Task 3: Index exports (AC: 6)
-  - [ ] 3.1 Create `services/calculation-engine/index.ts` — export `calculateCostPerHour`
+- [x] Task 3: Index exports (AC: 6)
+  - [x] 3.1 Create `services/calculation-engine/index.ts` — export `calculateCostPerHour`
 
-- [ ] Task 4: TDD tests (AC: 2, 5) — WRITE TESTS FIRST
-  - [ ] 4.1 Create `services/calculation-engine/cost-rate.calculator.test.ts`
-  - [ ] 4.2 Test: Standard case (84000000 CTC + 18000000 overhead, 160 hours) → expected paise value
-  - [ ] 4.3 Test: 176-hour month variant
-  - [ ] 4.4 Test: Different overhead amount
-  - [ ] 4.5 Test: Rounding to nearest paise (non-integer intermediate)
-  - [ ] 4.6 Test: Zero hours → RangeError
-  - [ ] 4.7 Test: Negative hours → RangeError
+- [x] Task 4: TDD tests (AC: 2, 5) — WRITE TESTS FIRST
+  - [x] 4.1 Create `services/calculation-engine/cost-rate.calculator.test.ts`
+  - [x] 4.2 Test: Standard case (84000000 CTC + 18000000 overhead, 160 hours) → expected paise value
+  - [x] 4.3 Test: 176-hour month variant
+  - [x] 4.4 Test: Different overhead amount
+  - [x] 4.5 Test: Rounding to nearest paise (non-integer intermediate)
+  - [x] 4.6 Test: Zero hours → RangeError
+  - [x] 4.7 Test: Negative hours → RangeError
 
 ## Dev Notes
 
@@ -112,6 +112,52 @@ packages/backend/src/services/calculation-engine/
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
+
 ### Debug Log References
+No issues encountered. Clean TDD implementation.
+
 ### Completion Notes List
+- Implemented `calculateCostPerHour` as a pure function — no DB, no HTTP, no side effects (AC4)
+- Formula: `Math.round((annualCtcPaise + overheadPaise) / 12 / standardMonthlyHours)` returns integer paise (AC1)
+- Input validation: throws `RangeError` for `standardMonthlyHours <= 0` (AC3)
+- Reference fixture verified: 84000000 CTC + 18000000 overhead @ 160hrs = 53125 paise (AC2)
+- 14 test cases covering standard, 176-hour variant, different overhead, rounding (.5 boundary), large numbers, zero/negative hours, NaN/Infinity guards, negative CTC/overhead, and integer purity (AC5)
+- Exported from `index.ts` as canonical cost formula for all 4 model calculators (AC6)
+- TDD approach: wrote failing tests first, then implemented to pass
+- No new dependencies required
+
 ### File List
+- `packages/backend/src/services/calculation-engine/types.ts` (new)
+- `packages/backend/src/services/calculation-engine/cost-rate.calculator.ts` (new)
+- `packages/backend/src/services/calculation-engine/cost-rate.calculator.test.ts` (new)
+- `packages/backend/src/services/calculation-engine/index.ts` (new)
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.6 (code-review workflow)
+**Date:** 2026-02-24
+**Outcome:** Approve (after fixes applied)
+
+### Findings Summary
+- 0 Critical, 3 Medium, 3 Low — **all 6 fixed**
+
+### Action Items
+- [x] [Med] Remove unused `CalculationResult` dead code type from types.ts and index.ts
+- [x] [Med] Add NaN/Infinity input guard — prevent silent bad-data propagation to downstream calculators
+- [x] [Med] Add negative annualCtcPaise/overheadPaise validation — prevent nonsensical negative costs
+- [x] [Low] Add `.5` rounding boundary test — document Math.round behavior at critical boundary
+- [x] [Low] Consolidate redundant double `toThrow` assertions into single assertions
+- [x] [Low] Add large number edge case test per Dev Notes testing strategy
+
+### Review Notes
+- All 6 ACs verified as fully implemented
+- All tasks/subtasks genuinely completed
+- Git changes match story File List exactly (0 discrepancies)
+- Architecture compliance: pure function boundary ✅, paise integers ✅, naming conventions ✅
+- Test count increased from 7 to 14 after review fixes
+- No regressions (226/227 pass — 1 pre-existing auth rate-limit timeout unrelated to this story)
+
+### Change Log
+- 2026-02-24: Story 4.1 implemented — pure `calculateCostPerHour` function with TDD tests, types, and barrel export
+- 2026-02-24: Code review (R1) — 6 findings fixed: removed dead type, added input guards (NaN/Infinity/negative), expanded test coverage to 14 cases
