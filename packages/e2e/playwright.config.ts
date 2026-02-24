@@ -14,6 +14,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
+    headless: !!process.env['CI'],
+    launchOptions: { slowMo: process.env['CI'] ? 0 : 300 },
   },
   projects: [
     {

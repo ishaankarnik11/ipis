@@ -126,21 +126,26 @@ Every UI story **must** include an `## E2E Test Scenarios` section with both pos
 
 ## Running Options
 
+All local runs open a **visible browser window** (headed mode) with 300ms slow-motion by default. CI runs are headless with no slow-mo. This is configured in `playwright.config.ts` — no extra flags needed.
+
 ```bash
-# Run all E2E tests
+# Run all E2E tests (headed locally, headless in CI)
 pnpm test:e2e
 
-# Run with Playwright UI (interactive)
+# Run with Playwright UI (interactive runner with timeline)
 pnpm --filter @ipis/e2e test:ui
 
-# Run with debug mode (step through)
+# Run with debug mode (step-by-step Playwright Inspector)
 pnpm --filter @ipis/e2e test:debug
 
 # Run a specific test file
-pnpm --filter @ipis/e2e test -- tests/auth.spec.ts
+pnpm --filter @ipis/e2e exec playwright test tests/auth.spec.ts
 
 # Run tests matching a pattern
-pnpm --filter @ipis/e2e test -- --grep "login"
+pnpm --filter @ipis/e2e exec playwright test --grep "login"
+
+# Force headless locally (override config)
+pnpm --filter @ipis/e2e exec playwright test --headed=false
 
 # View the HTML report after a run
 pnpm --filter @ipis/e2e exec playwright show-report
