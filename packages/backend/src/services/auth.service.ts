@@ -1,6 +1,9 @@
+import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { prisma } from '../lib/prisma.js';
 import { UnauthorizedError } from '../lib/errors.js';
+import { config } from '../lib/config.js';
+import { sendPasswordResetEmail } from './email.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -41,9 +44,98 @@ export async function getCurrentUser(userId: string) {
     role: user.role,
     email: user.email,
     departmentId: user.departmentId ?? null,
+    mustChangePassword: user.mustChangePassword,
   };
 }
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, SALT_ROUNDS);
+}
+
+function generateResetToken(): { plaintext: string; hash: string } {
+  const plaintext = crypto.randomUUID();
+  const hash = crypto.createHash('sha256').update(plaintext).digest('hex');
+  return { plaintext, hash };
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user || !user.isActive) {
+    // Fire-and-forget: do not reveal whether email exists
+    return;
+  }
+
+  const { plaintext, hash } = generateResetToken();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hash,
+      expiresAt,
+    },
+  });
+
+  const resetUrl = `${config.frontendUrl}/reset-password?token=${plaintext}`;
+  void sendPasswordResetEmail(email, resetUrl);
+}
+
+export async function validateResetToken(token: string): Promise<boolean> {
+  const hash = hashToken(token);
+
+  const record = await prisma.passwordResetToken.findFirst({
+    where: {
+      tokenHash: hash,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+  });
+
+  return !!record;
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const hash = hashToken(token);
+
+  const record = await prisma.passwordResetToken.findFirst({
+    where: {
+      tokenHash: hash,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+  });
+
+  if (!record) {
+    throw new UnauthorizedError('Invalid or expired reset token');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { passwordHash },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+}
+
+export async function changePassword(userId: string, newPassword: string): Promise<void> {
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash,
+      mustChangePassword: false,
+    },
+  });
 }

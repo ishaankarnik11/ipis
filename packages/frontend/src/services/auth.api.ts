@@ -11,6 +11,7 @@ export interface AuthUser {
   role: UserRole;
   email: string;
   departmentId: string | null;
+  mustChangePassword: boolean;
 }
 
 interface DataResponse<T> {
@@ -38,4 +39,20 @@ export function login(email: string, password: string): Promise<DataResponse<Log
 
 export function logout(): Promise<SuccessResponse> {
   return post<SuccessResponse>('/auth/logout');
+}
+
+export function forgotPassword(email: string): Promise<SuccessResponse> {
+  return post<SuccessResponse>('/auth/forgot-password', { email });
+}
+
+export function validateResetToken(token: string): Promise<DataResponse<{ valid: boolean }>> {
+  return get<DataResponse<{ valid: boolean }>>(`/auth/validate-reset-token?token=${encodeURIComponent(token)}`);
+}
+
+export function resetPassword(token: string, newPassword: string): Promise<SuccessResponse> {
+  return post<SuccessResponse>('/auth/reset-password', { token, newPassword });
+}
+
+export function changePassword(newPassword: string): Promise<SuccessResponse> {
+  return post<SuccessResponse>('/auth/change-password', { newPassword });
 }

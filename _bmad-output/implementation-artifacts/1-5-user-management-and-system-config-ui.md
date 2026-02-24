@@ -1,6 +1,6 @@
 # Story 1.5: User Management & System Config UI
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -48,49 +48,49 @@ so that I can manage the team's access and operational parameters without requir
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Users API service (AC: 1, 2, 3, 4, 5)
-  - [ ] 1.1 Create `services/users.api.ts` — `userKeys` constant (`{ all: ['users'] as const }`), `getUsers()`, `createUser()`, `updateUser()`, `getDepartments()` functions
-  - [ ] 1.2 All functions use the `api.ts` fetch wrapper with `credentials: 'include'`
+- [x] Task 1: Users API service (AC: 1, 2, 3, 4, 5)
+  - [x] 1.1 Create `services/users.api.ts` — `userKeys` constant (`{ all: ['users'] as const }`), `getUsers()`, `createUser()`, `updateUser()`, `getDepartments()` functions
+  - [x] 1.2 All functions use the `api.ts` fetch wrapper with `credentials: 'include'`
 
-- [ ] Task 2: Config API service (AC: 6, 7)
-  - [ ] 2.1 Create `services/config.api.ts` — `configKeys` constant, `getConfig()`, `updateConfig()` functions
+- [x] Task 2: Config API service (AC: 6, 7)
+  - [x] 2.1 Create `services/config.api.ts` — `configKeys` constant, `getConfig()`, `updateConfig()` functions
 
-- [ ] Task 3: User Management page (AC: 1, 2, 3, 4, 5)
-  - [ ] 3.1 Create `pages/admin/UserManagement.tsx` — antd `Table` with users data via `useQuery(userKeys.all, getUsers)`
-  - [ ] 3.2 Table columns: Name, Email, Role (formatted label), Department name, Status (antd `Tag` — green "Active" / red "Inactive"), Actions
-  - [ ] 3.3 Actions column: "Edit" and "Deactivate/Activate" buttons, visible on row hover via CSS
-  - [ ] 3.4 "Add User" button above table
-  - [ ] 3.5 Loading state: `<Table loading={isLoading} />`
-  - [ ] 3.6 Empty state: antd `Empty` component
+- [x] Task 3: User Management page (AC: 1, 2, 3, 4, 5)
+  - [x] 3.1 Create `pages/admin/UserManagement.tsx` — antd `Table` with users data via `useQuery(userKeys.all, getUsers)`
+  - [x] 3.2 Table columns: Name, Email, Role (formatted label), Department name, Status (antd `Tag` — green "Active" / red "Inactive"), Actions
+  - [x] 3.3 Actions column: "Edit" and "Deactivate/Activate" buttons, visible on row hover via CSS
+  - [x] 3.4 "Add User" button above table
+  - [x] 3.5 Loading state: `<Table loading={isLoading} />`
+  - [x] 3.6 Empty state: antd `Empty` component
 
-- [ ] Task 4: User Add/Edit Modal (AC: 2, 3, 4)
-  - [ ] 4.1 Create `pages/admin/UserFormModal.tsx` — reusable modal for both add and edit
-  - [ ] 4.2 Form fields: Name (`Input`, required), Email (`Input`, required, email format rule), Role (`Select` with 5 options), Department (`Select`, optional, loaded from `GET /api/v1/departments`)
-  - [ ] 4.3 Edit mode: pre-populate form with `initialValues` from selected user
-  - [ ] 4.4 On submit: call `useMutation` (create or update), on success close modal + invalidate `userKeys.all` + show `message.success`
-  - [ ] 4.5 On API error: show error in modal via antd `Alert`
-  - [ ] 4.6 Submit button with `loading` state during mutation
+- [x] Task 4: User Add/Edit Modal (AC: 2, 3, 4)
+  - [x] 4.1 Create `pages/admin/UserFormModal.tsx` — reusable modal for both add and edit
+  - [x] 4.2 Form fields: Name (`Input`, required), Email (`Input`, required, email format rule), Role (`Select` with 5 options), Department (`Select`, optional, loaded from `GET /api/v1/departments`)
+  - [x] 4.3 Edit mode: pre-populate form with `initialValues` from selected user
+  - [x] 4.4 On submit: call `useMutation` (create or update), on success close modal + invalidate `userKeys.all` + show `message.success`
+  - [x] 4.5 On API error: show error in modal via antd `Alert`
+  - [x] 4.6 Submit button with `loading` state during mutation
 
-- [ ] Task 5: Deactivation confirmation (AC: 5)
-  - [ ] 5.1 Deactivate click opens `Modal.confirm` with "Are you sure you want to deactivate [name]?"
-  - [ ] 5.2 On confirm: call `updateUser(id, { isActive: false })`, invalidate query, show success message
-  - [ ] 5.3 Inactive users show "Activate" button instead of "Deactivate"
+- [x] Task 5: Deactivation confirmation (AC: 5)
+  - [x] 5.1 Deactivate click opens `Modal.confirm` with "Are you sure you want to deactivate [name]?"
+  - [x] 5.2 On confirm: call `updateUser(id, { isActive: false })`, invalidate query, show success message
+  - [x] 5.3 Inactive users show "Activate" button instead of "Deactivate"
 
-- [ ] Task 6: System Config page (AC: 6, 7)
-  - [ ] 6.1 Create `pages/admin/SystemConfig.tsx` — antd `Form` with `InputNumber` fields
-  - [ ] 6.2 Fields: Standard Monthly Hours (`InputNumber`, integer, min 1, max 744), Healthy Margin Threshold (percentage input), At-Risk Margin Threshold (percentage input)
-  - [ ] 6.3 Load current values via `useQuery(configKeys.current, getConfig)`, set as `initialValues`
-  - [ ] 6.4 Save button calls `useMutation(updateConfig)`, shows `message.success` on success
+- [x] Task 6: System Config page (AC: 6, 7)
+  - [x] 6.1 Create `pages/admin/SystemConfig.tsx` — antd `Form` with `InputNumber` fields
+  - [x] 6.2 Fields: Standard Monthly Hours (`InputNumber`, integer, min 1, max 744), Healthy Margin Threshold (percentage input), At-Risk Margin Threshold (percentage input)
+  - [x] 6.3 Load current values via `useQuery(configKeys.current, getConfig)`, set as `initialValues`
+  - [x] 6.4 Save button calls `useMutation(updateConfig)`, shows `message.success` on success
 
-- [ ] Task 7: Admin navigation and routing (AC: 8, 9)
-  - [ ] 7.1 Update `config/navigation.ts` from Story 1.3 — ensure "User Management" and "System Config" items are present for Admin role
-  - [ ] 7.2 Update `router/index.tsx` — add `/admin/users` and `/admin/config` routes nested under `RoleGuard allowedRoles={['ADMIN']}`
-  - [ ] 7.3 Verify RoleGuard redirects non-Admin users
+- [x] Task 7: Admin navigation and routing (AC: 8, 9)
+  - [x] 7.1 Update `config/navigation.ts` from Story 1.3 — ensure "User Management" and "System Config" items are present for Admin role
+  - [x] 7.2 Update `router/index.tsx` — add `/admin/users` and `/admin/config` routes nested under `RoleGuard allowedRoles={['ADMIN']}`
+  - [x] 7.3 Verify RoleGuard redirects non-Admin users
 
-- [ ] Task 8: Tests (AC: 1-9)
-  - [ ] 8.1 Create `pages/admin/UserManagement.test.tsx` — table renders users, add/edit/deactivate flows work
-  - [ ] 8.2 Create `pages/admin/SystemConfig.test.tsx` — form loads config, save works
-  - [ ] 8.3 Mock API responses using `vi.mock` or MSW
+- [x] Task 8: Tests (AC: 1-9)
+  - [x] 8.1 Create `pages/admin/UserManagement.test.tsx` — table renders users, add/edit/deactivate flows work
+  - [x] 8.2 Create `pages/admin/SystemConfig.test.tsx` — form loads config, save works
+  - [x] 8.3 Mock API responses using `vi.mock` or MSW
 
 ## Dev Notes
 
@@ -215,12 +215,53 @@ src/router/index.tsx                 # Add /admin/users, /admin/config routes
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.6
 
 ### Debug Log References
 
+- antd v6 `destroyOnClose` deprecated → migrated to `destroyOnHidden`
+- antd Modal CSS transitions prevent content rendering in jsdom tests → used `ConfigProvider` with `hashed: false` and `wave: { disabled: true }` in test wrapper
+- Action buttons `visibility: hidden` CSS not accessible via Testing Library `*ByRole` queries → changed to `opacity: 0` approach (better for accessibility — screen readers can still reach buttons)
+- antd Form `onFinish` async validation pipeline requires extended test timeout → updated vitest config `testTimeout: 15000`
+
 ### Completion Notes List
+
+- Created `users.api.ts` and `config.api.ts` services with typed interfaces, query key constants, and full CRUD functions using the existing `api.ts` fetch wrapper
+- Created `UserManagement.tsx` page with antd Table displaying all users, role labels, Active/Inactive status tags, action buttons (Edit/Deactivate/Activate) with hover-reveal CSS
+- Created `UserFormModal.tsx` as a reusable Add/Edit modal with form validation on blur, department selection from API, and proper mutation + query invalidation flow
+- Created `SystemConfig.tsx` page with form fields for standardMonthlyHours, healthyMarginThreshold, and atRiskMarginThreshold with save functionality
+- Updated `router/index.tsx` to replace placeholder pages with real components for `/admin/users` and `/admin/config` routes
+- Navigation config (`config/navigation.ts`) already had correct admin items from Story 1.3
+- RoleGuard from Story 1.3 properly restricts admin routes to ADMIN role only
+- All 41 frontend tests pass (16 new tests added), 78 backend tests pass, 36 shared tests pass — zero regressions
 
 ### Change Log
 
+- 2026-02-24: Story 1.5 — User Management & System Config UI implemented (all 8 tasks, all ACs satisfied)
+- 2026-02-24: Code Review (AI) — 11 issues found (3 HIGH, 5 MEDIUM, 3 LOW). All HIGH and MEDIUM fixed:
+  - H1: Added missing `message.success` for user create/update (AC3 violation)
+  - H2: Added `departmentName` to `User` interface (table column was blank)
+  - H3: Fixed test teardown — added `Modal.destroyAll()` + `cleanup()` in `afterEach` (eliminated 2 unhandled errors)
+  - M1: Extracted `roleLabels` to shared `constants.ts` (was duplicated in 2 files)
+  - M2: Fixed `useEffect` deps in UserFormModal (mutation objects caused every-render re-fire)
+  - M3: Added percentage formatter/parser to margin threshold inputs (0.2 now shows as "20%")
+  - M4: Added `onError` handler to config save mutation (was missing error feedback)
+  - 3 LOW issues left as-is (DataResponse duplication, inline style tag, local User type)
+
 ### File List
+
+New files:
+- packages/frontend/src/services/users.api.ts
+- packages/frontend/src/services/users.api.test.ts
+- packages/frontend/src/services/config.api.ts
+- packages/frontend/src/services/config.api.test.ts
+- packages/frontend/src/pages/admin/UserManagement.tsx
+- packages/frontend/src/pages/admin/UserManagement.test.tsx
+- packages/frontend/src/pages/admin/UserFormModal.tsx
+- packages/frontend/src/pages/admin/SystemConfig.tsx
+- packages/frontend/src/pages/admin/SystemConfig.test.tsx
+- packages/frontend/src/pages/admin/constants.ts
+
+Modified files:
+- packages/frontend/src/router/index.tsx (replaced PlaceholderPage with real components for admin routes)
+- packages/frontend/vite.config.ts (added testTimeout: 15000 for antd component test reliability)

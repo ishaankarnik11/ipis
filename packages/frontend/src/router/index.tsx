@@ -1,9 +1,14 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 import { Typography } from 'antd';
 import type { UserRole } from '@ipis/shared';
-import { AuthGuard, LoginGuard, RoleGuard } from './guards';
+import { AuthGuard, LoginGuard, RoleGuard, ChangePasswordGuard } from './guards';
 import AppLayout from '../layouts/AppLayout';
 import Login from '../pages/auth/Login';
+import ForgotPassword from '../pages/auth/ForgotPassword';
+import ResetPassword from '../pages/auth/ResetPassword';
+import ChangePassword from '../pages/auth/ChangePassword';
+import UserManagement from '../pages/admin/UserManagement';
+import SystemConfig from '../pages/admin/SystemConfig';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -27,6 +32,16 @@ export const router = createBrowserRouter([
     element: <LoginGuard />,
     children: [
       { path: '/login', element: <Login /> },
+      { path: '/forgot-password', element: <ForgotPassword /> },
+      { path: '/reset-password', element: <ResetPassword /> },
+    ],
+  },
+
+  // Change password route (protected, but only accessible when mustChangePassword is true)
+  {
+    element: <ChangePasswordGuard />,
+    children: [
+      { path: '/change-password', element: <ChangePassword /> },
     ],
   },
 
@@ -45,8 +60,8 @@ export const router = createBrowserRouter([
             element: <RoleGuard allowedRoles={['ADMIN']} />,
             children: [
               { path: '/admin', element: <Navigate to="/admin/users" replace /> },
-              { path: '/admin/users', element: <PlaceholderPage title="User Management" /> },
-              { path: '/admin/config', element: <PlaceholderPage title="System Configuration" /> },
+              { path: '/admin/users', element: <UserManagement /> },
+              { path: '/admin/config', element: <SystemConfig /> },
             ],
           },
 

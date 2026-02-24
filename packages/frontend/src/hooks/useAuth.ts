@@ -16,6 +16,7 @@ export function useAuth() {
     isLoading,
     isError,
     isAuthenticated: !!data?.data,
+    mustChangePassword: data?.data?.mustChangePassword ?? false,
   };
 }
 
