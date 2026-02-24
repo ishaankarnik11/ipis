@@ -31,7 +31,7 @@ const mockFindMany = prisma.user.findMany as ReturnType<typeof vi.fn>;
 const mockCreate = prisma.user.create as ReturnType<typeof vi.fn>;
 const mockUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
 
-const mockDeptFindMany = (prisma.department as { findMany: ReturnType<typeof vi.fn> }).findMany;
+const mockDeptFindMany = (prisma.department as unknown as { findMany: ReturnType<typeof vi.fn> }).findMany;
 
 describe('user.service', () => {
   beforeEach(() => {

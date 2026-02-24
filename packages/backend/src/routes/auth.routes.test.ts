@@ -46,6 +46,9 @@ const mockTokenFindFirst = prisma.passwordResetToken.findFirst as ReturnType<typ
 const mockTransaction = prisma.$transaction as ReturnType<typeof vi.fn>;
 const mockUserUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
 
+import { sendPasswordResetEmail } from '../services/email.service.js';
+const mockSendEmail = sendPasswordResetEmail as ReturnType<typeof vi.fn>;
+
 describe('Auth Routes', () => {
   const app = createApp();
   let hashedPassword: string;
@@ -426,6 +429,147 @@ describe('Auth Routes', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('Auth lifecycle regression', () => {
+    it('should complete login → /me → logout → /me returns 401 cycle', async () => {
+      // Step 1: Login
+      mockFindUnique.mockResolvedValue(activeUser());
+      const loginRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'admin@test.com', password: 'correct-password' });
+      expect(loginRes.status).toBe(200);
+      const cookies = loginRes.headers['set-cookie'];
+
+      // Step 2: GET /me returns user
+      mockFindUnique.mockResolvedValue(activeUser());
+      const meRes = await request(app)
+        .get('/api/v1/auth/me')
+        .set('Cookie', cookies);
+      expect(meRes.status).toBe(200);
+      expect(meRes.body.data.email).toBe('admin@test.com');
+
+      // Step 3: Logout
+      const logoutRes = await request(app)
+        .post('/api/v1/auth/logout')
+        .set('Cookie', cookies);
+      expect(logoutRes.status).toBe(200);
+      expect(logoutRes.body).toEqual({ success: true });
+
+      // Step 4: GET /me without cookie → 401 (browser deletes cookie on maxAge: 0)
+      const meAfterLogout = await request(app).get('/api/v1/auth/me');
+      expect(meAfterLogout.status).toBe(401);
+    });
+  });
+
+  describe('Password reset lifecycle regression', () => {
+    it('should complete forgot-password → validate → reset → login-with-new-password cycle', async () => {
+      // Step 1: Request password reset
+      mockFindUnique.mockResolvedValue(activeUser());
+      mockTokenCreate.mockResolvedValue({});
+
+      const forgotRes = await request(app)
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'admin@test.com' });
+      expect(forgotRes.status).toBe(200);
+      expect(mockTokenCreate).toHaveBeenCalled();
+
+      // Extract plaintext token from email service mock
+      const emailCall = mockSendEmail.mock.calls[0];
+      const resetUrl: string = emailCall[1];
+      const url = new URL(resetUrl);
+      const plainToken = url.searchParams.get('token');
+      expect(plainToken).toBeTruthy();
+
+      // Step 2: Validate token
+      mockTokenFindFirst.mockResolvedValue({
+        id: 'token-1',
+        tokenHash: 'hash',
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 3600000),
+      });
+
+      const validateRes = await request(app)
+        .get(`/api/v1/auth/validate-reset-token?token=${plainToken}`);
+      expect(validateRes.status).toBe(200);
+      expect(validateRes.body.data.valid).toBe(true);
+
+      // Step 3: Reset password
+      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
+        return fn({
+          passwordResetToken: {
+            findFirst: vi.fn().mockResolvedValue({
+              id: 'token-1',
+              userId: 'user-1',
+              tokenHash: 'hash',
+              usedAt: null,
+              expiresAt: new Date(Date.now() + 3600000),
+            }),
+            update: vi.fn().mockResolvedValue({}),
+          },
+          user: { update: vi.fn().mockResolvedValue({}) },
+        });
+      });
+
+      const resetRes = await request(app)
+        .post('/api/v1/auth/reset-password')
+        .send({ token: plainToken, newPassword: 'new-secure-password' });
+      expect(resetRes.status).toBe(200);
+      expect(resetRes.body).toEqual({ success: true });
+
+      // Step 4: Login with new password
+      const newHash = await bcrypt.hash('new-secure-password', 10);
+      mockFindUnique.mockResolvedValue({ ...activeUser(), passwordHash: newHash });
+
+      const loginRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'admin@test.com', password: 'new-secure-password' });
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.data.email).toBe('admin@test.com');
+    });
+  });
+
+  describe('First-login change-password regression', () => {
+    it('should complete login (mustChangePassword=true) → change-password → /me returns mustChangePassword=false', async () => {
+      // Step 1: Login with mustChangePassword: true
+      const mustChangeUser = { ...activeUser(), mustChangePassword: true };
+      mockFindUnique.mockResolvedValue(mustChangeUser);
+
+      const loginRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'admin@test.com', password: 'correct-password' });
+      expect(loginRes.status).toBe(200);
+      const cookies = loginRes.headers['set-cookie'];
+
+      // Step 2: GET /me returns mustChangePassword: true
+      mockFindUnique.mockResolvedValue(mustChangeUser);
+      const meBeforeRes = await request(app)
+        .get('/api/v1/auth/me')
+        .set('Cookie', cookies);
+      expect(meBeforeRes.status).toBe(200);
+      expect(meBeforeRes.body.data.mustChangePassword).toBe(true);
+
+      // Step 3: Change password
+      mockFindUnique.mockResolvedValue(mustChangeUser);
+      mockUserUpdate.mockResolvedValue({});
+
+      const changeRes = await request(app)
+        .post('/api/v1/auth/change-password')
+        .set('Cookie', cookies)
+        .send({ newPassword: 'new-secure-password' });
+      expect(changeRes.status).toBe(200);
+      expect(changeRes.body).toEqual({ success: true });
+
+      // Step 4: GET /me returns mustChangePassword: false
+      const updatedUser = { ...activeUser(), mustChangePassword: false };
+      mockFindUnique.mockResolvedValue(updatedUser);
+
+      const meAfterRes = await request(app)
+        .get('/api/v1/auth/me')
+        .set('Cookie', cookies);
+      expect(meAfterRes.status).toBe(200);
+      expect(meAfterRes.body.data.mustChangePassword).toBe(false);
     });
   });
 

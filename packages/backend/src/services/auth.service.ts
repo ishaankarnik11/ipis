@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../lib/prisma.js';
 import { UnauthorizedError } from '../lib/errors.js';
 import { config } from '../lib/config.js';
+import { logger } from '../lib/logger.js';
 import { sendPasswordResetEmail } from './email.service.js';
 
 const SALT_ROUNDS = 10;
@@ -138,4 +139,17 @@ export async function changePassword(userId: string, newPassword: string): Promi
       mustChangePassword: false,
     },
   });
+}
+
+export async function cleanupExpiredTokens(): Promise<number> {
+  const result = await prisma.passwordResetToken.deleteMany({
+    where: {
+      OR: [
+        { usedAt: { not: null } },
+        { expiresAt: { lt: new Date() } },
+      ],
+    },
+  });
+  logger.info({ count: result.count }, 'Cleaned up expired password reset tokens');
+  return result.count;
 }

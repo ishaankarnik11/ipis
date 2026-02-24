@@ -145,7 +145,7 @@ describe('Project Routes', () => {
     const loginRes = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: user.email, password: 'password123' });
-    return loginRes.headers['set-cookie'] as string[];
+    return loginRes.headers['set-cookie'] as unknown as string[];
   }
 
   beforeEach(() => {

@@ -7,7 +7,7 @@ export {
   type ForgotPasswordInput,
   type ResetPasswordInput,
   type ChangePasswordInput,
-} from './auth.schema';
+} from './auth.schema.js';
 export {
   createUserSchema,
   updateUserSchema,
@@ -15,7 +15,7 @@ export {
   type CreateUserInput,
   type UpdateUserInput,
   type SystemConfigInput,
-} from './user.schema';
+} from './user.schema.js';
 export {
   employeeRowSchema,
   bulkUploadResponseSchema,
@@ -25,7 +25,7 @@ export {
   type BulkUploadResponse,
   type CreateEmployeeInput,
   type UpdateEmployeeInput,
-} from './employee.schema';
+} from './employee.schema.js';
 export {
   createProjectSchema,
   rejectProjectSchema,
@@ -33,4 +33,4 @@ export {
   type CreateProjectInput,
   type RejectProjectInput,
   type UpdateProjectInput,
-} from './project.schema';
+} from './project.schema.js';

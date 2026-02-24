@@ -69,7 +69,7 @@ router.get(
   authMiddleware,
   rbacMiddleware(['HR', 'ADMIN', 'FINANCE']),
   asyncHandler(async (req, res) => {
-    const employee = await employeeService.getById(req.params.id!, req.user!);
+    const employee = await employeeService.getById(req.params.id as string, req.user!);
     res.json({ data: employee });
   }),
 );
@@ -81,7 +81,7 @@ router.patch(
   rbacMiddleware(['HR']),
   validate(updateEmployeeSchema),
   asyncHandler(async (req, res) => {
-    const employee = await employeeService.updateEmployee(req.params.id!, req.body);
+    const employee = await employeeService.updateEmployee(req.params.id as string, req.body);
     res.json({ data: employee });
   }),
 );
@@ -92,7 +92,7 @@ router.patch(
   authMiddleware,
   rbacMiddleware(['HR']),
   asyncHandler(async (req, res) => {
-    await employeeService.resignEmployee(req.params.id!);
+    await employeeService.resignEmployee(req.params.id as string);
     res.json({ success: true });
   }),
 );

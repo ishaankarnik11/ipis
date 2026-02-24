@@ -1,4 +1,5 @@
 import { get } from './api';
+import type { ListResponse } from './types';
 
 export const auditKeys = {
   all: ['audit-log'] as const,
@@ -27,12 +28,7 @@ export interface AuditLogParams {
   actorEmail?: string;
 }
 
-export interface AuditLogResponse {
-  data: AuditEvent[];
-  meta: { total: number; page: number; pageSize: number };
-}
-
-export function getAuditLog(params: AuditLogParams): Promise<AuditLogResponse> {
+export function getAuditLog(params: AuditLogParams): Promise<ListResponse<AuditEvent>> {
   const searchParams = new URLSearchParams();
   if (params.page) searchParams.set('page', String(params.page));
   if (params.pageSize) searchParams.set('pageSize', String(params.pageSize));
@@ -44,5 +40,5 @@ export function getAuditLog(params: AuditLogParams): Promise<AuditLogResponse> {
   if (params.actorEmail) searchParams.set('actorEmail', params.actorEmail);
 
   const qs = searchParams.toString();
-  return get<AuditLogResponse>(`/audit-log${qs ? `?${qs}` : ''}`);
+  return get<ListResponse<AuditEvent>>(`/audit-log${qs ? `?${qs}` : ''}`);
 }

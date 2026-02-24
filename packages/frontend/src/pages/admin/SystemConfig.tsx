@@ -62,7 +62,7 @@ export default function SystemConfig() {
           rules={[{ required: true, message: 'Healthy margin threshold is required' }]}
           tooltip="Enter as decimal: 0.20 = 20%"
         >
-          <InputNumber min={0} max={1} step={0.01} formatter={(v) => v != null ? `${(Number(v) * 100).toFixed(0)}%` : ''} parser={(v) => { const n = parseFloat(v?.replace('%', '') ?? ''); return isNaN(n) ? 0 : n / 100; }} style={{ width: '100%' }} />
+          <InputNumber<number> min={0} max={1} step={0.01} formatter={(v) => v != null ? `${(Number(v) * 100).toFixed(0)}%` : ''} parser={(v) => { const n = parseFloat(v?.replace('%', '') ?? ''); return isNaN(n) ? 0 : n / 100; }} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item
@@ -71,7 +71,7 @@ export default function SystemConfig() {
           rules={[{ required: true, message: 'At-risk margin threshold is required' }]}
           tooltip="Enter as decimal: 0.05 = 5%"
         >
-          <InputNumber min={0} max={1} step={0.01} formatter={(v) => v != null ? `${(Number(v) * 100).toFixed(0)}%` : ''} parser={(v) => { const n = parseFloat(v?.replace('%', '') ?? ''); return isNaN(n) ? 0 : n / 100; }} style={{ width: '100%' }} />
+          <InputNumber<number> min={0} max={1} step={0.01} formatter={(v) => v != null ? `${(Number(v) * 100).toFixed(0)}%` : ''} parser={(v) => { const n = parseFloat(v?.replace('%', '') ?? ''); return isNaN(n) ? 0 : n / 100; }} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item>

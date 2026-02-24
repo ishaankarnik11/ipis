@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider } from 'antd';
 import { MemoryRouter } from 'react-router';
 import AuditLog from './AuditLog';
-import type { AuditEvent, AuditLogResponse } from '../../services/audit.api';
+import type { AuditEvent } from '../../services/audit.api';
+import type { ListResponse } from '../../services/types';
 
 // antd v6 Table/Select uses ResizeObserver — mock for jsdom
 global.ResizeObserver = class {
@@ -60,7 +61,7 @@ const testEvents: AuditEvent[] = [
   },
 ];
 
-const mockResponse: AuditLogResponse = {
+const mockResponse: ListResponse<AuditEvent> = {
   data: testEvents,
   meta: { total: 3, page: 1, pageSize: 50 },
 };

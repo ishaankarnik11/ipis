@@ -68,7 +68,7 @@ describe('Audit Routes', () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: user.email, password: 'password123' });
-    return res.headers['set-cookie'] as string[];
+    return res.headers['set-cookie'] as unknown as string[];
   }
 
   describe('GET /api/v1/audit-log', () => {

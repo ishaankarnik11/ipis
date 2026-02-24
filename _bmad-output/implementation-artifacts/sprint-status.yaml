@@ -48,10 +48,12 @@ development_status:
   1-4-user-and-role-management-api: done
   1-5-user-management-and-system-config-ui: done
   1-6-password-management-reset-and-first-login-flow: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   # Epic 2: Employee & Salary Data Management
   epic-2: in-progress
+  2-0-epic-1-tech-debt-cleanup: review
+  2-0b-epic-1-regression-testing: review
   2-1-employee-salary-master-bulk-upload-api: done
   2-2-individual-employee-management-api: review
   2-3-employee-management-ui-list-add-edit-and-resign: ready-for-dev

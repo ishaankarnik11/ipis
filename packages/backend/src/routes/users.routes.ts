@@ -38,7 +38,7 @@ router.patch(
   rbacMiddleware(['ADMIN']),
   validate(updateUserSchema),
   asyncHandler(async (req, res) => {
-    const user = await userService.updateUser(req.params.id, req.body);
+    const user = await userService.updateUser(req.params.id as string, req.body);
     res.json({ data: user });
   }),
 );

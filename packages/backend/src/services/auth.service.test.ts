@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { login, getCurrentUser, hashPassword, requestPasswordReset, validateResetToken, resetPassword, changePassword } from './auth.service.js';
+import { login, getCurrentUser, hashPassword, requestPasswordReset, validateResetToken, resetPassword, changePassword, cleanupExpiredTokens } from './auth.service.js';
 import { UnauthorizedError } from '../lib/errors.js';
 
 // Mock Prisma
@@ -13,6 +13,7 @@ vi.mock('../lib/prisma.js', () => ({
       create: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn(),
+      deleteMany: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -38,6 +39,15 @@ vi.mock('./email.service.js', () => ({
   sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Mock logger
+vi.mock('../lib/logger.js', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  },
+}));
+
 import { prisma } from '../lib/prisma.js';
 import bcrypt from 'bcrypt';
 import { sendPasswordResetEmail } from './email.service.js';
@@ -50,6 +60,7 @@ const mockTokenFindFirst = prisma.passwordResetToken.findFirst as ReturnType<typ
 const mockTransaction = prisma.$transaction as ReturnType<typeof vi.fn>;
 const mockUserUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
 const mockSendEmail = sendPasswordResetEmail as ReturnType<typeof vi.fn>;
+const mockTokenDeleteMany = prisma.passwordResetToken.deleteMany as ReturnType<typeof vi.fn>;
 
 describe('auth.service', () => {
   beforeEach(() => {
@@ -352,6 +363,33 @@ describe('auth.service', () => {
           mustChangePassword: false,
         },
       });
+    });
+  });
+
+  describe('cleanupExpiredTokens', () => {
+    it('should delete used and expired tokens and return count', async () => {
+      mockTokenDeleteMany.mockResolvedValue({ count: 5 });
+
+      const result = await cleanupExpiredTokens();
+
+      expect(result).toBe(5);
+      expect(mockTokenDeleteMany).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { usedAt: { not: null } },
+            { expiresAt: { lt: expect.any(Date) } },
+          ],
+        },
+      });
+    });
+
+    it('should return 0 when no tokens to clean up', async () => {
+      mockTokenDeleteMany.mockResolvedValue({ count: 0 });
+
+      const result = await cleanupExpiredTokens();
+
+      expect(result).toBe(0);
+      expect(mockTokenDeleteMany).toHaveBeenCalled();
     });
   });
 });

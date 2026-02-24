@@ -4,7 +4,7 @@ export interface DataResponse<T> {
 
 export interface ListResponse<T> {
   data: T[];
-  meta: { total: number };
+  meta: { total: number; page?: number; pageSize?: number };
 }
 
 export interface SuccessResponse {

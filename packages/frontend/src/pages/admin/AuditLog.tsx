@@ -48,7 +48,7 @@ const actionColorMap: Record<string, string> = {
 };
 
 export default function AuditLog() {
-  const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(debounceTimer.current), []);
   const [searchParams, setSearchParams] = useSearchParams();
 

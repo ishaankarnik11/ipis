@@ -1,11 +1,10 @@
-import { Navigate, Outlet, useLocation } from 'react-router';
+import { Navigate, Outlet } from 'react-router';
 import { Spin } from 'antd';
 import type { UserRole } from '@ipis/shared';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 export function AuthGuard() {
   const { user, isLoading, isAuthenticated, mustChangePassword } = useAuth();
-  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -19,7 +18,7 @@ export function AuthGuard() {
     return <Navigate to="/login" replace />;
   }
 
-  if (mustChangePassword && location.pathname !== '/change-password') {
+  if (mustChangePassword) {
     return <Navigate to="/change-password" replace />;
   }
 

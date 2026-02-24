@@ -25,4 +25,12 @@ describe('formatPercent', () => {
   it('formats percentage above 100%', () => {
     expect(formatPercent(1.5)).toBe('150.0%');
   });
+
+  it('handles very large decimal values', () => {
+    expect(formatPercent(100)).toBe('10000.0%');
+  });
+
+  it('handles very small negative values', () => {
+    expect(formatPercent(-0.001)).toBe('-0.1%');
+  });
 });

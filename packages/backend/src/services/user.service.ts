@@ -17,7 +17,7 @@ const USER_SELECT = {
   department: { select: { name: true } },
 } as const;
 
-function flattenUser(user: { department: { name: string } | null; [key: string]: unknown }) {
+function flattenUser<T extends { department: { name: string } | null }>(user: T) {
   const { department, ...rest } = user;
   return { ...rest, departmentName: department?.name ?? null };
 }

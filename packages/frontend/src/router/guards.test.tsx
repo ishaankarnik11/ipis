@@ -9,6 +9,7 @@ let mockAuthReturn = {
   isLoading: false,
   isError: false,
   isAuthenticated: false,
+  mustChangePassword: false,
 };
 
 vi.mock('../hooks/useAuth', () => ({
@@ -23,7 +24,7 @@ vi.mock('../hooks/useAuth', () => ({
   },
 }));
 
-import { AuthGuard, LoginGuard, RoleGuard } from './guards';
+import { AuthGuard, LoginGuard, ChangePasswordGuard, RoleGuard } from './guards';
 
 function renderWithRouter(initialEntry: string, routes: React.ReactNode) {
   const queryClient = new QueryClient({
@@ -42,7 +43,7 @@ function renderWithRouter(initialEntry: string, routes: React.ReactNode) {
 describe('AuthGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuthReturn = { user: null, isLoading: false, isError: false, isAuthenticated: false };
+    mockAuthReturn = { user: null, isLoading: false, isError: false, isAuthenticated: false, mustChangePassword: false };
   });
 
   it('should redirect to /login when not authenticated', () => {
@@ -65,6 +66,7 @@ describe('AuthGuard', () => {
       isLoading: false,
       isError: false,
       isAuthenticated: true,
+      mustChangePassword: false,
     };
 
     renderWithRouter('/protected', (
@@ -77,7 +79,7 @@ describe('AuthGuard', () => {
   });
 
   it('should show spinner while loading', () => {
-    mockAuthReturn = { user: null, isLoading: true, isError: false, isAuthenticated: false };
+    mockAuthReturn = { user: null, isLoading: true, isError: false, isAuthenticated: false, mustChangePassword: false };
 
     renderWithRouter('/protected', (
       <Route element={<AuthGuard />}>
@@ -89,12 +91,34 @@ describe('AuthGuard', () => {
     // Spin component renders a spinner
     expect(document.querySelector('.ant-spin')).toBeInTheDocument();
   });
+
+  it('should redirect to /change-password when mustChangePassword is true', () => {
+    mockAuthReturn = {
+      user: { id: '1', name: 'Admin', role: 'ADMIN', email: 'admin@test.com' },
+      isLoading: false,
+      isError: false,
+      isAuthenticated: true,
+      mustChangePassword: true,
+    };
+
+    renderWithRouter('/protected', (
+      <>
+        <Route element={<AuthGuard />}>
+          <Route path="/protected" element={<div>Protected Content</div>} />
+        </Route>
+        <Route path="/change-password" element={<div>Change Password Page</div>} />
+      </>
+    ));
+
+    expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
+    expect(screen.getByText('Change Password Page')).toBeInTheDocument();
+  });
 });
 
 describe('LoginGuard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuthReturn = { user: null, isLoading: false, isError: false, isAuthenticated: false };
+    mockAuthReturn = { user: null, isLoading: false, isError: false, isAuthenticated: false, mustChangePassword: false };
   });
 
   it('should render login page when not authenticated', () => {
@@ -116,6 +140,7 @@ describe('LoginGuard', () => {
       isLoading: false,
       isError: false,
       isAuthenticated: true,
+      mustChangePassword: false,
     };
 
     renderWithRouter('/login', (
@@ -143,6 +168,7 @@ describe('RoleGuard', () => {
       isLoading: false,
       isError: false,
       isAuthenticated: true,
+      mustChangePassword: false,
     };
 
     renderWithRouter('/admin/users', (
@@ -160,6 +186,7 @@ describe('RoleGuard', () => {
       isLoading: false,
       isError: false,
       isAuthenticated: true,
+      mustChangePassword: false,
     };
 
     renderWithRouter('/admin/users', (
@@ -173,5 +200,66 @@ describe('RoleGuard', () => {
 
     expect(screen.queryByText('Admin Content')).not.toBeInTheDocument();
     expect(screen.getByText('Finance Dashboard')).toBeInTheDocument();
+  });
+});
+
+describe('ChangePasswordGuard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuthReturn = { user: null, isLoading: false, isError: false, isAuthenticated: false, mustChangePassword: false };
+  });
+
+  it('should redirect to /login when not authenticated', () => {
+    renderWithRouter('/change-password', (
+      <>
+        <Route element={<ChangePasswordGuard />}>
+          <Route path="/change-password" element={<div>Change Password Form</div>} />
+        </Route>
+        <Route path="/login" element={<div>Login Page</div>} />
+      </>
+    ));
+
+    expect(screen.getByText('Login Page')).toBeInTheDocument();
+    expect(screen.queryByText('Change Password Form')).not.toBeInTheDocument();
+  });
+
+  it('should redirect to landing page when mustChangePassword is false', () => {
+    mockAuthReturn = {
+      user: { id: '1', name: 'Admin', role: 'ADMIN', email: 'admin@test.com' },
+      isLoading: false,
+      isError: false,
+      isAuthenticated: true,
+      mustChangePassword: false,
+    };
+
+    renderWithRouter('/change-password', (
+      <>
+        <Route element={<ChangePasswordGuard />}>
+          <Route path="/change-password" element={<div>Change Password Form</div>} />
+        </Route>
+        <Route path="/admin" element={<div>Admin Dashboard</div>} />
+      </>
+    ));
+
+    expect(screen.queryByText('Change Password Form')).not.toBeInTheDocument();
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+  });
+
+  it('should render change password form when mustChangePassword is true', () => {
+    mockAuthReturn = {
+      user: { id: '1', name: 'Admin', role: 'ADMIN', email: 'admin@test.com' },
+      isLoading: false,
+      isError: false,
+      isAuthenticated: true,
+      mustChangePassword: true,
+    };
+
+    renderWithRouter('/change-password', (
+      <Route element={<ChangePasswordGuard />}>
+        <Route path="/change-password" element={<div>Change Password Form</div>} />
+      </Route>
+    ));
+
+    expect(screen.getByText('Change Password Form')).toBeInTheDocument();
   });
 });

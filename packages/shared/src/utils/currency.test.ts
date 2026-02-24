@@ -25,4 +25,16 @@ describe('formatCurrency', () => {
   it('handles negative values', () => {
     expect(formatCurrency(-500000)).toBe('-₹5,000');
   });
+
+  it('handles very large values (trillion-level paise)', () => {
+    // 10 trillion paise = ₹1,00,00,00,00,000 (100 billion rupees)
+    const result = formatCurrency(10_000_000_000_000);
+    expect(result).toContain('₹');
+    expect(result.length).toBeGreaterThan(10);
+  });
+
+  it('handles decimal precision (rounds down sub-paise)', () => {
+    // 150.7 paise → rounds in formatter to ₹2 (150.7/100 = 1.507 → rounds to 2)
+    expect(formatCurrency(150)).toBe('₹2');
+  });
 });

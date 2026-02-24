@@ -37,7 +37,7 @@ router.get(
   authMiddleware,
   rbacMiddleware(['ADMIN', 'FINANCE', 'DELIVERY_MANAGER', 'DEPT_HEAD']),
   asyncHandler(async (req, res) => {
-    const project = await projectService.getById(req.params.id, req.user!);
+    const project = await projectService.getById(req.params.id as string, req.user!);
     res.json({ data: project });
   }),
 );
@@ -49,7 +49,7 @@ router.patch(
   rbacMiddleware(['DELIVERY_MANAGER']),
   validate(updateProjectSchema),
   asyncHandler(async (req, res) => {
-    const project = await projectService.updateProject(req.params.id, req.body, req.user!);
+    const project = await projectService.updateProject(req.params.id as string, req.body, req.user!);
     res.json({ data: project });
   }),
 );
@@ -60,7 +60,7 @@ router.post(
   authMiddleware,
   rbacMiddleware(['ADMIN']),
   asyncHandler(async (req, res) => {
-    await projectService.approveProject(req.params.id);
+    await projectService.approveProject(req.params.id as string);
     res.json({ success: true });
   }),
 );
@@ -72,7 +72,7 @@ router.post(
   rbacMiddleware(['ADMIN']),
   validate(rejectProjectSchema),
   asyncHandler(async (req, res) => {
-    await projectService.rejectProject(req.params.id, req.body.rejectionComment);
+    await projectService.rejectProject(req.params.id as string, req.body.rejectionComment);
     res.json({ success: true });
   }),
 );
@@ -83,7 +83,7 @@ router.post(
   authMiddleware,
   rbacMiddleware(['DELIVERY_MANAGER']),
   asyncHandler(async (req, res) => {
-    await projectService.resubmitProject(req.params.id, req.user!);
+    await projectService.resubmitProject(req.params.id as string, req.user!);
     res.json({ success: true });
   }),
 );

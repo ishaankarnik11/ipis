@@ -41,7 +41,7 @@ const mockUserFindUnique = prisma.user.findUnique as ReturnType<typeof vi.fn>;
 const mockUserFindMany = prisma.user.findMany as ReturnType<typeof vi.fn>;
 const mockUserCreate = prisma.user.create as ReturnType<typeof vi.fn>;
 const mockUserUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
-const mockDeptFindMany = (prisma.department as { findMany: ReturnType<typeof vi.fn> }).findMany;
+const mockDeptFindMany = (prisma.department as unknown as { findMany: ReturnType<typeof vi.fn> }).findMany;
 
 describe('User & Department Routes', () => {
   const app = createApp();
@@ -51,7 +51,7 @@ describe('User & Department Routes', () => {
     hashedPassword = await bcrypt.hash('password123', 10);
   });
 
-  const makeUser = (overrides: Partial<ReturnType<typeof makeAdmin>> = {}) => ({
+  const makeUser = (overrides: Record<string, unknown> = {}) => ({
     id: 'admin-1',
     email: 'admin@test.com',
     passwordHash: hashedPassword,
@@ -78,7 +78,7 @@ describe('User & Department Routes', () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: user.email, password: 'password123' });
-    return res.headers['set-cookie'] as string[];
+    return res.headers['set-cookie'] as unknown as string[];
   }
 
   // Note: authMiddleware does NOT call prisma.user.findUnique.
