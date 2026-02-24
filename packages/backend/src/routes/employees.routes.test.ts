@@ -470,6 +470,31 @@ describe('Employee Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
     });
+
+    it('should return 404 when resigning nonexistent employee', async () => {
+      const cookies = await loginAs('HR');
+      mockEmpFindUnique.mockResolvedValue(null);
+
+      const res = await request(app)
+        .patch('/api/v1/employees/nonexistent/resign')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('should return 400 when resigning already-resigned employee', async () => {
+      const cookies = await loginAs('HR');
+      mockEmpFindUnique.mockResolvedValue({ id: 'emp-1', isResigned: true });
+
+      const res = await request(app)
+        .patch('/api/v1/employees/emp-1/resign')
+        .set('Cookie', cookies);
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.message).toContain('already resigned');
+    });
   });
 
   describe('GET /api/v1/employees (AC 4, 5)', () => {

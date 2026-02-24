@@ -1,6 +1,6 @@
 # Story 2.2: Individual Employee Management API
 
-Status: review
+Status: done
 
 ## Story
 
@@ -198,8 +198,23 @@ Claude Opus 4.6
 - `packages/backend/src/services/employee.service.ts` — Added `createEmployee`, `getAll`, `getById`, `updateEmployee`, `resignEmployee` methods; added `serializeEmployee` helper; added imports for error classes and types
 - `packages/backend/src/services/employee.service.test.ts` — Added 14 unit tests for CRUD operations, RBAC filtering, resigned rejection, duplicate handling; extended Prisma mock
 - `packages/backend/src/routes/employees.routes.ts` — Added 5 CRUD route handlers (POST /, GET /, GET /:id, PATCH /:id, PATCH /:id/resign) with auth/RBAC/validation middleware
-- `packages/backend/src/routes/employees.routes.test.ts` — Added 24 integration tests covering all ACs; extended Prisma mock
+- `packages/backend/src/routes/employees.routes.test.ts` — Added 24 integration tests covering all ACs; extended Prisma mock (26 after code review)
+
+### Senior Developer Review (AI)
+
+**Reviewed:** 2026-02-25 | **Outcome:** Approved with fixes applied
+
+| ID | Severity | Issue | Resolution |
+|---|---|---|---|
+| M4 | MEDIUM | `serializeEmployee` returned `Record<string, unknown>`, erasing all type safety | Refactored to generic `<T extends Record<string, unknown>>(emp: T): T` — preserves input shape |
+| M5 | MEDIUM | Missing integration test: resign nonexistent employee → 404 | Added integration test in employees.routes.test.ts |
+| M6 | MEDIUM | Missing integration test: resign already-resigned employee → 400 | Added integration test in employees.routes.test.ts |
+| M7 | MEDIUM | PATCH response includes `annualCtcPaise` for HR (inconsistent with GET AC #5) | Documented as known inconsistency — AC #1 (create) explicitly includes CTC for HR, so write responses intentionally include CTC since HR just entered the value. GET filtering per AC #5 is correct. |
+| L4 | LOW | No `.max()` on `annualCtcPaise` Zod schema | Acknowledged — practical values well within safe integer range |
+| L5 | LOW | `req.user!` non-null assertions | Acknowledged — consistent codebase pattern |
+| L6 | LOW | No unauthenticated 401 tests for individual CRUD endpoints | Acknowledged — 401 behavior tested at bulk upload level; middleware is shared |
 
 ## Change Log
 
 - 2026-02-24: Story 2.2 implementation — Individual Employee Management CRUD API (create, read, update, resign) with RBAC field filtering, Zod validation, and comprehensive unit + integration tests (227 total tests passing, 0 regressions)
+- 2026-02-25: Code review fixes — improved `serializeEmployee` type safety (M4), added 2 resign edge-case integration tests (M5, M6), documented PATCH CTC response inconsistency (M7)

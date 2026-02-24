@@ -239,6 +239,8 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
+      // Verify email is NOT sent for nonexistent users (M2 review fix)
+      expect(mockSendEmail).not.toHaveBeenCalled();
     });
 
     it('should return success for existing user and create token', async () => {
@@ -252,6 +254,7 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
       expect(mockTokenCreate).toHaveBeenCalled();
+      expect(mockSendEmail).toHaveBeenCalled();
     });
 
     it('should return 400 for invalid email format', async () => {
@@ -456,6 +459,13 @@ describe('Auth Routes', () => {
         .set('Cookie', cookies);
       expect(logoutRes.status).toBe(200);
       expect(logoutRes.body).toEqual({ success: true });
+
+      // Verify logout response clears the cookie
+      const logoutCookies = logoutRes.headers['set-cookie'];
+      expect(logoutCookies).toBeDefined();
+      const logoutCookieStr = Array.isArray(logoutCookies) ? logoutCookies.join('; ') : logoutCookies;
+      expect(logoutCookieStr).toContain('ipis_token');
+      expect(logoutCookieStr).toContain('Max-Age=0');
 
       // Step 4: GET /me without cookie → 401 (browser deletes cookie on maxAge: 0)
       const meAfterLogout = await request(app).get('/api/v1/auth/me');

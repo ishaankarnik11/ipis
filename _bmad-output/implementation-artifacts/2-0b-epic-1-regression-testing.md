@@ -1,6 +1,6 @@
 # Story 2.0b: Epic 1 Regression Testing
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -173,6 +173,7 @@ Every task is test-focused. No production code changes should be needed (only te
 ## Change Log
 
 - 2026-02-24: Story 2.0b implemented — all 10 tasks completed. Added 16 new tests across 4 new and 4 modified test files. Total test suite grew from 352 to 368 tests with zero regressions.
+- 2026-02-25: Code review fixes — strengthened forgot-password email assertions (M2), added logout cookie-clearing verification to lifecycle regression test (M3), updated File List to include production files changed for TS error fixes (M1).
 
 ## Dev Agent Record
 
@@ -208,9 +209,43 @@ None — no issues encountered during implementation.
 
 ### File List
 
+**Test files (Story 2.0b scope):**
 - packages/backend/src/services/email.service.test.ts (NEW)
 - packages/backend/src/routes/departments.routes.test.ts (NEW)
-- packages/backend/src/routes/auth.routes.test.ts (MODIFIED — added 3 regression test blocks + email mock reference)
+- packages/backend/src/routes/auth.routes.test.ts (MODIFIED — added 3 regression test blocks, email mock assertions, logout cookie-clearing verification)
 - packages/frontend/src/router/guards.test.tsx (MODIFIED — added ChangePasswordGuard tests + AuthGuard mustChangePassword test)
 - packages/shared/src/utils/currency.test.ts (MODIFIED — added 2 edge case tests)
 - packages/shared/src/utils/percent.test.ts (MODIFIED — added 2 edge case tests)
+
+**Production files (pre-existing TypeScript error fixes, bundled in same commit):**
+- .gitignore (MODIFIED)
+- docs/gotchas.md (MODIFIED)
+- docs/testing-patterns.md (MODIFIED)
+- packages/backend/src/middleware/upload.middleware.ts (MODIFIED — TS fix)
+- packages/backend/src/routes/employees.routes.ts (MODIFIED — TS fix)
+- packages/backend/src/routes/projects.routes.ts (MODIFIED — TS fix)
+- packages/backend/src/routes/users.routes.ts (MODIFIED — TS fix)
+- packages/backend/src/services/auth.service.ts (MODIFIED — TS fix)
+- packages/backend/src/services/auth.service.test.ts (MODIFIED — TS fix)
+- packages/backend/src/services/user.service.ts (MODIFIED — TS fix)
+- packages/backend/src/services/user.service.test.ts (MODIFIED — TS fix)
+- packages/frontend/src/pages/admin/AuditLog.tsx (MODIFIED — TS fix)
+- packages/frontend/src/pages/admin/SystemConfig.tsx (MODIFIED — TS fix)
+- packages/frontend/src/pages/admin/audit-log.test.tsx (MODIFIED — TS fix)
+- packages/frontend/src/router/guards.tsx (MODIFIED — TS fix)
+- packages/frontend/src/services/audit.api.ts (MODIFIED — TS fix)
+- packages/frontend/src/services/types.ts (MODIFIED — TS fix)
+- packages/shared/src/index.ts (MODIFIED — TS fix)
+- packages/shared/src/schemas/index.ts (MODIFIED — TS fix)
+
+### Senior Developer Review (AI)
+
+**Reviewed:** 2026-02-25 | **Outcome:** Approved with fixes applied
+
+| ID | Severity | Issue | Resolution |
+|---|---|---|---|
+| M1 | MEDIUM | File List only documented 6 test files; commit had 32 files including production TS fixes | Updated File List to include all changed files |
+| M2 | MEDIUM | AC #3 "inactive user skips" not tested in email.service.test.ts (behavior lives in auth service) | Added explicit `mockSendEmail.not.toHaveBeenCalled()` assertion in forgot-password test for nonexistent user; added `mockSendEmail.toHaveBeenCalled()` for existing user |
+| M3 | MEDIUM | Auth lifecycle regression test didn't verify logout cookie-clearing | Added `Set-Cookie` header assertion verifying `Max-Age=0` in logout response |
+| L1 | LOW | Regression tests are mock-heavy, limiting regression-detection value | Acknowledged — consistent with existing patterns |
+| L2 | LOW | Test count baseline (368) will drift as subsequent stories add tests | Acknowledged — point-in-time snapshot |

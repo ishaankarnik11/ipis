@@ -11,12 +11,12 @@ interface AuthUser {
   email: string;
 }
 
-/** Convert BigInt fields to Number for JSON serialization */
-function serializeEmployee(emp: Record<string, unknown>): Record<string, unknown> {
+/** Convert BigInt fields to Number for JSON serialization. Preserves input type shape. */
+function serializeEmployee<T extends Record<string, unknown>>(emp: T): T {
   const result = { ...emp };
   for (const key of Object.keys(result)) {
     if (typeof result[key] === 'bigint') {
-      result[key] = Number(result[key]);
+      (result as Record<string, unknown>)[key] = Number(result[key]);
     }
   }
   return result;
