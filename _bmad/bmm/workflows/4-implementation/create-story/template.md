@@ -26,6 +26,8 @@ so that {{benefit}}.
 - Relevant architecture patterns and constraints
 - Source tree components to touch
 - Testing standards summary
+- Complete the [Defensive AC Checklist](docs/defensive-ac-checklist.md) when writing ACs
+- Complete the [Pre-Review Self-Check](docs/dev-workflow.md#pre-review-self-check) before submitting for review
 
 ### Project Structure Notes
 

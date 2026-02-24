@@ -51,17 +51,19 @@ development_status:
   epic-1-retrospective: done
 
   # Epic 2: Employee & Salary Data Management
-  epic-2: in-progress
+  epic-2: done
   2-0-epic-1-tech-debt-cleanup: done
   2-0b-epic-1-regression-testing: done
   2-1-employee-salary-master-bulk-upload-api: done
   2-2-individual-employee-management-api: done
   2-3-employee-management-ui-list-add-edit-and-resign: done
   2-4-bulk-upload-ui-and-failed-rows-download: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   # Epic 3: Project Lifecycle & Team Management
   epic-3: in-progress
+  3-0-epic-2-retro-actionables-and-regression: done
+  3-0b-playwright-e2e-testing-epic-1-and-2: ready-for-dev
   3-1-project-management-api-create-approve-and-reject: done
   3-2-team-roster-management-api: done
   3-3-project-creation-and-status-ui: ready-for-dev

@@ -222,6 +222,86 @@ vi.mock('../lib/prisma.js', () => ({
 }));
 ```
 
+## Mutation Submission Testing
+
+### Create / Update / Delete mutation test pattern
+
+**Hit in:** Stories 2.1, 2.2, 2.3
+
+Every mutation operation should have tests covering:
+
+1. **Happy path** — valid input, successful response
+2. **Validation failure** — invalid/missing required fields, expect 400
+3. **Not-found** — target resource doesn't exist, expect 404
+4. **Invalid state transition** — e.g., resign an already-resigned employee, expect 409 or 400
+
+```typescript
+describe('POST /api/v1/employees', () => {
+  it('creates employee with valid data', async () => { /* 201 */ });
+  it('rejects missing required fields', async () => { /* 400 */ });
+  it('rejects duplicate employee number', async () => { /* 409 */ });
+});
+
+describe('PATCH /api/v1/employees/:id/resign', () => {
+  it('resigns an active employee', async () => { /* 200 */ });
+  it('returns 404 for nonexistent employee', async () => { /* 404 */ });
+  it('returns 400/409 for already-resigned employee', async () => { /* 400/409 */ });
+});
+```
+
+### Edge-case testing pattern (nonexistent + already-done)
+
+**Hit in:** Story 2.2 code review (M5/M6)
+
+For every state-transition mutation, always test both:
+- **Nonexistent resource:** ID does not exist → 404
+- **Invalid state:** resource exists but the transition is invalid (already resigned, already approved, etc.) → 400 or 409
+
+These two tests together prevent the most common missed edge cases.
+
+## File Upload Mock Patterns
+
+### Mocking file upload in backend tests
+
+**Hit in:** Story 2.4
+
+Use supertest's `.attach()` for multipart file uploads:
+
+```typescript
+import path from 'path';
+
+it('uploads xlsx file successfully', async () => {
+  const res = await request(app)
+    .post('/api/v1/employees/upload')
+    .set('Cookie', authCookie)
+    .attach('file', path.join(__dirname, 'fixtures/valid-employees.xlsx'));
+
+  expect(res.status).toBe(200);
+  expect(res.body.data.importedCount).toBeGreaterThan(0);
+});
+```
+
+### Mocking file upload in frontend tests
+
+**Hit in:** Story 2.4
+
+For antd `Upload.Dragger` component tests, simulate file selection with `fireEvent.drop` or by directly calling the component's `onChange`:
+
+```typescript
+import { fireEvent } from '@testing-library/react';
+
+const file = new File(['content'], 'employees.xlsx', {
+  type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+});
+
+const dropzone = screen.getByText(/drag/i).closest('.ant-upload-drag');
+fireEvent.drop(dropzone!, {
+  dataTransfer: { files: [file], types: ['Files'] },
+});
+```
+
+**Tip:** When testing upload flows end-to-end in component tests, mock the API call (e.g., `vi.spyOn(api, 'postForm')`) to avoid actual network requests.
+
 ## Test Script Flags
 
 ### `--passWithNoTests`

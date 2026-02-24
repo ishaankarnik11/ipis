@@ -43,6 +43,36 @@ Living document of framework-specific traps, version pins, and patterns discover
 
 antd v6 uses `ConfigProvider` with token-based theming. Tokens are configured in `packages/frontend/src/theme/index.ts`. Do not use v5 theme API.
 
+### Spin: `tip` prop renamed to `description`
+
+**Hit in:** Story 2.4
+
+```tsx
+// WRONG (v5 API)
+<Spin tip="Loading..." />
+
+// CORRECT (v6 API)
+<Spin description="Loading..." />
+```
+
+### Upload: `beforeUpload` receives `RcFile`, not `File`
+
+**Hit in:** Story 2.4
+
+The antd `Upload` component's `beforeUpload` callback receives an `RcFile` (which extends native `File` with `uid` and optional `lastModifiedDate`). Do NOT type it as `File` — use `RcFile` from `antd/es/upload`.
+
+```tsx
+import type { RcFile } from 'antd/es/upload';
+
+const beforeUpload = (file: RcFile) => {
+  // file.uid is available (RcFile-specific)
+  // file.name, file.size, file.type are inherited from File
+  return false; // prevent auto-upload
+};
+```
+
+When passing to `FormData`, no conversion is needed — `RcFile` extends `File` so `formData.append('file', rcFile)` works directly.
+
 ## jose v5 API
 
 **Hit in:** Stories 1.1, 1.2
@@ -134,11 +164,50 @@ Add `--passWithNoTests` flag to test scripts so packages without tests don't fai
 
 Add to `.gitignore` — it should not be committed.
 
+## HTTP Patterns
+
+### `postForm()` for FormData / multipart uploads
+
+**Hit in:** Story 2.4
+
+Use the `postForm()` helper (from the shared API module) for FormData uploads instead of manually setting `Content-Type: multipart/form-data`. The helper handles the correct headers and encoding.
+
+```typescript
+import { postForm } from '../api';
+
+const formData = new FormData();
+formData.append('file', file);
+
+const result = await postForm('/api/v1/employees/upload', formData);
+```
+
+Do NOT set `Content-Type` manually — the browser sets the correct `multipart/form-data; boundary=...` header automatically when using `FormData`.
+
 ## Prisma Patterns
 
 ### Auto-mapping handles case conversion
 
 Prisma automatically maps `snake_case` DB columns to `camelCase` TypeScript fields via `@map()`. Do NOT manually transform field names in service code.
+
+### BigInt serialization for JSON responses
+
+**Hit in:** Story 2.2
+
+Prisma returns `BigInt` for fields mapped to PostgreSQL `BIGINT`. JavaScript's `JSON.stringify` cannot serialize `BigInt` natively — it throws `TypeError: Do not know how to serialize a BigInt`.
+
+Convert BigInt to Number in serialization functions before returning from API routes:
+
+```typescript
+// In service serialization
+function serializeEmployee(emp: Employee) {
+  return {
+    ...emp,
+    annualCtcPaise: Number(emp.annualCtcPaise), // BigInt → Number
+  };
+}
+```
+
+This is safe for values up to `Number.MAX_SAFE_INTEGER` (9,007,199,254,740,991) which covers all practical salary values in paise.
 
 ### Prisma calls only from service layer
 

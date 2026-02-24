@@ -3,6 +3,7 @@ import { render, screen, waitFor, within, cleanup, fireEvent, act } from '@testi
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider, Modal } from 'antd';
+import type { ModalFuncProps } from 'antd/es/modal';
 import { MemoryRouter } from 'react-router';
 import EmployeeList from './EmployeeList';
 import type { Employee } from '../../services/employees.api';
@@ -421,13 +422,20 @@ describe('EmployeeList', () => {
     expect(mockUpdateEmployee).not.toHaveBeenCalled();
   });
 
-  it('should call resignEmployee when confirming resign', async () => {
-    // Capture the Modal.confirm config to manually invoke onOk
+  // Helper: spy on Modal.confirm and capture the onOk callback for manual invocation.
+  // The double-cast is necessary because the mock return shape ({ destroy, update, then })
+  // doesn't fully match antd v6's Modal.confirm return type.
+  function spyModalConfirm() {
     let capturedOnOk: (() => unknown) | undefined;
-    const confirmSpy = vi.spyOn(Modal, 'confirm').mockImplementation(((config: Record<string, unknown>) => {
+    const confirmSpy = vi.spyOn(Modal, 'confirm').mockImplementation(((config: ModalFuncProps) => {
       capturedOnOk = config.onOk as () => unknown;
       return { destroy: vi.fn(), update: vi.fn(), then: vi.fn() };
-    }) as typeof Modal.confirm);
+    }) as unknown as typeof Modal.confirm);
+    return { get onOk() { return capturedOnOk; }, confirmSpy };
+  }
+
+  it('should call resignEmployee when confirming resign', async () => {
+    const { onOk, confirmSpy } = spyModalConfirm();
 
     renderEmployeeList();
     const user = userEvent.setup({ delay: null });
@@ -440,11 +448,11 @@ describe('EmployeeList', () => {
     await user.click(resignButtons[0]);
 
     expect(confirmSpy).toHaveBeenCalled();
-    expect(capturedOnOk).toBeDefined();
+    expect(onOk).toBeDefined();
 
     // Invoke onOk to simulate user confirming the dialog
     await act(async () => {
-      await capturedOnOk!();
+      await onOk!();
     });
 
     // TanStack Query v5 passes mutation context as second arg
@@ -453,11 +461,7 @@ describe('EmployeeList', () => {
   });
 
   it('should show success message after successful resign', async () => {
-    let capturedOnOk: (() => unknown) | undefined;
-    const confirmSpy = vi.spyOn(Modal, 'confirm').mockImplementation(((config: Record<string, unknown>) => {
-      capturedOnOk = config.onOk as () => unknown;
-      return { destroy: vi.fn(), update: vi.fn(), then: vi.fn() };
-    }) as typeof Modal.confirm);
+    const { onOk, confirmSpy } = spyModalConfirm();
 
     renderEmployeeList();
     const user = userEvent.setup({ delay: null });
@@ -470,7 +474,7 @@ describe('EmployeeList', () => {
     await user.click(resignButtons[0]);
 
     await act(async () => {
-      await capturedOnOk!();
+      await onOk!();
     });
 
     await waitFor(() => {
