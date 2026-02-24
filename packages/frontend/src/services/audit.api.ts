@@ -30,8 +30,8 @@ export interface AuditLogParams {
 
 export function getAuditLog(params: AuditLogParams): Promise<ListResponse<AuditEvent>> {
   const searchParams = new URLSearchParams();
-  if (params.page) searchParams.set('page', String(params.page));
-  if (params.pageSize) searchParams.set('pageSize', String(params.pageSize));
+  if (params.page != null) searchParams.set('page', String(params.page));
+  if (params.pageSize != null) searchParams.set('pageSize', String(params.pageSize));
   if (params.actions && params.actions.length > 0) {
     searchParams.set('actions', params.actions.join(','));
   }

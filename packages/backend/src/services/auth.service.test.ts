@@ -391,5 +391,23 @@ describe('auth.service', () => {
       expect(result).toBe(0);
       expect(mockTokenDeleteMany).toHaveBeenCalled();
     });
+
+    it('should log cleanup count with structured data', async () => {
+      const { logger } = await import('../lib/logger.js');
+      mockTokenDeleteMany.mockResolvedValue({ count: 3 });
+
+      await cleanupExpiredTokens();
+
+      expect(logger.info).toHaveBeenCalledWith(
+        { count: 3 },
+        'Cleaned up expired password reset tokens',
+      );
+    });
+
+    it('should propagate Prisma errors to caller', async () => {
+      mockTokenDeleteMany.mockRejectedValue(new Error('Database connection lost'));
+
+      await expect(cleanupExpiredTokens()).rejects.toThrow('Database connection lost');
+    });
   });
 });

@@ -1,6 +1,6 @@
 # Story 2.0: Epic 1 Tech Debt Cleanup
 
-Status: review
+Status: done
 
 ## Story
 
@@ -110,26 +110,27 @@ No issues encountered. All tasks completed cleanly in a single pass.
 
 ### Completion Notes List
 
-- **Task 1:** Added `*.tsbuildinfo` pattern to `.gitignore` and removed `packages/shared/tsconfig.tsbuildinfo` from git tracking via `git rm --cached`
+- **Task 1:** Added `*.tsbuildinfo` pattern to `.gitignore`. **[Review Fix]** Original `git rm --cached` was never committed and was undone by c25fabe; re-executed during code review to properly untrack the file.
 - **Task 2:** Simplified AuthGuard condition from `if (mustChangePassword && location.pathname !== '/change-password')` to `if (mustChangePassword)`. Removed unused `useLocation` import and `location` variable. All 7 guard tests pass.
 - **Task 3:** Extended `ListResponse<T>.meta` with optional `page` and `pageSize` fields. Removed `AuditLogResponse` from `audit.api.ts`, replaced with `ListResponse<AuditEvent>`. Updated test file to use shared type. All 11 audit log tests pass.
-- **Task 4:** Added `cleanupExpiredTokens()` to `auth.service.ts` using Prisma `deleteMany` with `OR` filter for used (`usedAt not null`) and expired (`expiresAt < now()`) tokens. Added `logger` import for pino logging. Added 2 unit tests (delete with count, zero count). All 21 auth service tests pass. No scheduled job wired — function exposed for future use only.
+- **Task 4:** Added `cleanupExpiredTokens()` to `auth.service.ts` using Prisma `deleteMany` with `OR` filter for used (`usedAt not null`) and expired (`expiresAt < now()`) tokens. Added `logger` import for pino logging. Added 2 unit tests (delete with count, zero count). No scheduled job wired — function exposed for future use only. **[Review Fix]** Added 2 more tests: logger.info assertion with structured data, and Prisma error propagation test. Now 23 auth service tests pass.
 - **Task 5:** `docs/gotchas.md` and `docs/testing-patterns.md` confirmed as untracked files ready to stage.
 - **Task 6:** Full regression suite: 247 backend tests + 69 frontend tests = 316 total, all passing. Pre-existing TS type errors in backend/frontend (shared module resolution, React 19 useRef, antd v6 types) — none introduced by this story.
 
 ### Change Log
 
 - 2026-02-24: Story 2.0 implementation — Epic 1 tech debt cleanup (6 tasks completed)
+- 2026-02-24: Code review fixes — re-executed `git rm --cached` for tsbuildinfo, added 2 cleanup test cases, fixed falsy pagination check in audit.api.ts
 
 ### File List
 
 - `.gitignore` (modified — added `*.tsbuildinfo`)
-- `packages/shared/tsconfig.tsbuildinfo` (removed from git tracking)
+- `packages/shared/tsconfig.tsbuildinfo` (removed from git tracking — **fixed during code review**)
 - `packages/frontend/src/router/guards.tsx` (modified — simplified AuthGuard condition, removed unused imports)
 - `packages/frontend/src/services/types.ts` (modified — extended ListResponse.meta with optional page/pageSize)
-- `packages/frontend/src/services/audit.api.ts` (modified — replaced AuditLogResponse with ListResponse<AuditEvent>)
+- `packages/frontend/src/services/audit.api.ts` (modified — replaced AuditLogResponse with ListResponse<AuditEvent>, **fixed falsy pagination check**)
 - `packages/frontend/src/pages/admin/audit-log.test.tsx` (modified — updated type import)
 - `packages/backend/src/services/auth.service.ts` (modified — added logger import, added cleanupExpiredTokens function)
-- `packages/backend/src/services/auth.service.test.ts` (modified — added deleteMany mock, logger mock, cleanupExpiredTokens tests)
+- `packages/backend/src/services/auth.service.test.ts` (modified — added deleteMany mock, logger mock, cleanupExpiredTokens tests, **+2 review tests**)
 - `docs/gotchas.md` (staged — already existed as untracked)
 - `docs/testing-patterns.md` (staged — already existed as untracked)
