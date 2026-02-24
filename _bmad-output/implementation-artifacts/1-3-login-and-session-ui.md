@@ -334,6 +334,10 @@ Claude Opus 4.6 (claude-opus-4-6)
 | **Code Review Fix**: Fixed Alert prop `message` → `title` in Login.tsx | antd v6 deprecated `message` in favor of `title` |
 | **Code Review Fix**: Added 30s timeout to flaky Login redirect test | Prevent intermittent CI timeout at default 15s |
 | **Code Review Fix**: Extracted shared types to `services/types.ts` | Deduplicated DataResponse/ListResponse/SuccessResponse across 3 API files |
+| **Code Review Fix (R2)**: `useLogin` onSuccess uses `setQueryData` + `invalidateQueries` | H1: Race condition — cache pre-populated before navigation to prevent stale auth state |
+| **Code Review Fix (R2)**: `api.ts` Content-Type set conditionally | M2: Only set `application/json` when body is a string — enables future FormData uploads |
+| **Code Review Fix (R2)**: Added 4 tests for `useLogin`/`useLogout` hooks | M1: Mutation hooks had zero test coverage |
+| **Code Review Fix (R2)**: Tab order test uses explicit focus + loop | M3: autoFocus unreliable in jsdom; now resilient to intermediate focusable elements |
 
 ### File List
 
@@ -367,3 +371,9 @@ Claude Opus 4.6 (claude-opus-4-6)
 - `packages/frontend/src/services/auth.api.ts`
 - `packages/frontend/src/services/users.api.ts`
 - `packages/frontend/src/services/config.api.ts`
+
+**Modified files (code review round 2):**
+- `packages/frontend/src/hooks/useAuth.ts` — Fixed login race condition (H1)
+- `packages/frontend/src/services/api.ts` — Conditional Content-Type header (M2)
+- `packages/frontend/src/hooks/useAuth.test.ts` — Added 4 tests for useLogin/useLogout (M1)
+- `packages/frontend/src/pages/auth/Login.test.tsx` — Resilient tab order test (M3)

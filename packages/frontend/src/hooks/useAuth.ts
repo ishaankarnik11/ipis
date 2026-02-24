@@ -26,7 +26,10 @@ export function useLogin() {
   return useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       loginApi(email, password),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Pre-populate cache immediately to prevent race condition during navigation
+      queryClient.setQueryData(authKeys.me, data);
+      // Background refresh to get full AuthUser (departmentId, mustChangePassword)
       queryClient.invalidateQueries({ queryKey: [...authKeys.me] });
     },
   });
