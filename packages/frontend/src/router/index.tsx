@@ -9,6 +9,7 @@ import ResetPassword from '../pages/auth/ResetPassword';
 import ChangePassword from '../pages/auth/ChangePassword';
 import UserManagement from '../pages/admin/UserManagement';
 import SystemConfig from '../pages/admin/SystemConfig';
+import AuditLog from '../pages/admin/AuditLog';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
               { path: '/admin', element: <Navigate to="/admin/users" replace /> },
               { path: '/admin/users', element: <UserManagement /> },
               { path: '/admin/config', element: <SystemConfig /> },
+              { path: '/admin/audit-log', element: <AuditLog /> },
             ],
           },
 

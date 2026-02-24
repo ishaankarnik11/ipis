@@ -4,6 +4,8 @@ import usersRoutes from './users.routes.js';
 import configRoutes from './config.routes.js';
 import departmentsRoutes from './departments.routes.js';
 import employeesRoutes from './employees.routes.js';
+import projectsRoutes from './projects.routes.js';
+import auditRoutes from './audit.routes.js';
 
 const router: RouterType = Router();
 
@@ -26,5 +28,11 @@ router.use('/api/v1/departments', departmentsRoutes);
 
 // Employee routes (HR only)
 router.use('/api/v1/employees', employeesRoutes);
+
+// Project routes (role-scoped)
+router.use('/api/v1/projects', projectsRoutes);
+
+// Audit log routes (Admin only)
+router.use('/api/v1/audit-log', auditRoutes);
 
 export default router;

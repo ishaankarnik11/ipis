@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum EngagementModel {
+  TIME_AND_MATERIALS
+  FIXED_COST
+  AMC
+  INFRASTRUCTURE
+}
+
+enum ProjectStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  REJECTED
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
 enum UserRole {
   ADMIN
   FINANCE
@@ -29,6 +45,8 @@ model User {
   updatedAt          DateTime    @updatedAt @map("updated_at")
 
   passwordResetTokens PasswordResetToken[]
+  managedProjects     Project[]
+  auditEvents         AuditEvent[]
 
   @@map("users")
 }
@@ -73,6 +91,44 @@ model Employee {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@map("employees")
+}
+
+model Project {
+  id                 String          @id @default(uuid())
+  name               String
+  client             String
+  vertical           String
+  engagementModel    EngagementModel @map("engagement_model")
+  status             ProjectStatus   @default(PENDING_APPROVAL)
+  contractValuePaise BigInt?         @map("contract_value_paise")
+  deliveryManagerId  String          @map("delivery_manager_id")
+  deliveryManager    User            @relation(fields: [deliveryManagerId], references: [id])
+  rejectionComment   String?         @map("rejection_comment")
+  completionPercent  Decimal?        @map("completion_percent")
+  startDate          DateTime        @map("start_date")
+  endDate            DateTime        @map("end_date")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  @@map("projects")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String   @db.VarChar(100)
+  entityType String   @db.VarChar(100) @map("entity_type")
+  entityId   String?  @db.VarChar(255) @map("entity_id")
+  ipAddress  String?  @db.VarChar(45) @map("ip_address")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType])
+  @@map("audit_events")
 }
 
 model SystemConfig {
