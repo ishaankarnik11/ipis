@@ -36,6 +36,7 @@ pnpm-debug.log*
 test-results/
 playwright-report/
 e2e-results/
+e2e-report/
 
 # E2E generated files
 packages/e2e/prisma/

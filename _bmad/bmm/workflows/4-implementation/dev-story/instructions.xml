@@ -287,9 +287,21 @@
 
   <step n="7" goal="Run validations and tests">
     <action>Determine how to run tests for this repo (infer test framework from project structure)</action>
-    <action>Run all existing tests to ensure no regressions</action>
+    <action>Run all existing unit/integration tests to ensure no regressions</action>
     <action>Run the new tests to verify implementation correctness</action>
-    <action>Run E2E tests if E2E infrastructure exists in the project (e.g., Playwright config, e2e/ directory, Cypress config) — E2E tests are NEVER optional or deferred when infrastructure exists; Playwright webServer config auto-starts dependencies</action>
+
+    <!-- E2E TEST EFFICIENCY: Only run relevant spec files during task iteration -->
+    <critical>E2E TEST EFFICIENCY RULE: During per-task development (Steps 5-8 loop), do NOT run the
+      full E2E suite on every task. Instead:
+      1. Run ONLY the E2E spec file(s) relevant to the current task (e.g., if working on project
+         creation, run only project-creation.spec.ts)
+      2. Run unit and integration tests fully on every task (they are fast)
+      3. The FULL E2E suite runs exactly TWICE per story:
+         - Step 4: Entry baseline (before any code changes)
+         - Step 9: Exit regression (before marking review)
+      This prevents running 47+ E2E tests 8+ times per story while still catching regressions.</critical>
+
+    <action>Run ONLY the relevant E2E spec file(s) for the current task — NOT the full suite</action>
     <action>Run linting and code quality checks if configured in project</action>
     <action>Validate implementation meets ALL story acceptance criteria; enforce quantitative thresholds explicitly</action>
     <action if="regression tests fail">STOP and fix before continuing - identify breaking changes immediately</action>
@@ -353,6 +365,18 @@
     <action>Verify ALL tasks and subtasks are marked [x] (re-scan the story document now)</action>
     <action>Run the full regression suite (do not skip)</action>
     <action>Confirm File List includes every changed file</action>
+
+    <!-- DATA CONTRACT GATE — MANDATORY, UN-BYPASSABLE -->
+    <critical>DATA CONTRACT VERIFICATION GATE: Before proceeding to review, verify EVERY field in the
+      story's Data Contract table. For each row:
+      1. Confirm the Zod schema field exists and validates the data
+      2. Confirm the Prisma column exists in the schema
+      3. Confirm an E2E or integration test submits data and queries the DB to verify persistence
+      If ANY Data Contract field is collected by the UI but NOT persisted to the database, this is a
+      CRITICAL DEFECT — HALT immediately and fix it. Do NOT proceed to review.
+      If the story has no Data Contract table and it creates/updates/displays user data, HALT —
+      the story is incomplete and must be sent back to create-story for Data Contract addition.</critical>
+
     <action>Execute enhanced definition-of-done validation</action>
     <action>Update the story Status to: "review"</action>
 
@@ -360,6 +384,7 @@
     <action>Validate definition-of-done checklist with essential requirements:
       - All tasks/subtasks marked complete with [x]
       - Implementation satisfies every Acceptance Criterion
+      - Data Contract fully verified: every field traces UI → Zod → Prisma → E2E assertion
       - Unit tests for core functionality added/updated
       - Integration tests for component interactions added when required
       - End-to-end tests for critical flows added when story demands them
@@ -391,6 +416,15 @@
         Story status is set to "review" in file, but sprint-status.yaml may be out of sync.
       </output>
     </check>
+
+    <!-- E2E REPORT OUTPUT -->
+    <action>After the full E2E regression run, inform the user:
+      - Total pass/fail count
+      - Location of the interactive HTML report: e2e-report/index.html
+      - How to open it: pnpm --filter @ipis/e2e exec playwright show-report ../../e2e-report
+      - For any failures: screenshots, traces, and video are saved in e2e-report/test-artifacts/
+      - The JSON results are available at e2e-report/results.json
+    </action>
 
     <!-- RED-ON-EXIT TICKET RULE -->
     <critical>If the story goes to review with ANY red E2E tests — whether introduced by this story
