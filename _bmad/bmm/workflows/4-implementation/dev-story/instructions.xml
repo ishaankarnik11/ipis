@@ -187,7 +187,33 @@
     </check>
   </step>
 
-  <step n="4" goal="Mark story in-progress" tag="sprint-status">
+  <step n="4" goal="Zero-Red Entry Gate and mark story in-progress" tag="sprint-status">
+    <!-- ZERO-RED ENTRY GATE: Full E2E suite must be green before dev starts -->
+    <critical>Before beginning implementation, run the full E2E test suite to establish a green baseline.
+      If ANY tests are red BEFORE this story's work begins, those are inherited failures.
+      Document inherited failures and their test file:line references.
+      If inherited reds exist, the dev agent MUST create a follow-up bug-fix story (or note them for
+      the current story if explicitly scoped to fix them). Do NOT silently carry red tests forward.</critical>
+
+    <action>Run the full E2E test suite as a baseline check</action>
+    <action>Record the baseline result: {{baseline_e2e_pass}} / {{baseline_e2e_total}}</action>
+    <check if="baseline has failures">
+      <action>Document each inherited failure: test file, line number, brief description</action>
+      <action>Store as {{inherited_red_tests}} for comparison at story completion</action>
+      <output>⚠️ **Inherited Red Tests Detected**
+        Baseline: {{baseline_e2e_pass}}/{{baseline_e2e_total}}
+        The following tests were already failing before this story:
+        {{inherited_red_tests}}
+
+        These will be tracked — they must NOT increase and should be addressed in a follow-up story.
+      </output>
+    </check>
+    <check if="baseline is fully green">
+      <output>✅ **E2E Baseline: All Green** ({{baseline_e2e_total}}/{{baseline_e2e_total}})
+        Clean slate — any new reds will be attributed to this story.
+      </output>
+    </check>
+
     <check if="{{sprint_status}} file exists">
       <action>Load the FULL file: {{sprint_status}}</action>
       <action>Read all development_status entries to find {{story_key}}</action>
@@ -365,6 +391,16 @@
         Story status is set to "review" in file, but sprint-status.yaml may be out of sync.
       </output>
     </check>
+
+    <!-- RED-ON-EXIT TICKET RULE -->
+    <critical>If the story goes to review with ANY red E2E tests — whether introduced by this story
+      or inherited from baseline — the dev agent MUST:
+      1. Document every red test in Dev Agent Record → Completion Notes with file:line and brief description
+      2. Check if a follow-up bug-fix story already exists in sprint-status.yaml for these failures
+      3. If no bug-fix story exists, create one in {implementation_artifacts} with status ready-for-dev
+         and add it to sprint-status.yaml under the current epic
+      4. Reference the bug-fix story in the Completion Notes so it is not lost
+      Red tests MUST NOT be silently accepted. Zero inherited reds is the target for every story.</critical>
 
     <!-- Final validation gates -->
     <action if="any task is incomplete">HALT - Complete remaining tasks before marking ready for review</action>

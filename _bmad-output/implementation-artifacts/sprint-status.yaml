@@ -67,9 +67,10 @@ development_status:
   3-0c-fix-employee-edit-modal-ctc-prepopulation: done
   3-1-project-management-api-create-approve-and-reject: done
   3-2-team-roster-management-api: done
-  3-3-project-creation-and-status-ui: review
-  3-4-project-list-and-detail-ui: in-progress
-  3-5-admin-approval-rejection-ui-and-pending-approvals-panel: ready-for-dev
+  3-3-project-creation-and-status-ui: done
+  3-4-project-list-and-detail-ui: done
+  3-5-admin-approval-rejection-ui-and-pending-approvals-panel: done
+  3-6-e2e-regression-fixes: ready-for-dev
   epic-3-retrospective: optional
 
   # Epic 4: Profitability Calculation Engine
