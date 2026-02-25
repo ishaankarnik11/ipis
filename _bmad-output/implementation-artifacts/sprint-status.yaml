@@ -70,7 +70,7 @@ development_status:
   3-3-project-creation-and-status-ui: done
   3-4-project-list-and-detail-ui: done
   3-5-admin-approval-rejection-ui-and-pending-approvals-panel: done
-  3-6-e2e-regression-fixes: ready-for-dev
+  3-6-e2e-regression-fixes: done
   epic-3-retrospective: optional
 
   # Epic 4: Profitability Calculation Engine

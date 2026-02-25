@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { login } from '../helpers/index.js';
+import { login, getDb, closeDb } from '../helpers/index.js';
+
+test.afterAll(async () => {
+  await closeDb();
+});
 
 test.describe('Employee Management — HR role', () => {
   test.beforeEach(async ({ page }) => {
@@ -61,8 +65,20 @@ test.describe('Employee Management — HR role', () => {
 
     await modal.getByRole('button', { name: 'Save Changes' }).click();
 
-    // Verify change in table — wait for the updated text to appear
-    await expect(empRow.getByText('Lead Developer')).toBeVisible({ timeout: 10000 });
+    try {
+      // Verify change in table — wait for the updated text to appear
+      await expect(empRow.getByText('Lead Developer')).toBeVisible({ timeout: 10000 });
+    } finally {
+      // Reset designation to original value for downstream tests (project-list-detail depends on it)
+      const db = getDb();
+      const { count } = await db.employee.updateMany({
+        where: { employeeCode: 'EMP001' },
+        data: { designation: 'Senior Developer' },
+      });
+      if (count === 0) {
+        console.warn('EMP001 designation reset matched 0 records — downstream tests may fail');
+      }
+    }
   });
 
   test('HR resigns employee — confirmation modal changes status', async ({ page }) => {

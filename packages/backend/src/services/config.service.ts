@@ -7,7 +7,7 @@ const DEFAULTS = {
 };
 
 export async function getConfig() {
-  const config = await prisma.systemConfig.findFirst();
+  const config = await prisma.systemConfig.findUnique({ where: { id: 'default' } });
 
   if (!config) {
     return { ...DEFAULTS };

@@ -149,9 +149,11 @@ async function main() {
     },
   });
 
-  // Seed SystemConfig for system config tests
+  // Seed SystemConfig for system config tests — id must match the 'default' singleton
+  // assumed by config.service.ts upsert({ where: { id: 'default' } })
   await prisma.systemConfig.create({
     data: {
+      id: 'default',
       standardMonthlyHours: 176,
       healthyMarginThreshold: 0.2,
       atRiskMarginThreshold: 0.05,

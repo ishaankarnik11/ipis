@@ -60,6 +60,7 @@ test.describe('Project List & Detail — DM role', () => {
     await expect(page.locator('.ant-tag').getByText('Active').first()).toBeVisible(); // Status badge
 
     // Team roster section with seeded team member
+    // NOTE: depends on employees.spec.ts resetting EMP001 designation after its edit test
     await expect(page.getByText('Team Roster')).toBeVisible();
     await expect(page.getByText('Seeded Employee One')).toBeVisible();
     await expect(page.getByText('Senior Developer')).toBeVisible();

@@ -1,6 +1,6 @@
 # Story 3.6: E2E Regression Fixes — project-list-detail & system-config
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -59,22 +59,22 @@ No new E2E tests needed — this story fixes existing failing tests.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Fix "Senior Developer" designation not visible in project detail (AC: 1)
-  - [ ] 1.1 Run failing test in isolation to confirm and capture debug output
-  - [ ] 1.2 Investigate root cause (API response, component rendering, timing)
-  - [ ] 1.3 Implement fix (component, API, or test-level as appropriate)
-  - [ ] 1.4 Verify `project-list-detail.spec.ts` E2E-P3 passes
+- [x] Task 1: Fix "Senior Developer" designation not visible in project detail (AC: 1)
+  - [x] 1.1 Run failing test in isolation to confirm and capture debug output
+  - [x] 1.2 Investigate root cause (API response, component rendering, timing)
+  - [x] 1.3 Implement fix (component, API, or test-level as appropriate)
+  - [x] 1.4 Verify `project-list-detail.spec.ts` E2E-P3 passes
 
-- [ ] Task 2: Fix ArrowDown persistence in system config (AC: 2)
-  - [ ] 2.1 Run failing test in isolation to confirm and capture debug output
-  - [ ] 2.2 Investigate root cause (form state, InputNumber onChange, save payload)
-  - [ ] 2.3 Implement fix (component, test interaction, or both as appropriate)
-  - [ ] 2.4 Verify `system-config.spec.ts` "modifies and saves" passes
+- [x] Task 2: Fix ArrowDown persistence in system config (AC: 2)
+  - [x] 2.1 Run failing test in isolation to confirm and capture debug output
+  - [x] 2.2 Investigate root cause (form state, InputNumber onChange, save payload)
+  - [x] 2.3 Implement fix (component, test interaction, or both as appropriate)
+  - [x] 2.4 Verify `system-config.spec.ts` "modifies and saves" passes
 
-- [ ] Task 3: Full regression verification (AC: 3)
-  - [ ] 3.1 Run complete E2E suite — all 47 tests must pass
-  - [ ] 3.2 Run frontend unit tests — no regressions
-  - [ ] 3.3 Run backend unit tests — no regressions
+- [x] Task 3: Full regression verification (AC: 3)
+  - [x] 3.1 Run complete E2E suite — all 47 tests must pass
+  - [x] 3.2 Run frontend unit tests — no regressions
+  - [x] 3.3 Run backend unit tests — no regressions
 
 ## Dev Notes
 
@@ -110,16 +110,37 @@ None.
 ## Dev Agent Record
 
 ### Agent Model Used
-(to be filled)
+Claude Opus 4.6
 
 ### Debug Log References
-(to be filled)
+- Baseline E2E run: 46/47 passed (1 failure: project-list-detail.spec.ts:65)
+- system-config.spec.ts passed in baseline but failed in subsequent runs (deterministic singleton ID mismatch, not flaky)
+- Task 1 fix verified: 46/47 (project-list-detail fixed, system-config now exposed)
+- Task 2 fix verified: 2/2 system-config tests pass in isolation
+- Final full suite: 47/47 E2E tests pass
+- Unit tests: all pre-existing timeout failures (bcrypt/route setup), no new regressions from changes
 
 ### Completion Notes List
-(to be filled)
+- **Task 1 — Failure 1 (project-list-detail.spec.ts:65):** Root cause was test data pollution. The `employees.spec.ts` "HR edits employee" test changes EMP001's designation from "Senior Developer" to "Lead Developer" without resetting it. This persisted in the DB, causing the downstream `project-list-detail.spec.ts` E2E-P3 test to fail when asserting `getByText('Senior Developer')`. Fix: added DB cleanup in `employees.spec.ts` to restore the original designation after the edit test, following the existing project pattern (see `project-list-detail.spec.ts:131-134` for precedent).
+
+- **Task 2 — Failure 2 (system-config.spec.ts:32):** Root cause was a singleton ID mismatch between the E2E seed and `config.service.ts`. The seed created a SystemConfig record with an auto-generated UUID, but `updateConfig()` uses `upsert({ where: { id: 'default' } })`. Since no record matched `id: 'default'`, the upsert created a NEW record instead of updating the existing one. Then `getConfig()` with `findFirst()` returned the original seed record (176) instead of the updated one (175). Fix: set `id: 'default'` in the E2E seed so the upsert matches correctly.
+
+- **Task 3 — Full regression:** 47/47 E2E tests pass. Unit test timeouts are pre-existing and unrelated to changes (bcrypt hashing timeouts, route test setup timeouts).
 
 ### Change Log
-(to be filled)
+- 2026-02-25: Fixed 2 pre-existing E2E regression failures (Story 3.6)
+  - employees.spec.ts: Added DB cleanup after edit test to prevent designation data pollution
+  - seed.ts: Fixed SystemConfig singleton ID mismatch (`id: 'default'`)
+- 2026-02-25: Code review fixes (5 issues: 3 MEDIUM, 2 LOW)
+  - employees.spec.ts: Wrapped edit-test cleanup in try/finally for resilience; added count check with warning
+  - config.service.ts: Changed `findFirst()` to `findUnique({ where: { id: 'default' }})` to enforce singleton read
+  - project-list-detail.spec.ts: Added cross-reference comment noting dependency on employees.spec.ts cleanup
+  - Story debug log: Corrected "flaky" characterization to "deterministic singleton ID mismatch"
 
 ### File List
-(to be filled)
+- `packages/e2e/tests/employees.spec.ts` — Modified: added `getDb`/`closeDb` imports, `afterAll` cleanup hook, post-edit DB reset for EMP001 designation; **[review]** wrapped cleanup in try/finally, added count warning
+- `packages/e2e/seed.ts` — Modified: added `id: 'default'` to SystemConfig seed data
+- `packages/backend/src/services/config.service.ts` — **[review]** Changed `findFirst()` → `findUnique({ where: { id: 'default' }})` to enforce singleton read pattern
+- `packages/e2e/tests/project-list-detail.spec.ts` — **[review]** Added cross-reference comment for EMP001 designation dependency
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — Modified: story status updates
+- `_bmad-output/implementation-artifacts/3-6-e2e-regression-fixes.md` — Modified: task checkboxes, dev agent record, status, review fixes
