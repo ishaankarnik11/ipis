@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, within, cleanup, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, within, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider, Modal } from 'antd';
-import type { ModalFuncProps } from 'antd/es/modal';
 import { MemoryRouter } from 'react-router';
 import EmployeeList from './EmployeeList';
 import type { Employee } from '../../services/employees.api';
@@ -17,6 +16,7 @@ global.ResizeObserver = class {
 
 // Mock API functions
 const mockGetEmployees = vi.fn();
+const mockGetEmployee = vi.fn();
 const mockCreateEmployee = vi.fn();
 const mockUpdateEmployee = vi.fn();
 const mockResignEmployee = vi.fn();
@@ -25,6 +25,7 @@ const mockGetDepartments = vi.fn();
 vi.mock('../../services/employees.api', () => ({
   employeeKeys: { all: ['employees'] as const, detail: (id: string) => ['employees', id] as const },
   getEmployees: (...args: unknown[]) => mockGetEmployees(...args),
+  getEmployee: (...args: unknown[]) => mockGetEmployee(...args),
   createEmployee: (...args: unknown[]) => mockCreateEmployee(...args),
   updateEmployee: (...args: unknown[]) => mockUpdateEmployee(...args),
   resignEmployee: (...args: unknown[]) => mockResignEmployee(...args),
@@ -122,6 +123,10 @@ describe('EmployeeList', () => {
       isAuthenticated: true,
     });
     mockGetEmployees.mockResolvedValue({ data: testEmployees, meta: { total: 3 } });
+    mockGetEmployee.mockImplementation((id: string) => {
+      const emp = testEmployees.find((e) => e.id === id);
+      return Promise.resolve({ data: emp });
+    });
     mockGetDepartments.mockResolvedValue({ data: testDepartments });
     mockResignEmployee.mockResolvedValue({ success: true });
   });
@@ -214,7 +219,7 @@ describe('EmployeeList', () => {
     expect(screen.getByLabelText(/annual ctc/i)).toBeInTheDocument();
   });
 
-  // AC 5: Edit modal pre-populates data
+  // AC 5: Edit modal pre-populates data (fetches individual employee via getEmployee)
   it('should open Edit modal pre-populated when clicking Edit', async () => {
     renderEmployeeList();
     const user = userEvent.setup({ delay: null });
@@ -230,10 +235,17 @@ describe('EmployeeList', () => {
       expect(screen.getByText('Edit Employee')).toBeInTheDocument();
     });
 
-    // Employee code field should be disabled on edit
-    const codeInput = screen.getByLabelText(/employee code/i);
-    expect(codeInput).toBeDisabled();
-    expect(codeInput).toHaveValue('EMP001');
+    // Modal fetches individual employee data for pre-population
+    await waitFor(() => {
+      expect(mockGetEmployee).toHaveBeenCalledWith('emp-1');
+    });
+
+    // Employee code field should be disabled on edit and pre-populated from fetched data
+    await waitFor(() => {
+      const codeInput = screen.getByLabelText(/employee code/i);
+      expect(codeInput).toBeDisabled();
+      expect(codeInput).toHaveValue('EMP001');
+    });
   });
 
   // AC 6: Resign confirmation modal appears
@@ -422,21 +434,7 @@ describe('EmployeeList', () => {
     expect(mockUpdateEmployee).not.toHaveBeenCalled();
   });
 
-  // Helper: spy on Modal.confirm and capture the onOk callback for manual invocation.
-  // The double-cast is necessary because the mock return shape ({ destroy, update, then })
-  // doesn't fully match antd v6's Modal.confirm return type.
-  function spyModalConfirm() {
-    let capturedOnOk: (() => unknown) | undefined;
-    const confirmSpy = vi.spyOn(Modal, 'confirm').mockImplementation(((config: ModalFuncProps) => {
-      capturedOnOk = config.onOk as () => unknown;
-      return { destroy: vi.fn(), update: vi.fn(), then: vi.fn() };
-    }) as unknown as typeof Modal.confirm);
-    return { get onOk() { return capturedOnOk; }, confirmSpy };
-  }
-
   it('should call resignEmployee when confirming resign', async () => {
-    const { onOk, confirmSpy } = spyModalConfirm();
-
     renderEmployeeList();
     const user = userEvent.setup({ delay: null });
 
@@ -447,22 +445,23 @@ describe('EmployeeList', () => {
     const resignButtons = screen.getAllByRole('button', { name: /mark as resigned/i });
     await user.click(resignButtons[0]);
 
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(onOk).toBeDefined();
-
-    // Invoke onOk to simulate user confirming the dialog
-    await act(async () => {
-      await onOk!();
+    // Wait for confirm dialog, then click the real "Yes" button
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('Mark Alice Dev as resigned?');
     });
 
+    // fireEvent bypasses antd's pointer-events:none from CSS animation (doesn't complete in jsdom)
+    const yesButton = document.querySelector('.ant-modal-confirm .ant-btn-dangerous') as HTMLElement;
+    expect(yesButton).toBeInTheDocument();
+    fireEvent.click(yesButton);
+
     // TanStack Query v5 passes mutation context as second arg
-    expect(mockResignEmployee.mock.calls[0][0]).toBe('emp-1');
-    confirmSpy.mockRestore();
+    await waitFor(() => {
+      expect(mockResignEmployee.mock.calls[0][0]).toBe('emp-1');
+    });
   });
 
   it('should show success message after successful resign', async () => {
-    const { onOk, confirmSpy } = spyModalConfirm();
-
     renderEmployeeList();
     const user = userEvent.setup({ delay: null });
 
@@ -473,14 +472,17 @@ describe('EmployeeList', () => {
     const resignButtons = screen.getAllByRole('button', { name: /mark as resigned/i });
     await user.click(resignButtons[0]);
 
-    await act(async () => {
-      await onOk!();
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('Mark Alice Dev as resigned?');
     });
+
+    // fireEvent bypasses antd's pointer-events:none from CSS animation (doesn't complete in jsdom)
+    const yesButton = document.querySelector('.ant-modal-confirm .ant-btn-dangerous') as HTMLElement;
+    expect(yesButton).toBeInTheDocument();
+    fireEvent.click(yesButton);
 
     await waitFor(() => {
       expect(mockMessageSuccess).toHaveBeenCalledWith('Employee marked as resigned');
     });
-
-    confirmSpy.mockRestore();
   });
 });

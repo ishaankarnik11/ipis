@@ -43,7 +43,7 @@ validation-rules:
 - [ ] **Integration Tests:** Integration tests added/updated for component interactions when story requirements demand them
 - [ ] **End-to-End Tests:** End-to-end tests created for critical user flows when story requirements specify them
 - [ ] **Test Coverage:** Tests cover acceptance criteria and edge cases from story Dev Notes
-- [ ] **Regression Prevention:** ALL existing tests pass (no regressions introduced)
+- [ ] **Regression Prevention:** ALL existing tests pass — unit, integration, AND E2E when E2E infrastructure exists in the project (no regressions, no deferrals — if a test suite exists, it must be run)
 - [ ] **Code Quality:** Linting and static checks pass when configured in project
 - [ ] **Test Framework Compliance:** Tests use project's testing frameworks and patterns from Dev Notes
 

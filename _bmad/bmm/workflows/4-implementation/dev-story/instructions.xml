@@ -263,10 +263,13 @@
     <action>Determine how to run tests for this repo (infer test framework from project structure)</action>
     <action>Run all existing tests to ensure no regressions</action>
     <action>Run the new tests to verify implementation correctness</action>
+    <action>Run E2E tests if E2E infrastructure exists in the project (e.g., Playwright config, e2e/ directory, Cypress config) — E2E tests are NEVER optional or deferred when infrastructure exists; Playwright webServer config auto-starts dependencies</action>
     <action>Run linting and code quality checks if configured in project</action>
     <action>Validate implementation meets ALL story acceptance criteria; enforce quantitative thresholds explicitly</action>
     <action if="regression tests fail">STOP and fix before continuing - identify breaking changes immediately</action>
     <action if="new tests fail">STOP and fix before continuing - ensure implementation correctness</action>
+    <action if="E2E tests fail">STOP and fix before continuing - E2E failures indicate real user-facing breakage</action>
+    <critical>NEVER defer, skip, or rationalize away any test suite. If tests exist, they run. "Requires running servers" is NOT a valid deferral — check the config for auto-start capabilities before assuming blockers.</critical>
   </step>
 
   <step n="8" goal="Validate and mark task complete ONLY when fully done">

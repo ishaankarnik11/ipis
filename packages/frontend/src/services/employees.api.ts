@@ -25,6 +25,10 @@ export function getEmployees(): Promise<ListResponse<Employee>> {
   return get<ListResponse<Employee>>('/employees');
 }
 
+export function getEmployee(id: string): Promise<DataResponse<Employee>> {
+  return get<DataResponse<Employee>>(`/employees/${id}`);
+}
+
 export function createEmployee(data: CreateEmployeeInput): Promise<DataResponse<Employee>> {
   return post<DataResponse<Employee>>('/employees', data);
 }

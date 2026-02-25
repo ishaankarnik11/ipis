@@ -222,10 +222,10 @@ export async function getAll(user: AuthUser) {
   return employees.map(serializeEmployee);
 }
 
-export async function getById(id: string, user: AuthUser) {
+export async function getById(id: string, _user: AuthUser) {
   const employee = await prisma.employee.findUnique({
     where: { id },
-    select: selectForRole(user.role),
+    select: selectWithCtc,
   });
 
   if (!employee) {

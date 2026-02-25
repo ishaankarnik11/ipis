@@ -309,13 +309,13 @@ describe('employee.service', () => {
       expect(result.id).toBe('emp-1');
     });
 
-    it('should return employee WITHOUT annualCtcPaise for HR role', async () => {
-      const { annualCtcPaise: _ctc, ...hrEmployee } = employee;
-      mockFindUnique.mockResolvedValue(hrEmployee);
+    it('should return employee WITH annualCtcPaise for HR role (getById always includes CTC)', async () => {
+      mockFindUnique.mockResolvedValue(employee);
 
       const result = await employeeService.getById('emp-1', { id: 'u1', role: 'HR', email: 'h@t.com' });
 
-      expect(result).not.toHaveProperty('annualCtcPaise');
+      expect(result).toHaveProperty('annualCtcPaise');
+      expect(result.id).toBe('emp-1');
     });
 
     it('should throw NotFoundError when employee does not exist', async () => {

@@ -627,7 +627,7 @@ describe('Employee Routes', () => {
       expect(res.body.data).toHaveProperty('annualCtcPaise');
     });
 
-    it('should return employee WITHOUT annualCtcPaise for HR on GET /:id (AC 5)', async () => {
+    it('should return employee WITH annualCtcPaise for HR on GET /:id (Story 3.0c — getById always includes CTC)', async () => {
       const cookies = await loginAs('HR');
       mockEmpFindUnique.mockResolvedValue({
         id: 'emp-1',
@@ -635,6 +635,7 @@ describe('Employee Routes', () => {
         name: 'Alice',
         designation: 'Dev',
         departmentId: 'dept-eng',
+        annualCtcPaise: BigInt(1500000),
         isBillable: true,
         isResigned: false,
         joiningDate: null,
@@ -647,7 +648,7 @@ describe('Employee Routes', () => {
         .set('Cookie', cookies);
 
       expect(res.status).toBe(200);
-      expect(res.body.data).not.toHaveProperty('annualCtcPaise');
+      expect(res.body.data).toHaveProperty('annualCtcPaise');
     });
   });
 

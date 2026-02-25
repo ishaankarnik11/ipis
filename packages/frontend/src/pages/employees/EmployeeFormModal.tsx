@@ -1,8 +1,8 @@
 import { useEffect, useCallback } from 'react';
-import { Modal, Form, Input, Select, InputNumber, DatePicker, Checkbox, Button, Alert, message } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, DatePicker, Checkbox, Button, Alert, Spin, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { employeeKeys, createEmployee, updateEmployee } from '../../services/employees.api';
+import { employeeKeys, createEmployee, updateEmployee, getEmployee } from '../../services/employees.api';
 import type { Employee } from '../../services/employees.api';
 import { userKeys, getDepartments } from '../../services/users.api';
 
@@ -16,6 +16,12 @@ export default function EmployeeFormModal({ open, editingEmployee, onClose }: Em
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const isEditing = !!editingEmployee;
+
+  const { data: employeeDetail, isLoading: isLoadingEmployee } = useQuery({
+    queryKey: employeeKeys.detail(editingEmployee?.id ?? ''),
+    queryFn: () => getEmployee(editingEmployee!.id),
+    enabled: open && !!editingEmployee,
+  });
 
   const { data: deptData } = useQuery({
     queryKey: userKeys.departments,
@@ -49,26 +55,28 @@ export default function EmployeeFormModal({ open, editingEmployee, onClose }: Em
     updateMutation.reset();
   }, [createMutation.reset, updateMutation.reset]);
 
+  const fullEmployee = employeeDetail?.data ?? null;
+
   useEffect(() => {
     if (open) {
-      if (editingEmployee) {
+      if (editingEmployee && fullEmployee) {
         form.setFieldsValue({
-          employeeCode: editingEmployee.employeeCode,
-          name: editingEmployee.name,
-          departmentId: editingEmployee.departmentId,
-          designation: editingEmployee.designation,
-          annualCtc: editingEmployee.annualCtcPaise != null
-            ? editingEmployee.annualCtcPaise / 100
+          employeeCode: fullEmployee.employeeCode,
+          name: fullEmployee.name,
+          departmentId: fullEmployee.departmentId,
+          designation: fullEmployee.designation,
+          annualCtc: fullEmployee.annualCtcPaise != null
+            ? fullEmployee.annualCtcPaise / 100
             : undefined,
-          joiningDate: editingEmployee.joiningDate ? dayjs(editingEmployee.joiningDate) : null,
-          isBillable: editingEmployee.isBillable,
+          joiningDate: fullEmployee.joiningDate ? dayjs(fullEmployee.joiningDate) : null,
+          isBillable: fullEmployee.isBillable,
         });
-      } else {
+      } else if (!editingEmployee) {
         form.resetFields();
       }
       resetMutations();
     }
-  }, [open, editingEmployee, form, resetMutations]);
+  }, [open, editingEmployee, fullEmployee, form, resetMutations]);
 
   const handleSubmit = (values: {
     employeeCode: string;
@@ -114,6 +122,11 @@ export default function EmployeeFormModal({ open, editingEmployee, onClose }: Em
       footer={null}
       destroyOnHidden
     >
+      {isEditing && isLoadingEmployee && (
+        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <Spin />
+        </div>
+      )}
       {mutation.isError && (
         <Alert
           type="error"

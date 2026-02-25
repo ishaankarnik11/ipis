@@ -56,10 +56,8 @@ test.describe('Employee Management — HR role', () => {
     await designationInput.clear();
     await designationInput.fill('Lead Developer');
 
-    // HR list API omits annualCtcPaise (by design), so CTC field is empty in edit modal.
-    // Fill it to satisfy required validation — this is a known UX gap.
-    const ctcInput = modal.getByLabel('Annual CTC');
-    await ctcInput.fill('1200000');
+    // CTC field should already be pre-populated (Story 3.0c fix: modal fetches individual employee)
+    await expect(modal.getByLabel('Annual CTC')).not.toHaveValue('');
 
     await modal.getByRole('button', { name: 'Save Changes' }).click();
 

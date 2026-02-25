@@ -64,7 +64,7 @@ development_status:
   epic-3: in-progress
   3-0-epic-2-retro-actionables-and-regression: done
   3-0b-playwright-e2e-testing-epic-1-and-2: review
-  3-0c-fix-employee-edit-modal-ctc-prepopulation: ready-for-dev
+  3-0c-fix-employee-edit-modal-ctc-prepopulation: review
   3-1-project-management-api-create-approve-and-reject: done
   3-2-team-roster-management-api: done
   3-3-project-creation-and-status-ui: ready-for-dev
