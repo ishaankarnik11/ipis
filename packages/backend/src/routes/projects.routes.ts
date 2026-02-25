@@ -42,11 +42,11 @@ router.get(
   }),
 );
 
-// PATCH /api/v1/projects/:id — Update project (Delivery Manager, ownership check)
+// PATCH /api/v1/projects/:id — Update project (DM edits REJECTED; DM/Finance updates completion%)
 router.patch(
   '/:id',
   authMiddleware,
-  rbacMiddleware(['DELIVERY_MANAGER']),
+  rbacMiddleware(['DELIVERY_MANAGER', 'FINANCE']),
   validate(updateProjectSchema),
   asyncHandler(async (req, res) => {
     const project = await projectService.updateProject(req.params.id as string, req.body, req.user!);
@@ -102,11 +102,11 @@ router.post(
   }),
 );
 
-// GET /api/v1/projects/:id/team-members — List team members (DM + Admin + Finance)
+// GET /api/v1/projects/:id/team-members — List team members (DM + Admin + Finance + DeptHead)
 router.get(
   '/:id/team-members',
   authMiddleware,
-  rbacMiddleware(['DELIVERY_MANAGER', 'ADMIN', 'FINANCE']),
+  rbacMiddleware(['DELIVERY_MANAGER', 'ADMIN', 'FINANCE', 'DEPT_HEAD']),
   asyncHandler(async (req, res) => {
     const members = await projectService.getTeamMembers(req.params.id as string, req.user!);
     res.json({ data: members });

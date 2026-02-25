@@ -20,6 +20,7 @@ const PROJECT_SELECT = {
   status: true,
   contractValuePaise: true,
   deliveryManagerId: true,
+  deliveryManager: { select: { name: true } },
   rejectionComment: true,
   completionPercent: true,
   startDate: true,
@@ -31,8 +32,10 @@ const PROJECT_SELECT = {
 type ProjectRow = Prisma.ProjectGetPayload<{ select: typeof PROJECT_SELECT }>;
 
 function serializeProject(project: ProjectRow) {
+  const { deliveryManager, ...rest } = project;
   return {
-    ...project,
+    ...rest,
+    deliveryManagerName: deliveryManager?.name ?? null,
     contractValuePaise: project.contractValuePaise != null
       ? Number(project.contractValuePaise)
       : null,
@@ -217,18 +220,41 @@ export async function rejectProject(id: string, comment: string) {
 export async function updateProject(id: string, data: UpdateProjectInput, user: RequestUser) {
   const project = await prisma.project.findUnique({
     where: { id },
-    select: { id: true, deliveryManagerId: true, status: true },
+    select: { id: true, deliveryManagerId: true, status: true, engagementModel: true },
   });
 
   if (!project) {
     throw new NotFoundError('Project not found');
   }
 
+  // Completion percent update path — Finance or DM (own project) on ACTIVE Fixed Cost
+  const { completionPercent, ...otherFields } = data;
+  const isCompletionOnly = completionPercent != null && Object.keys(otherFields).length === 0;
+
+  if (isCompletionOnly) {
+    if (project.engagementModel !== 'FIXED_COST') {
+      throw new ValidationError('Completion percent only applies to Fixed Cost projects');
+    }
+    if (project.status !== 'ACTIVE') {
+      throw new ValidationError('Completion percent can only be updated on active projects');
+    }
+    if (user.role === 'DELIVERY_MANAGER' && project.deliveryManagerId !== user.id) {
+      throw new ForbiddenError('Access denied');
+    }
+
+    const updated = await prisma.project.update({
+      where: { id },
+      data: { completionPercent },
+      select: PROJECT_SELECT,
+    });
+    return serializeProject(updated);
+  }
+
+  // Full edit path — DM only, REJECTED projects only
   if (project.deliveryManagerId !== user.id) {
     throw new ForbiddenError('Access denied');
   }
 
-  // Only REJECTED projects can be edited (DM applies corrections before resubmitting)
   if (project.status !== 'REJECTED') {
     throw new ValidationError('Only REJECTED projects can be edited');
   }
@@ -236,10 +262,10 @@ export async function updateProject(id: string, data: UpdateProjectInput, user: 
   const updated = await prisma.project.update({
     where: { id },
     data: {
-      ...data,
-      engagementModel: data.engagementModel as EngagementModel | undefined,
-      startDate: data.startDate ? new Date(data.startDate) : undefined,
-      endDate: data.endDate ? new Date(data.endDate) : undefined,
+      ...otherFields,
+      engagementModel: otherFields.engagementModel as EngagementModel | undefined,
+      startDate: otherFields.startDate ? new Date(otherFields.startDate) : undefined,
+      endDate: otherFields.endDate ? new Date(otherFields.endDate) : undefined,
     },
     select: PROJECT_SELECT,
   });
@@ -360,7 +386,7 @@ export async function addTeamMember(
 }
 
 export async function getTeamMembers(projectId: string, user: RequestUser) {
-  await loadProjectForTeam(projectId, user, { additionalRoles: ['FINANCE'] });
+  await loadProjectForTeam(projectId, user, { additionalRoles: ['FINANCE', 'DEPT_HEAD'] });
 
   const members = await prisma.employeeProject.findMany({
     where: { projectId },

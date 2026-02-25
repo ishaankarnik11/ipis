@@ -163,14 +163,18 @@ export default function CreateEditProject() {
     };
 
     if (isEdit && id) {
-      // Edit & Resubmit flow: PATCH then resubmit
+      // Edit & Resubmit flow: PATCH then resubmit (sequential — both must succeed)
       const updatePayload = {
         ...basePayload,
         contractValuePaise: currencyToPaise(values.contractValuePaise) ?? undefined,
       };
-      await updateMutation.mutateAsync({ projectId: id, data: updatePayload });
-      await resubmitMutation.mutateAsync(id);
-      navigate(`/projects/${id}`);
+      try {
+        await updateMutation.mutateAsync({ projectId: id, data: updatePayload });
+        await resubmitMutation.mutateAsync(id);
+        navigate(`/projects/${id}`);
+      } catch {
+        // Mutation error states handle display via mutationError; user can retry
+      }
     } else {
       // Create flow
       let createPayload;
@@ -348,6 +352,9 @@ export default function CreateEditProject() {
         {/* T&M Section */}
         {engagementModel === 'TIME_AND_MATERIALS' && (
           <Card title="Team Members (T&M)" data-testid="tm-section" style={{ marginBottom: 16 }}>
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+              Define planned roles and rates for cost estimation. Actual team members are assigned after project approval.
+            </Typography.Text>
             {fields.map((field, index) => (
               <div key={field.id} style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>

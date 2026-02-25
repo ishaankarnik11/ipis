@@ -70,6 +70,7 @@ export const updateProjectSchema = z.object({
   contractValuePaise: z.number().int().positive().optional(),
   startDate: isoDateString.optional(),
   endDate: isoDateString.optional(),
+  completionPercent: z.number().min(0).max(1).optional(),
 });
 
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
