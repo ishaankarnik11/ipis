@@ -45,6 +45,7 @@ The test database is created automatically by `prisma db push` if it doesn't exi
 | dm@e2e.test | Test1234! | DELIVERY_MANAGER | Delivery |
 | depthead@e2e.test | Test1234! | DEPT_HEAD | Engineering |
 | newuser@e2e.test | Temp1234! | HR (mustChangePassword) | Human Resources |
+| resetuser@e2e.test | Test1234! | ADMIN | — |
 
 ### Test Departments
 

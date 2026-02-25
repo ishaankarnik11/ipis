@@ -140,4 +140,14 @@ describe('EmployeeFormModal', () => {
     });
     expect(screen.getByLabelText(/^name$/i)).toBeDisabled();
   });
+
+  it('should show error alert when getEmployee fetch fails', async () => {
+    mockGetEmployee.mockRejectedValue(new Error('Network error'));
+
+    renderModal(testEmployee);
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load employee data/i)).toBeInTheDocument();
+    });
+  });
 });

@@ -81,19 +81,16 @@ test.describe('Employee Management — HR role', () => {
   test('HR searches employees by name and code', async ({ page }) => {
     const searchInput = page.getByPlaceholder('Search by Employee Code or Name');
 
-    // Search by name
+    // Search by name — Playwright auto-retries assertions until debounce + API completes
     await searchInput.fill('Employee One');
-    // Wait for debounce (300ms)
-    await page.waitForTimeout(400);
-    await expect(page.getByRole('cell', { name: 'Seeded Employee One' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Seeded Employee Two' })).not.toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Seeded Employee One' })).toBeVisible();
 
-    // Clear and search by code
+    // Clear and search by code — auto-retry handles debounce
     await searchInput.clear();
     await searchInput.fill('EMP002');
-    await page.waitForTimeout(400);
-    await expect(page.getByRole('cell', { name: 'Seeded Employee Two' })).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Seeded Employee One' })).not.toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Seeded Employee Two' })).toBeVisible();
   });
 });
 
@@ -106,8 +103,8 @@ test.describe('Employee Management — Finance role', () => {
     // CTC column should be visible for Finance
     await expect(page.getByRole('columnheader', { name: 'Annual CTC' })).toBeVisible();
 
-    // CTC values should be formatted currency (contains the ₹ symbol or comma formatting)
-    const ctcCells = page.locator('[style*="tabular-nums"]');
-    await expect(ctcCells.first()).toBeVisible();
+    // Verify CTC values are formatted as Indian currency
+    // Seeded Employee One: 120000000 paise = ₹12,00,000
+    await expect(page.getByText('₹12,00,000').first()).toBeVisible();
   });
 });

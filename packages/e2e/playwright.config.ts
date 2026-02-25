@@ -1,7 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
-
-const E2E_DB_URL = 'postgresql://ipis:ipis_dev@localhost:5432/ipis_test_e2e';
+import { E2E_DB_URL } from './helpers/constants.js';
 
 export default defineConfig({
   testDir: './tests',

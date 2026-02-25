@@ -1,6 +1,6 @@
 # Story 3.0b: Playwright E2E Testing — Epic 1 & 2 Frontend Verification
 
-Status: review
+Status: done
 
 ## Story
 
@@ -150,7 +150,8 @@ e2e/fixtures/
 | `packages/e2e/tests/user-management.spec.ts` | User management E2E — list, add, edit role, deactivate (4 tests) |
 | `packages/e2e/tests/password.spec.ts` | Password E2E — first-login forced change, forgot/reset flow (3 tests) |
 | `packages/e2e/tests/employees.spec.ts` | Employee E2E — CRUD, search, CTC visibility, resign (6 tests) |
-| `packages/e2e/tests/bulk-upload.spec.ts` | Bulk upload E2E — valid, mixed, template download (3 tests) |
+| `packages/e2e/tests/bulk-upload.spec.ts` | Bulk upload E2E — valid, mixed, template download, file rejection (4 tests) |
+| `packages/e2e/tests/system-config.spec.ts` | System config E2E — view values, modify & persist (2 tests) |
 | `docs/e2e-testing.md` | E2E testing guide — setup, running, adding tests, seed data |
 
 **Modified Files:**
@@ -168,7 +169,7 @@ e2e/fixtures/
 
 ### Test Results
 
-- **E2E tests: 23 passed** (auth: 7, user-management: 4, password: 3, employees: 6, bulk-upload: 3)
+- **E2E tests: 26 passed** (auth: 7, user-management: 4, password: 3, employees: 6, bulk-upload: 4, system-config: 2)
 - **Backend regression: 291 passed, 0 failed** — no regressions
 
 ### Bugs Discovered
@@ -184,3 +185,15 @@ e2e/fixtures/
 | `.xlsx` fixtures generated programmatically in global-setup | No binary files in git; deterministic fixtures match seed data |
 | `getByRole('dialog')` scoping for modals | Avoids strict mode violations when page and modal have same button text |
 | `getByRole('heading', ...)` for page headings | Avoids strict mode violations with sidebar nav items sharing same text |
+
+### Code Review Fixes (2026-02-25)
+
+| Fix | Issue | Severity |
+|---|---|---|
+| Added `system-config.spec.ts` — 2 E2E tests for System Config (view + modify) | AC #4 System Config test was missing | HIGH |
+| Replaced `page.waitForTimeout(400)` with Playwright auto-retry assertions in `employees.spec.ts` | Violated story's own Dev Notes guideline against `waitForTimeout` | HIGH |
+| Consolidated `E2E_DB_URL` — removed duplicates from `playwright.config.ts` and `global-setup.ts`, both now import from `helpers/constants.ts` | DB URL hardcoded in 3 separate files | MEDIUM |
+| Replaced `.ant-descriptions-item` CSS selectors with `getByRole('row')` table semantics in `bulk-upload.spec.ts` | Brittle Ant Design CSS class selectors | MEDIUM |
+| Replaced `[style*="tabular-nums"]` CSS check with `getByText('₹12,00,000')` assertion in `employees.spec.ts` Finance test | CTC format assertion didn't verify actual currency formatting | MEDIUM |
+| Added file-type rejection test in `bulk-upload.spec.ts` using existing `invalid-file.txt` fixture | Fixture existed but no test used it | MEDIUM |
+| Added `resetuser@e2e.test` to `docs/e2e-testing.md` Test Users table | Seed user missing from documentation | LOW |

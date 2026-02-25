@@ -66,7 +66,7 @@ async function main() {
     },
   });
 
-  await prisma.user.create({
+  const dmUser = await prisma.user.create({
     data: {
       email: 'dm@e2e.test',
       passwordHash,
@@ -155,6 +155,35 @@ async function main() {
       standardMonthlyHours: 176,
       healthyMarginThreshold: 0.2,
       atRiskMarginThreshold: 0.05,
+    },
+  });
+
+  // Seed projects for project management tests
+  await prisma.project.create({
+    data: {
+      name: 'Seeded Pending Project',
+      client: 'Acme Corp',
+      vertical: 'IT Services',
+      engagementModel: 'TIME_AND_MATERIALS',
+      status: 'PENDING_APPROVAL',
+      deliveryManagerId: dmUser.id,
+      startDate: new Date('2026-03-01'),
+      endDate: new Date('2026-12-31'),
+    },
+  });
+
+  await prisma.project.create({
+    data: {
+      name: 'Seeded Rejected Project',
+      client: 'Beta Inc',
+      vertical: 'Healthcare',
+      engagementModel: 'FIXED_COST',
+      status: 'REJECTED',
+      contractValuePaise: BigInt(50000000),
+      deliveryManagerId: dmUser.id,
+      rejectionComment: 'Budget exceeds approval threshold. Please revise contract value.',
+      startDate: new Date('2026-04-01'),
+      endDate: new Date('2027-03-31'),
     },
   });
 

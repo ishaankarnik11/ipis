@@ -12,6 +12,8 @@ import SystemConfig from '../pages/admin/SystemConfig';
 import AuditLog from '../pages/admin/AuditLog';
 import EmployeeList from '../pages/employees/EmployeeList';
 import UploadCenter from '../pages/upload/UploadCenter';
+import CreateEditProject from '../pages/projects/CreateEditProject';
+import ProjectDetail from '../pages/projects/ProjectDetail';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -82,6 +84,20 @@ export const router = createBrowserRouter([
             element: <RoleGuard allowedRoles={['HR']} />,
             children: [
               { path: '/uploads', element: <UploadCenter /> },
+            ],
+          },
+          // Project routes (Delivery Manager creates/edits; detail visible to all project roles)
+          {
+            element: <RoleGuard allowedRoles={['DELIVERY_MANAGER']} />,
+            children: [
+              { path: '/projects/new', element: <CreateEditProject /> },
+              { path: '/projects/:id/edit', element: <CreateEditProject /> },
+            ],
+          },
+          {
+            element: <RoleGuard allowedRoles={['ADMIN', 'FINANCE', 'DELIVERY_MANAGER', 'DEPT_HEAD']} />,
+            children: [
+              { path: '/projects/:id', element: <ProjectDetail /> },
             ],
           },
           { path: '/projects', element: <PlaceholderPage title="Projects" /> },

@@ -20,11 +20,9 @@ test.describe('Bulk Upload (HR)', () => {
     const card = page.getByTestId('upload-confirmation-card');
     await expect(card).toBeVisible({ timeout: 15000 });
 
-    // Verify imported count — check the Descriptions item for "Imported" shows a count
-    await expect(card.getByText('Imported')).toBeVisible();
-    // Total Rows and Imported may both be "3", use Descriptions structure
-    const importedItem = card.locator('.ant-descriptions-item').filter({ hasText: 'Imported' });
-    await expect(importedItem.locator('.ant-descriptions-item-content')).toHaveText('3');
+    // Verify imported count — Descriptions renders label+value in one cell, so match exact value text
+    const importedRow = card.getByRole('row').filter({ hasText: 'Imported' });
+    await expect(importedRow.getByText('3', { exact: true })).toBeVisible();
   });
 
   test('uploads mixed valid/invalid — shows failed count and download button', async ({ page }) => {
@@ -34,9 +32,9 @@ test.describe('Bulk Upload (HR)', () => {
     const card = page.getByTestId('upload-confirmation-card');
     await expect(card).toBeVisible({ timeout: 15000 });
 
-    // Should show failures — use exact match to avoid matching "Download Failed Rows"
-    const failedItem = card.locator('.ant-descriptions-item').filter({ hasText: /^Failed/ });
-    await expect(failedItem).toBeVisible();
+    // Should show failures — table row filter only matches Descriptions rows, not button text
+    const failedRow = card.getByRole('row').filter({ hasText: 'Failed' });
+    await expect(failedRow).toBeVisible();
 
     // Download Failed Rows button should be visible
     await expect(card.getByRole('button', { name: 'Download Failed Rows' })).toBeVisible();
@@ -50,5 +48,14 @@ test.describe('Bulk Upload (HR)', () => {
 
     // Verify the download started (file should have xlsx-like name)
     expect(download.suggestedFilename()).toMatch(/\.xlsx$/);
+  });
+
+  test('rejects non-xlsx file with error message', async ({ page }) => {
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles(path.join(fixturesDir, 'invalid-file.txt'));
+
+    // Should show error and no confirmation card
+    await expect(page.getByText('Please upload an .xlsx file only')).toBeVisible();
+    await expect(page.getByTestId('upload-confirmation-card')).not.toBeVisible();
   });
 });

@@ -17,7 +17,7 @@ export default function EmployeeFormModal({ open, editingEmployee, onClose }: Em
   const queryClient = useQueryClient();
   const isEditing = !!editingEmployee;
 
-  const { data: employeeDetail, isLoading: isLoadingEmployee } = useQuery({
+  const { data: employeeDetail, isLoading: isLoadingEmployee, isError: isFetchError } = useQuery({
     queryKey: employeeKeys.detail(editingEmployee?.id ?? ''),
     queryFn: () => getEmployee(editingEmployee!.id),
     enabled: open && !!editingEmployee,
@@ -126,6 +126,14 @@ export default function EmployeeFormModal({ open, editingEmployee, onClose }: Em
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
           <Spin />
         </div>
+      )}
+      {isEditing && isFetchError && (
+        <Alert
+          type="error"
+          message="Failed to load employee data. Please close and try again."
+          style={{ marginBottom: 16 }}
+          showIcon
+        />
       )}
       {mutation.isError && (
         <Alert
