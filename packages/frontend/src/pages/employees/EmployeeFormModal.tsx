@@ -130,7 +130,7 @@ export default function EmployeeFormModal({ open, editingEmployee, onClose }: Em
       {isEditing && isFetchError && (
         <Alert
           type="error"
-          message="Failed to load employee data. Please close and try again."
+          title="Failed to load employee data. Please close and try again."
           style={{ marginBottom: 16 }}
           showIcon
         />
