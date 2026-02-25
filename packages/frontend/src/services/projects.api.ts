@@ -5,6 +5,7 @@ import type { DataResponse, ListResponse, SuccessResponse } from './types';
 export const projectKeys = {
   all: ['projects'] as const,
   detail: (id: string) => ['projects', id] as const,
+  teamMembers: (id: string) => ['projects', id, 'team-members'] as const,
 };
 
 export type ProjectStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'COMPLETED';
@@ -19,12 +20,22 @@ export interface Project {
   status: ProjectStatus;
   contractValuePaise: number | null;
   deliveryManagerId: string;
+  deliveryManagerName: string | null;
   rejectionComment: string | null;
   completionPercent: number | null;
   startDate: string;
   endDate: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TeamMember {
+  employeeId: string;
+  name: string;
+  designation: string;
+  role: string;
+  billingRatePaise: number | null;
+  assignedAt: string;
 }
 
 export function getProjects(): Promise<ListResponse<Project>> {
@@ -46,3 +57,22 @@ export function updateProject(id: string, data: UpdateProjectInput): Promise<Dat
 export function resubmitProject(id: string): Promise<SuccessResponse> {
   return post<SuccessResponse>(`/projects/${id}/resubmit`);
 }
+
+export function approveProject(id: string): Promise<SuccessResponse> {
+  return post<SuccessResponse>(`/projects/${id}/approve`);
+}
+
+export function rejectProject(id: string, rejectionComment: string): Promise<SuccessResponse> {
+  return post<SuccessResponse>(`/projects/${id}/reject`, { rejectionComment });
+}
+
+export function getTeamMembers(projectId: string): Promise<ListResponse<TeamMember>> {
+  return get<ListResponse<TeamMember>>(`/projects/${projectId}/team-members`);
+}
+
+export const engagementModelLabels: Record<string, string> = {
+  TIME_AND_MATERIALS: 'Time & Materials',
+  FIXED_COST: 'Fixed Cost',
+  AMC: 'AMC',
+  INFRASTRUCTURE: 'Infrastructure',
+};

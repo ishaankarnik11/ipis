@@ -20,6 +20,7 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { key: 'admin-users', label: 'User Management', path: '/admin/users', icon: createElement(UserOutlined), roles: ['ADMIN'] },
+  { key: 'admin-pending', label: 'Pending Approvals', path: '/admin/pending-approvals', icon: createElement(ProjectOutlined), roles: ['ADMIN'] },
   { key: 'admin-config', label: 'System Config', path: '/admin/config', icon: createElement(SettingOutlined), roles: ['ADMIN'] },
   { key: 'employees', label: 'Employees', path: '/employees', icon: createElement(TeamOutlined), roles: ['HR', 'ADMIN', 'FINANCE'] },
   { key: 'uploads', label: 'Upload Center', path: '/uploads', icon: createElement(UploadOutlined), roles: ['HR'] },

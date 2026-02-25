@@ -43,7 +43,7 @@ test.describe('Project Creation — DM role', () => {
     // Verify navigation to detail page with Pending Approval badge
     await expect(page).toHaveURL(/\/projects\/[a-f0-9-]+$/, { timeout: 10000 });
     await expect(page.locator('.ant-tag').getByText('Pending Approval').first()).toBeVisible();
-    await expect(page.getByText('E2E T&M Project')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E T&M Project' })).toBeVisible();
   });
 
   // E2E-P2: DM creates a Fixed Cost project (AC: 3, 6, 10)
@@ -88,7 +88,7 @@ test.describe('Project Creation — DM role', () => {
     // Verify navigation to detail page with Pending Approval badge
     await expect(page).toHaveURL(/\/projects\/[a-f0-9-]+$/, { timeout: 10000 });
     await expect(page.locator('.ant-tag').getByText('Pending Approval').first()).toBeVisible();
-    await expect(page.getByText('E2E Fixed Cost Project')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'E2E Fixed Cost Project' })).toBeVisible();
   });
 
   // E2E-P3: DM switches engagement model (AC: 1, 2, 3)
@@ -132,7 +132,7 @@ test.describe('Project Creation — DM role', () => {
     // Find the rejected project in the database
     const db = getDb();
     const rejectedProject = await db.project.findFirst({
-      where: { status: 'REJECTED', deliveryManager: { email: 'dm@e2e.test' } },
+      where: { status: 'REJECTED', name: 'Seeded Rejected Project', deliveryManager: { email: 'dm@e2e.test' } },
     });
     expect(rejectedProject).toBeTruthy();
 

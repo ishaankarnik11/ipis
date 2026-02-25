@@ -187,6 +187,78 @@ async function main() {
     },
   });
 
+  // ACTIVE T&M project for project list/detail tests (Story 3.4)
+  const activeTmProject = await prisma.project.create({
+    data: {
+      name: 'Seeded Active TM Project',
+      client: 'Gamma Solutions',
+      vertical: 'FinTech',
+      engagementModel: 'TIME_AND_MATERIALS',
+      status: 'ACTIVE',
+      deliveryManagerId: dmUser.id,
+      startDate: new Date('2026-02-01'),
+      endDate: new Date('2026-11-30'),
+    },
+  });
+
+  // ACTIVE Fixed Cost project for % completion tests (Story 3.4)
+  await prisma.project.create({
+    data: {
+      name: 'Seeded Active FC Project',
+      client: 'Delta Corp',
+      vertical: 'Healthcare',
+      engagementModel: 'FIXED_COST',
+      status: 'ACTIVE',
+      contractValuePaise: BigInt(80000000),
+      completionPercent: 0.35,
+      deliveryManagerId: dmUser.id,
+      startDate: new Date('2026-01-15'),
+      endDate: new Date('2026-09-30'),
+    },
+  });
+
+  // Additional PENDING_APPROVAL projects for approval/rejection E2E tests (Story 3.5)
+  await prisma.project.create({
+    data: {
+      name: 'Seeded Pending Approve Target',
+      client: 'Epsilon Ltd',
+      vertical: 'Manufacturing',
+      engagementModel: 'FIXED_COST',
+      status: 'PENDING_APPROVAL',
+      contractValuePaise: BigInt(30000000),
+      deliveryManagerId: dmUser.id,
+      startDate: new Date('2026-05-01'),
+      endDate: new Date('2027-04-30'),
+    },
+  });
+
+  await prisma.project.create({
+    data: {
+      name: 'Seeded Pending Reject Target',
+      client: 'Zeta Corp',
+      vertical: 'Consulting',
+      engagementModel: 'AMC',
+      status: 'PENDING_APPROVAL',
+      contractValuePaise: BigInt(20000000),
+      deliveryManagerId: dmUser.id,
+      startDate: new Date('2026-06-01'),
+      endDate: new Date('2027-05-31'),
+    },
+  });
+
+  // Assign a team member to the active T&M project (for team roster test)
+  const emp1 = await prisma.employee.findFirst({ where: { employeeCode: 'EMP001' } });
+  if (emp1) {
+    await prisma.employeeProject.create({
+      data: {
+        projectId: activeTmProject.id,
+        employeeId: emp1.id,
+        role: 'Developer',
+        billingRatePaise: BigInt(500000),
+      },
+    });
+  }
+
   console.log('E2E seed complete');
 }
 

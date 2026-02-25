@@ -10,9 +10,11 @@ import ChangePassword from '../pages/auth/ChangePassword';
 import UserManagement from '../pages/admin/UserManagement';
 import SystemConfig from '../pages/admin/SystemConfig';
 import AuditLog from '../pages/admin/AuditLog';
+import PendingApprovals from '../pages/admin/PendingApprovals';
 import EmployeeList from '../pages/employees/EmployeeList';
 import UploadCenter from '../pages/upload/UploadCenter';
 import CreateEditProject from '../pages/projects/CreateEditProject';
+import ProjectList from '../pages/projects/ProjectList';
 import ProjectDetail from '../pages/projects/ProjectDetail';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
@@ -67,6 +69,7 @@ export const router = createBrowserRouter([
               { path: '/admin', element: <Navigate to="/admin/users" replace /> },
               { path: '/admin/users', element: <UserManagement /> },
               { path: '/admin/config', element: <SystemConfig /> },
+              { path: '/admin/pending-approvals', element: <PendingApprovals /> },
               { path: '/admin/audit-log', element: <AuditLog /> },
             ],
           },
@@ -97,10 +100,10 @@ export const router = createBrowserRouter([
           {
             element: <RoleGuard allowedRoles={['ADMIN', 'FINANCE', 'DELIVERY_MANAGER', 'DEPT_HEAD']} />,
             children: [
+              { path: '/projects', element: <ProjectList /> },
               { path: '/projects/:id', element: <ProjectDetail /> },
             ],
           },
-          { path: '/projects', element: <PlaceholderPage title="Projects" /> },
           { path: '/dashboards/executive', element: <PlaceholderPage title="Executive Dashboard" /> },
           { path: '/dashboards/department', element: <PlaceholderPage title="Department Dashboard" /> },
         ],

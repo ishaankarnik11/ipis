@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router';
-import { Layout, Menu, Button, Typography } from 'antd';
+import { Layout, Menu, Button, Typography, Badge } from 'antd';
 import { LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '../hooks/useAuth';
 import { getNavItemsForRole } from '../config/navigation';
+import { projectKeys, getProjects } from '../services/projects.api';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -26,12 +28,31 @@ export default function AppLayout() {
     localStorage.setItem(COLLAPSED_KEY, String(next));
   };
 
+  const isAdmin = user?.role === 'ADMIN';
+
+  const { data: projectsData } = useQuery({
+    queryKey: projectKeys.all,
+    queryFn: getProjects,
+    enabled: isAdmin,
+  });
+
+  const pendingCount = isAdmin
+    ? (projectsData?.data ?? []).filter((p) => p.status === 'PENDING_APPROVAL').length
+    : 0;
+
   const navItems = user ? getNavItemsForRole(user.role) : [];
 
   const menuItems = navItems.map((item) => ({
     key: item.path,
     icon: item.icon,
-    label: item.label,
+    label:
+      item.key === 'admin-pending' && pendingCount > 0 ? (
+        <Badge count={pendingCount} size="small" offset={[8, 0]}>
+          {item.label}
+        </Badge>
+      ) : (
+        item.label
+      ),
   }));
 
   return (

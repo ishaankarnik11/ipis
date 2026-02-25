@@ -1,5 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 
+// Mock ResizeObserver for antd components (Modal, TextArea) in jsdom
+global.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
 // Mock window.matchMedia for antd components in jsdom
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

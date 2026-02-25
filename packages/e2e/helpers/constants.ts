@@ -15,7 +15,7 @@ export const credentials: Record<Role, { email: string; password: string }> = {
 
 /** Expected sidebar labels per role */
 export const roleSidebarItems: Record<Role, string[]> = {
-  ADMIN: ['User Management', 'System Config', 'Employees', 'Projects', 'Executive Dashboard', 'Department Dashboard'],
+  ADMIN: ['User Management', 'Pending Approvals', 'System Config', 'Employees', 'Projects', 'Executive Dashboard', 'Department Dashboard'],
   HR: ['Employees', 'Upload Center'],
   FINANCE: ['Employees', 'Projects', 'Executive Dashboard', 'Department Dashboard'],
   DELIVERY_MANAGER: ['Projects', 'Department Dashboard'],
