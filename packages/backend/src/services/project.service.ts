@@ -112,7 +112,7 @@ async function atomicStatusTransition(
 
 export async function createProject(data: CreateProjectInput, user: RequestUser) {
   // Extract model-specific fields based on engagement model
-  let modelFields: Record<string, unknown> = {};
+  const modelFields: Record<string, unknown> = {};
   switch (data.engagementModel) {
     case 'AMC':
       if ('slaDescription' in data && data.slaDescription) {

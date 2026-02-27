@@ -1,6 +1,10 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { E2E_DB_URL } from './helpers/constants.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Generate a single timestamp for this entire test run
 const timestamp = new Date()

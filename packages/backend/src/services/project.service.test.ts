@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { prisma } from '../lib/prisma.js';
 import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import type { CreateProjectInput } from '@ipis/shared';
 import * as projectService from './project.service.js';
 
 describe('project.service', () => {
@@ -423,10 +424,10 @@ describe('project.service', () => {
 
   // ── Team Roster Service Tests ──────────────────────────────────────
 
-  async function createActiveProject(dm: { id: string; role: string; email: string }, model = 'FIXED_COST' as const) {
+  async function createActiveProject(dm: { id: string; role: string; email: string }, model: string = 'FIXED_COST') {
     await makeAdminUser().catch(() => {}); // may already exist
     const proj = await projectService.createProject(
-      { ...validCreateInput, engagementModel: model },
+      { ...validCreateInput, engagementModel: model } as CreateProjectInput,
       dm,
     );
     await projectService.approveProject(proj.id);

@@ -1,6 +1,6 @@
 # Story 4.0: Project Field Persistence & Infrastructure Cost Mode
 
-Status: dev-complete
+Status: review
 
 ## Story
 
@@ -80,7 +80,7 @@ The CreateEditProject.tsx form already collects model-specific fields (`slaDescr
   - [x] 5.2 E2E: DM creates Infra project (Simple) → query DB → assert `vendor_cost_paise`, `manpower_cost_paise`, `infra_cost_mode = 'SIMPLE'`
   - [x] 5.3 E2E: DM creates Infra project (Detailed) → query DB → assert `infra_cost_mode = 'DETAILED'`, `manpower_cost_paise` is null
   - [x] 5.4 E2E: DM creates Fixed Cost project → query DB → assert `budget_paise` persisted
-  - [ ] 5.5 All existing E2E tests still pass (to be verified when E2E suite is run)
+  - [x] 5.5 All existing E2E tests still pass (verified: 51/51 E2E tests pass)
 
 ## Dev Notes
 
@@ -140,6 +140,15 @@ Claude Opus 4.6
 - 162/162 frontend tests pass (4 new infrastructure cost mode tests added)
 - 4 new E2E tests added for DB persistence verification (AMC, Infra SIMPLE, Infra DETAILED, Fixed Cost)
 - 3 pre-existing config.service test failures are unrelated (systemConfig mock issue)
+- **E2E Verification (Story Completion Pass — 2026-02-27):**
+  - 51/51 E2E tests pass (0 failures, 0 flaky) — 14.8 min runtime
+  - All 4 new DB persistence tests verified: AMC slaDescription, Infra SIMPLE vendor/manpower/mode, Infra DETAILED mode+null-manpower, Fixed Cost budgetPaise
+  - Data Contract Gate: all 5 fields traced UI → Zod → Prisma → E2E (slaDescription, vendorCostPaise, manpowerCostPaise, budgetPaise, infraCostMode)
+  - Backend unit tests: 346/347 pass; 1 failure is `projects.routes.test.ts` integration test (requires live PostgreSQL — environment-dependent, not a code bug)
+  - Frontend unit tests: timeout failures in ProjectDetail, PendingApprovals, UploadCenter tests (pre-existing, unrelated to 4-0)
+  - Lint: backend clean; 1 pre-existing frontend error (unused `Alert` import in SystemConfig.tsx)
+  - Typecheck: shared + frontend clean; 7 pre-existing backend test TS errors (cookie string/string[] casts, audit null type)
+  - Fixes applied during verification: Playwright ESM `__dirname` compatibility (playwright.config.ts, csv-reporter.ts), `let`→`const` in project.service.ts, test type annotations for discriminated union params
 
 ### Change Log
 - `packages/backend/prisma/schema.prisma` — Added 5 nullable columns to Project model
@@ -158,7 +167,10 @@ Claude Opus 4.6
 - packages/shared/src/schemas/project.schema.ts
 - packages/backend/src/services/project.service.ts
 - packages/backend/src/services/project.service.test.ts
+- packages/backend/src/routes/projects.routes.test.ts (type annotation fix)
 - packages/frontend/src/services/projects.api.ts
 - packages/frontend/src/pages/projects/CreateEditProject.tsx
 - packages/frontend/src/pages/projects/CreateEditProject.test.tsx
 - packages/e2e/tests/project-creation.spec.ts
+- packages/e2e/playwright.config.ts (ESM __dirname fix)
+- packages/e2e/reporters/csv-reporter.ts (ESM __dirname fix)

@@ -37,7 +37,7 @@ describe('Project Routes', () => {
   };
 
   /** Create a project via API and return the response body data */
-  async function createProjectAs(cookies: string[], body = validCreateBody) {
+  async function createProjectAs(cookies: string[], body: Record<string, unknown> = validCreateBody) {
     const res = await request(app)
       .post('/api/v1/projects')
       .set('Cookie', cookies)
@@ -528,7 +528,7 @@ describe('Project Routes', () => {
 
   // ── Team Roster Routes ─────────────────────────────────────────────
 
-  async function createActiveProject(dmCookies: string[], adminCookies: string[], body = validCreateBody) {
+  async function createActiveProject(dmCookies: string[], adminCookies: string[], body: Record<string, unknown> = validCreateBody) {
     const createRes = await createProjectAs(dmCookies, body);
     const projectId = createRes.body.data.id;
 
