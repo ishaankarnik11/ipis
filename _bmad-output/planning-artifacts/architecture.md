@@ -669,10 +669,10 @@ The calculation engine is a pure function module — no database calls, no HTTP 
 // ✅ Correct: engine takes data, returns results (all values in paise)
 const result = calculateTm({
   billedHours: 160,
-  billingRate: 525000,   // paise
-  employeeCosts: [{ hours: 160, costPerHour: 31200 }]  // paise
+  billingRatePaise: 525000,
+  employeeCosts: [{ hours: 160, costPerHourPaise: 31200 }]
 });
-// → { revenue: 84000000, cost: 4992000, profit: 79008000, marginPercent: 0.9406 }
+// → { revenuePaise: 84000000, costPaise: 4992000, profitPaise: 79008000, marginPercent: 0.9406 }
 
 // ❌ Never: engine fetches its own data
 async function calculateTm(projectId: string) {

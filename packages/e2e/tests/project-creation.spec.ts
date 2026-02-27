@@ -164,6 +164,212 @@ test.describe('Project Creation — DM role', () => {
   });
 });
 
+test.describe('Project Creation — Model-Specific Field Persistence', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page, 'DELIVERY_MANAGER');
+  });
+
+  // E2E-MSF1: AMC project persists slaDescription (AC: 1)
+  test('DM creates AMC project with SLA description → DB persists sla_description', async ({ page }) => {
+    await page.goto('/projects/new');
+
+    // Fill common fields
+    await page.getByLabel('Project Name').fill('E2E AMC SLA Project');
+    await page.getByLabel('Client').fill('AMC Client');
+    await page.getByLabel('Vertical').fill('Support');
+
+    await page.getByLabel('Start Date').click();
+    await page.getByLabel('Start Date').fill('2026-08-01');
+    await page.keyboard.press('Enter');
+
+    await page.getByLabel('End Date').click();
+    await page.getByLabel('End Date').fill('2027-07-31');
+    await page.keyboard.press('Enter');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Select AMC engagement model
+    await page.locator('#engagementModel').click();
+    await page.locator('.ant-select-item[title="AMC"]').click();
+
+    await expect(page.getByTestId('amc-section')).toBeVisible();
+
+    // Fill AMC-specific fields
+    await page.getByLabel('Contract Value').click();
+    await page.getByLabel('Contract Value').fill('500000');
+
+    await page.getByLabel('Support SLA Description').fill('24/7 support with 4-hour response time');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Submit
+    await page.getByRole('button', { name: /create project/i }).click();
+
+    // Verify navigation to detail page
+    await expect(page).toHaveURL(/\/projects\/[a-f0-9-]+$/, { timeout: 10000 });
+
+    // Extract project ID from URL and verify DB
+    const url = page.url();
+    const projectId = url.split('/projects/')[1];
+
+    const db = getDb();
+    const project = await db.project.findUnique({ where: { id: projectId } });
+    expect(project).toBeTruthy();
+    expect(project!.slaDescription).toBe('24/7 support with 4-hour response time');
+    expect(project!.engagementModel).toBe('AMC');
+  });
+
+  // E2E-MSF2: Infrastructure SIMPLE project persists vendor + manpower costs (AC: 3)
+  test('DM creates Infrastructure SIMPLE project → DB persists vendor_cost_paise, manpower_cost_paise, infra_cost_mode', async ({ page }) => {
+    await page.goto('/projects/new');
+
+    await page.getByLabel('Project Name').fill('E2E Infra Simple Project');
+    await page.getByLabel('Client').fill('Infra Client');
+    await page.getByLabel('Vertical').fill('Cloud');
+
+    await page.getByLabel('Start Date').click();
+    await page.getByLabel('Start Date').fill('2026-09-01');
+    await page.keyboard.press('Enter');
+
+    await page.getByLabel('End Date').click();
+    await page.getByLabel('End Date').fill('2027-08-31');
+    await page.keyboard.press('Enter');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Select Infrastructure engagement model
+    await page.locator('#engagementModel').click();
+    await page.locator('.ant-select-item[title="Infrastructure"]').click();
+
+    await expect(page.getByTestId('infrastructure-section')).toBeVisible();
+
+    // Simple mode is default — verify radio
+    await expect(page.getByTestId('infra-cost-mode-radio')).toBeVisible();
+
+    // Fill vendor costs and manpower cost
+    await page.getByLabel('Vendor Costs').click();
+    await page.getByLabel('Vendor Costs').fill('10000');
+
+    await page.getByLabel('Manpower Cost').click();
+    await page.getByLabel('Manpower Cost').fill('5000');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Submit
+    await page.getByRole('button', { name: /create project/i }).click();
+
+    await expect(page).toHaveURL(/\/projects\/[a-f0-9-]+$/, { timeout: 10000 });
+
+    const url = page.url();
+    const projectId = url.split('/projects/')[1];
+
+    const db = getDb();
+    const project = await db.project.findUnique({ where: { id: projectId } });
+    expect(project).toBeTruthy();
+    expect(project!.infraCostMode).toBe('SIMPLE');
+    expect(Number(project!.vendorCostPaise)).toBe(1000000); // 10000 * 100
+    expect(Number(project!.manpowerCostPaise)).toBe(500000); // 5000 * 100
+  });
+
+  // E2E-MSF3: Infrastructure DETAILED project persists mode, manpower null (AC: 4)
+  test('DM creates Infrastructure DETAILED project → DB persists infra_cost_mode=DETAILED, manpower_cost_paise is null', async ({ page }) => {
+    await page.goto('/projects/new');
+
+    await page.getByLabel('Project Name').fill('E2E Infra Detailed Project');
+    await page.getByLabel('Client').fill('Infra Detailed Client');
+    await page.getByLabel('Vertical').fill('Cloud');
+
+    await page.getByLabel('Start Date').click();
+    await page.getByLabel('Start Date').fill('2026-10-01');
+    await page.keyboard.press('Enter');
+
+    await page.getByLabel('End Date').click();
+    await page.getByLabel('End Date').fill('2027-09-30');
+    await page.keyboard.press('Enter');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Select Infrastructure engagement model
+    await page.locator('#engagementModel').click();
+    await page.locator('.ant-select-item[title="Infrastructure"]').click();
+
+    await expect(page.getByTestId('infrastructure-section')).toBeVisible();
+
+    // Switch to Detailed mode
+    await page.getByLabel('Detailed').click();
+    await expect(page.getByTestId('detailed-mode-info')).toBeVisible();
+
+    // Fill vendor costs (available in both modes)
+    await page.getByLabel('Vendor Costs').click();
+    await page.getByLabel('Vendor Costs').fill('20000');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Submit
+    await page.getByRole('button', { name: /create project/i }).click();
+
+    await expect(page).toHaveURL(/\/projects\/[a-f0-9-]+$/, { timeout: 10000 });
+
+    const url = page.url();
+    const projectId = url.split('/projects/')[1];
+
+    const db = getDb();
+    const project = await db.project.findUnique({ where: { id: projectId } });
+    expect(project).toBeTruthy();
+    expect(project!.infraCostMode).toBe('DETAILED');
+    expect(Number(project!.vendorCostPaise)).toBe(2000000); // 20000 * 100
+    expect(project!.manpowerCostPaise).toBeNull();
+  });
+
+  // E2E-MSF4: Fixed Cost project persists budgetPaise (AC: 2)
+  test('DM creates Fixed Cost project with budget → DB persists budget_paise', async ({ page }) => {
+    await page.goto('/projects/new');
+
+    await page.getByLabel('Project Name').fill('E2E FC Budget Project');
+    await page.getByLabel('Client').fill('FC Client');
+    await page.getByLabel('Vertical').fill('Finance');
+
+    await page.getByLabel('Start Date').click();
+    await page.getByLabel('Start Date').fill('2026-11-01');
+    await page.keyboard.press('Enter');
+
+    await page.getByLabel('End Date').click();
+    await page.getByLabel('End Date').fill('2027-10-31');
+    await page.keyboard.press('Enter');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Select Fixed Cost engagement model
+    await page.locator('#engagementModel').click();
+    await page.locator('.ant-select-item[title="Fixed Cost"]').click();
+
+    await expect(page.getByTestId('fixed-cost-section')).toBeVisible();
+
+    // Fill contract value (required) and budget
+    await page.getByLabel('Contract Value').click();
+    await page.getByLabel('Contract Value').fill('1000000');
+
+    await page.getByLabel('Budget').click();
+    await page.getByLabel('Budget').fill('800000');
+
+    await page.locator('body').click({ position: { x: 10, y: 10 } });
+
+    // Submit
+    await page.getByRole('button', { name: /create project/i }).click();
+
+    await expect(page).toHaveURL(/\/projects\/[a-f0-9-]+$/, { timeout: 10000 });
+
+    const url = page.url();
+    const projectId = url.split('/projects/')[1];
+
+    const db = getDb();
+    const project = await db.project.findUnique({ where: { id: projectId } });
+    expect(project).toBeTruthy();
+    expect(Number(project!.budgetPaise)).toBe(80000000); // 800000 * 100
+    expect(project!.engagementModel).toBe('FIXED_COST');
+  });
+});
+
 test.describe('Project Creation — Negative Scenarios', () => {
   // E2E-N1: DM submits with missing fields (AC: 1)
   test('DM sees validation errors when submitting empty form', async ({ page }) => {

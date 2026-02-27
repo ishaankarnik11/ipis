@@ -7,6 +7,7 @@ import {
   DatePicker,
   Input,
   InputNumber,
+  Radio,
   Select,
   Space,
   Alert,
@@ -42,9 +43,10 @@ interface ProjectFormValues {
   endDate: string;
   contractValuePaise: number | null;
   slaDescription: string;
-  vendorCostsPaise: number | null;
-  manpowerAllocation: string;
+  vendorCostPaise: number | null;
+  manpowerCostPaise: number | null;
   budgetPaise: number | null;
+  infraCostMode: 'SIMPLE' | 'DETAILED';
   teamMembers: TeamMemberField[];
 }
 
@@ -95,9 +97,10 @@ export default function CreateEditProject() {
       endDate: '',
       contractValuePaise: null,
       slaDescription: '',
-      vendorCostsPaise: null,
-      manpowerAllocation: '',
+      vendorCostPaise: null,
+      manpowerCostPaise: null,
       budgetPaise: null,
+      infraCostMode: 'SIMPLE',
       teamMembers: [{ role: '', billingRatePaise: null }],
     },
   });
@@ -108,6 +111,7 @@ export default function CreateEditProject() {
   });
 
   const engagementModel = watch('engagementModel');
+  const infraCostMode = watch('infraCostMode');
 
   // Pre-populate form for edit mode
   useEffect(() => {
@@ -120,10 +124,11 @@ export default function CreateEditProject() {
         startDate: project.startDate,
         endDate: project.endDate,
         contractValuePaise: paiseToCurrency(project.contractValuePaise),
-        slaDescription: '',
-        vendorCostsPaise: null,
-        manpowerAllocation: '',
-        budgetPaise: null,
+        slaDescription: project.slaDescription ?? '',
+        vendorCostPaise: paiseToCurrency(project.vendorCostPaise),
+        manpowerCostPaise: paiseToCurrency(project.manpowerCostPaise),
+        budgetPaise: paiseToCurrency(project.budgetPaise),
+        infraCostMode: (project.infraCostMode as 'SIMPLE' | 'DETAILED') ?? 'SIMPLE',
         teamMembers: [{ role: '', billingRatePaise: null }],
       });
     }
@@ -164,10 +169,26 @@ export default function CreateEditProject() {
 
     if (isEdit && id) {
       // Edit & Resubmit flow: PATCH then resubmit (sequential — both must succeed)
-      const updatePayload = {
+      const updatePayload: Record<string, unknown> = {
         ...basePayload,
         contractValuePaise: currencyToPaise(values.contractValuePaise) ?? undefined,
       };
+      // Add model-specific fields based on engagement model
+      switch (values.engagementModel) {
+        case 'AMC':
+          updatePayload.slaDescription = values.slaDescription || undefined;
+          break;
+        case 'FIXED_COST':
+          updatePayload.budgetPaise = currencyToPaise(values.budgetPaise) ?? undefined;
+          break;
+        case 'INFRASTRUCTURE':
+          updatePayload.vendorCostPaise = currencyToPaise(values.vendorCostPaise) ?? undefined;
+          updatePayload.infraCostMode = values.infraCostMode;
+          if (values.infraCostMode === 'SIMPLE') {
+            updatePayload.manpowerCostPaise = currencyToPaise(values.manpowerCostPaise) ?? undefined;
+          }
+          break;
+      }
       try {
         await updateMutation.mutateAsync({ projectId: id, data: updatePayload });
         await resubmitMutation.mutateAsync(id);
@@ -191,6 +212,7 @@ export default function CreateEditProject() {
             ...basePayload,
             engagementModel: 'FIXED_COST' as const,
             contractValuePaise: currencyToPaise(values.contractValuePaise)!,
+            budgetPaise: currencyToPaise(values.budgetPaise) ?? undefined,
           };
           break;
         case 'AMC':
@@ -198,6 +220,7 @@ export default function CreateEditProject() {
             ...basePayload,
             engagementModel: 'AMC' as const,
             contractValuePaise: currencyToPaise(values.contractValuePaise)!,
+            slaDescription: values.slaDescription || undefined,
           };
           break;
         case 'INFRASTRUCTURE':
@@ -205,6 +228,11 @@ export default function CreateEditProject() {
             ...basePayload,
             engagementModel: 'INFRASTRUCTURE' as const,
             contractValuePaise: currencyToPaise(values.contractValuePaise) ?? undefined,
+            vendorCostPaise: currencyToPaise(values.vendorCostPaise) ?? undefined,
+            infraCostMode: values.infraCostMode,
+            ...(values.infraCostMode === 'SIMPLE'
+              ? { manpowerCostPaise: currencyToPaise(values.manpowerCostPaise) ?? undefined }
+              : {}),
           };
           break;
       }
@@ -495,15 +523,33 @@ export default function CreateEditProject() {
         {/* Infrastructure Section */}
         {engagementModel === 'INFRASTRUCTURE' && (
           <Card title="Infrastructure Details" data-testid="infrastructure-section" style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 16 }}>
+              <label>Cost Tracking Mode</label>
+              <Controller
+                name="infraCostMode"
+                control={control}
+                render={({ field }) => (
+                  <Radio.Group
+                    {...field}
+                    data-testid="infra-cost-mode-radio"
+                    style={{ display: 'block', marginTop: 8 }}
+                  >
+                    <Radio value="SIMPLE">Simple</Radio>
+                    <Radio value="DETAILED">Detailed</Radio>
+                  </Radio.Group>
+                )}
+              />
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <label htmlFor="vendorCostsPaise">Vendor Costs</label>
+                <label htmlFor="vendorCostPaise">Vendor Costs</label>
                 <Controller
-                  name="vendorCostsPaise"
+                  name="vendorCostPaise"
                   control={control}
                   render={({ field }) => (
                     <InputNumber
-                      id="vendorCostsPaise"
+                      id="vendorCostPaise"
                       prefix="₹"
                       value={field.value}
                       onChange={field.onChange}
@@ -514,16 +560,33 @@ export default function CreateEditProject() {
                 />
               </div>
 
-              <div>
-                <label htmlFor="manpowerAllocation">Manpower Allocation</label>
-                <Controller
-                  name="manpowerAllocation"
-                  control={control}
-                  render={({ field }) => (
-                    <Input.TextArea id="manpowerAllocation" {...field} rows={3} placeholder="Describe manpower allocation" />
-                  )}
-                />
-              </div>
+              {infraCostMode === 'SIMPLE' && (
+                <div>
+                  <label htmlFor="manpowerCostPaise">Manpower Cost</label>
+                  <Controller
+                    name="manpowerCostPaise"
+                    control={control}
+                    render={({ field }) => (
+                      <InputNumber
+                        id="manpowerCostPaise"
+                        prefix="₹"
+                        value={field.value}
+                        onChange={field.onChange}
+                        style={{ width: '100%' }}
+                        min={0}
+                      />
+                    )}
+                  />
+                </div>
+              )}
+
+              {infraCostMode === 'DETAILED' && (
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography.Text type="secondary" data-testid="detailed-mode-info">
+                    Manpower costs will be calculated from employee timesheets
+                  </Typography.Text>
+                </div>
+              )}
             </div>
           </Card>
         )}

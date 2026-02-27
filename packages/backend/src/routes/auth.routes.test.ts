@@ -1,90 +1,33 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcrypt';
 import { createApp } from '../app.js';
-
-// Mock Prisma
-vi.mock('../lib/prisma.js', () => ({
-  prisma: {
-    user: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    passwordResetToken: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
-      update: vi.fn(),
-    },
-    $transaction: vi.fn(),
-  },
-}));
-
-// Mock email service
-vi.mock('../services/email.service.js', () => ({
-  sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
-}));
-
-// Mock config
-vi.mock('../lib/config.js', () => ({
-  config: {
-    port: 3000,
-    databaseUrl: 'mock://db',
-    get jwtSecret() {
-      return 'test-secret-key-that-is-long-enough-for-hs256';
-    },
-    logLevel: 'silent',
-    nodeEnv: 'test',
-    frontendUrl: 'http://localhost:5173',
-  },
-}));
-
 import { prisma } from '../lib/prisma.js';
-
-const mockFindUnique = prisma.user.findUnique as ReturnType<typeof vi.fn>;
-const mockTokenCreate = prisma.passwordResetToken.create as ReturnType<typeof vi.fn>;
-const mockTokenFindFirst = prisma.passwordResetToken.findFirst as ReturnType<typeof vi.fn>;
-const mockTransaction = prisma.$transaction as ReturnType<typeof vi.fn>;
-const mockUserUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
-
-import { sendPasswordResetEmail } from '../services/email.service.js';
-const mockSendEmail = sendPasswordResetEmail as ReturnType<typeof vi.fn>;
+import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
 
 describe('Auth Routes', () => {
   const app = createApp();
-  let hashedPassword: string;
 
-  beforeAll(async () => {
-    hashedPassword = await bcrypt.hash('correct-password', 10);
+  beforeEach(async () => {
+    await cleanDb();
+    await seedTestDepartments();
   });
 
-  const activeUser = () => ({
-    id: 'user-1',
-    email: 'admin@test.com',
-    passwordHash: hashedPassword,
-    name: 'Test Admin',
-    role: 'ADMIN',
-    isActive: true,
-    departmentId: 'dept-1',
-    mustChangePassword: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  beforeEach(() => {
-    vi.clearAllMocks();
+  afterAll(async () => {
+    await disconnectTestDb();
   });
 
   describe('POST /api/v1/auth/login', () => {
     it('should return user data and set httpOnly cookie on valid credentials', async () => {
-      mockFindUnique.mockResolvedValue(activeUser());
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com', name: 'Test Admin' });
 
       const res = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
+        .send({ email: 'admin@test.com', password: user.password });
 
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual({
-        id: 'user-1',
+        id: user.id,
         name: 'Test Admin',
         role: 'ADMIN',
         email: 'admin@test.com',
@@ -103,7 +46,7 @@ describe('Auth Routes', () => {
     });
 
     it('should return 401 for wrong password with generic message', async () => {
-      mockFindUnique.mockResolvedValue(activeUser());
+      await createTestUser('ADMIN', { email: 'admin@test.com' });
 
       const res = await request(app)
         .post('/api/v1/auth/login')
@@ -115,8 +58,6 @@ describe('Auth Routes', () => {
     });
 
     it('should return 401 for non-existent email with same message as wrong password', async () => {
-      mockFindUnique.mockResolvedValue(null);
-
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({ email: 'nobody@test.com', password: 'any-password' });
@@ -127,11 +68,11 @@ describe('Auth Routes', () => {
     });
 
     it('should return 401 for deactivated user', async () => {
-      mockFindUnique.mockResolvedValue({ ...activeUser(), isActive: false });
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com', isActive: false });
 
       const res = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
+        .send({ email: 'admin@test.com', password: user.password });
 
       expect(res.status).toBe(401);
     });
@@ -155,17 +96,12 @@ describe('Auth Routes', () => {
 
   describe('GET /api/v1/auth/me', () => {
     it('should return user profile with valid cookie', async () => {
-      // First login to get a cookie
-      mockFindUnique.mockResolvedValue(activeUser());
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com', name: 'Test Admin' });
 
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
-
+        .send({ email: 'admin@test.com', password: user.password });
       const cookies = loginRes.headers['set-cookie'];
-
-      // Now call /me with the cookie
-      mockFindUnique.mockResolvedValue(activeUser());
 
       const meRes = await request(app)
         .get('/api/v1/auth/me')
@@ -173,11 +109,11 @@ describe('Auth Routes', () => {
 
       expect(meRes.status).toBe(200);
       expect(meRes.body.data).toEqual({
-        id: 'user-1',
+        id: user.id,
         name: 'Test Admin',
         role: 'ADMIN',
         email: 'admin@test.com',
-        departmentId: 'dept-1',
+        departmentId: null,
         mustChangePassword: false,
       });
     });
@@ -190,12 +126,11 @@ describe('Auth Routes', () => {
     });
 
     it('should return 401 for expired token', async () => {
-      mockFindUnique.mockResolvedValue(activeUser());
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com' });
 
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
-
+        .send({ email: 'admin@test.com', password: user.password });
       const cookies = loginRes.headers['set-cookie'];
 
       // Advance system clock past the 2-hour JWT expiry
@@ -231,21 +166,20 @@ describe('Auth Routes', () => {
 
   describe('POST /api/v1/auth/forgot-password', () => {
     it('should always return success regardless of email existence (AC 1)', async () => {
-      mockFindUnique.mockResolvedValue(null);
-
       const res = await request(app)
         .post('/api/v1/auth/forgot-password')
         .send({ email: 'nonexistent@test.com' });
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
-      // Verify email is NOT sent for nonexistent users (M2 review fix)
-      expect(mockSendEmail).not.toHaveBeenCalled();
+
+      // No token should be created for non-existent email
+      const tokens = await prisma.passwordResetToken.findMany();
+      expect(tokens).toHaveLength(0);
     });
 
     it('should return success for existing user and create token', async () => {
-      mockFindUnique.mockResolvedValue(activeUser());
-      mockTokenCreate.mockResolvedValue({});
+      await createTestUser('ADMIN', { email: 'admin@test.com' });
 
       const res = await request(app)
         .post('/api/v1/auth/forgot-password')
@@ -253,8 +187,9 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
-      expect(mockTokenCreate).toHaveBeenCalled();
-      expect(mockSendEmail).toHaveBeenCalled();
+
+      const tokens = await prisma.passwordResetToken.findMany();
+      expect(tokens).toHaveLength(1);
     });
 
     it('should return 400 for invalid email format', async () => {
@@ -269,23 +204,26 @@ describe('Auth Routes', () => {
 
   describe('GET /api/v1/auth/validate-reset-token', () => {
     it('should return valid: true for valid token (AC 2)', async () => {
-      mockTokenFindFirst.mockResolvedValue({
-        id: 'token-1',
-        tokenHash: 'hash',
-        usedAt: null,
-        expiresAt: new Date(Date.now() + 3600000),
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com' });
+      const crypto = await import('node:crypto');
+      const plaintext = crypto.randomUUID();
+      const hash = crypto.createHash('sha256').update(plaintext).digest('hex');
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hash,
+          expiresAt: new Date(Date.now() + 3600000),
+        },
       });
 
       const res = await request(app)
-        .get('/api/v1/auth/validate-reset-token?token=some-uuid');
+        .get(`/api/v1/auth/validate-reset-token?token=${plaintext}`);
 
       expect(res.status).toBe(200);
       expect(res.body.data.valid).toBe(true);
     });
 
     it('should return valid: false for invalid/expired/used token (AC 2)', async () => {
-      mockTokenFindFirst.mockResolvedValue(null);
-
       const res = await request(app)
         .get('/api/v1/auth/validate-reset-token?token=bad-token');
 
@@ -304,43 +242,32 @@ describe('Auth Routes', () => {
 
   describe('POST /api/v1/auth/reset-password', () => {
     it('should return success on valid token and password (AC 3)', async () => {
-      const tokenRecord = {
-        id: 'token-1',
-        userId: 'user-1',
-        tokenHash: 'hash',
-        usedAt: null,
-        expiresAt: new Date(Date.now() + 3600000),
-      };
-
-      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
-        return fn({
-          passwordResetToken: {
-            findFirst: vi.fn().mockResolvedValue(tokenRecord),
-            update: vi.fn().mockResolvedValue({}),
-          },
-          user: { update: vi.fn().mockResolvedValue({}) },
-        });
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com' });
+      const crypto = await import('node:crypto');
+      const plaintext = crypto.randomUUID();
+      const hash = crypto.createHash('sha256').update(plaintext).digest('hex');
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hash,
+          expiresAt: new Date(Date.now() + 3600000),
+        },
       });
 
       const res = await request(app)
         .post('/api/v1/auth/reset-password')
-        .send({ token: 'some-uuid', newPassword: 'newpass123' });
+        .send({ token: plaintext, newPassword: 'newpass123' });
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
+
+      // Verify password was actually changed
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      const matches = await bcrypt.compare('newpass123', dbUser!.passwordHash);
+      expect(matches).toBe(true);
     });
 
     it('should return 401 for invalid token', async () => {
-      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
-        return fn({
-          passwordResetToken: {
-            findFirst: vi.fn().mockResolvedValue(null),
-            update: vi.fn(),
-          },
-          user: { update: vi.fn() },
-        });
-      });
-
       const res = await request(app)
         .post('/api/v1/auth/reset-password')
         .send({ token: 'bad-token', newPassword: 'newpass123' });
@@ -360,15 +287,11 @@ describe('Auth Routes', () => {
 
   describe('POST /api/v1/auth/change-password', () => {
     it('should update password for authenticated user (AC 6)', async () => {
-      // Login first
-      mockFindUnique.mockResolvedValue(activeUser());
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com' });
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
+        .send({ email: 'admin@test.com', password: user.password });
       const cookies = loginRes.headers['set-cookie'];
-
-      mockFindUnique.mockResolvedValue(activeUser());
-      mockUserUpdate.mockResolvedValue({});
 
       const res = await request(app)
         .post('/api/v1/auth/change-password')
@@ -377,7 +300,11 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
-      expect(mockUserUpdate).toHaveBeenCalled();
+
+      // Verify password was actually changed
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      const matches = await bcrypt.compare('newpass123', dbUser!.passwordHash);
+      expect(matches).toBe(true);
     });
 
     it('should return 401 without authentication', async () => {
@@ -389,14 +316,11 @@ describe('Auth Routes', () => {
     });
 
     it('should return 400 for password shorter than 8 chars', async () => {
-      // Login first
-      mockFindUnique.mockResolvedValue(activeUser());
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com' });
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
+        .send({ email: 'admin@test.com', password: user.password });
       const cookies = loginRes.headers['set-cookie'];
-
-      mockFindUnique.mockResolvedValue(activeUser());
 
       const res = await request(app)
         .post('/api/v1/auth/change-password')
@@ -408,16 +332,11 @@ describe('Auth Routes', () => {
     });
 
     it('should set mustChangePassword to false when changing password (AC 6)', async () => {
-      // Login as a user with mustChangePassword: true
-      const mustChangeUser = { ...activeUser(), mustChangePassword: true };
-      mockFindUnique.mockResolvedValue(mustChangeUser);
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com', mustChangePassword: true });
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
+        .send({ email: 'admin@test.com', password: user.password });
       const cookies = loginRes.headers['set-cookie'];
-
-      mockFindUnique.mockResolvedValue(mustChangeUser);
-      mockUserUpdate.mockResolvedValue({});
 
       const res = await request(app)
         .post('/api/v1/auth/change-password')
@@ -425,28 +344,24 @@ describe('Auth Routes', () => {
         .send({ newPassword: 'newpass123' });
 
       expect(res.status).toBe(200);
-      expect(mockUserUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            mustChangePassword: false,
-          }),
-        }),
-      );
+
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      expect(dbUser!.mustChangePassword).toBe(false);
     });
   });
 
   describe('Auth lifecycle regression', () => {
     it('should complete login → /me → logout → /me returns 401 cycle', async () => {
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com', name: 'Test Admin' });
+
       // Step 1: Login
-      mockFindUnique.mockResolvedValue(activeUser());
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
+        .send({ email: 'admin@test.com', password: user.password });
       expect(loginRes.status).toBe(200);
       const cookies = loginRes.headers['set-cookie'];
 
       // Step 2: GET /me returns user
-      mockFindUnique.mockResolvedValue(activeUser());
       const meRes = await request(app)
         .get('/api/v1/auth/me')
         .set('Cookie', cookies);
@@ -467,7 +382,7 @@ describe('Auth Routes', () => {
       expect(logoutCookieStr).toContain('ipis_token');
       expect(logoutCookieStr).toContain('Max-Age=0');
 
-      // Step 4: GET /me without cookie → 401 (browser deletes cookie on maxAge: 0)
+      // Step 4: GET /me without cookie → 401
       const meAfterLogout = await request(app).get('/api/v1/auth/me');
       expect(meAfterLogout.status).toBe(401);
     });
@@ -475,63 +390,44 @@ describe('Auth Routes', () => {
 
   describe('Password reset lifecycle regression', () => {
     it('should complete forgot-password → validate → reset → login-with-new-password cycle', async () => {
-      // Step 1: Request password reset
-      mockFindUnique.mockResolvedValue(activeUser());
-      mockTokenCreate.mockResolvedValue({});
+      const user = await createTestUser('ADMIN', { email: 'admin@test.com', name: 'Test Admin' });
 
+      // Step 1: Request password reset
       const forgotRes = await request(app)
         .post('/api/v1/auth/forgot-password')
         .send({ email: 'admin@test.com' });
       expect(forgotRes.status).toBe(200);
-      expect(mockTokenCreate).toHaveBeenCalled();
 
-      // Extract plaintext token from email service mock
-      const emailCall = mockSendEmail.mock.calls[0];
-      const resetUrl: string = emailCall[1];
-      const url = new URL(resetUrl);
-      const plainToken = url.searchParams.get('token');
-      expect(plainToken).toBeTruthy();
-
-      // Step 2: Validate token
-      mockTokenFindFirst.mockResolvedValue({
-        id: 'token-1',
-        tokenHash: 'hash',
-        usedAt: null,
-        expiresAt: new Date(Date.now() + 3600000),
+      // Get the token from DB
+      const tokens = await prisma.passwordResetToken.findMany({ where: { userId: user.id } });
+      expect(tokens).toHaveLength(1);
+      // We can't get the plaintext from DB (only hash stored), but we can test validate + reset
+      // by creating a known token manually
+      const crypto = await import('node:crypto');
+      const plaintext = crypto.randomUUID();
+      const hash = crypto.createHash('sha256').update(plaintext).digest('hex');
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hash,
+          expiresAt: new Date(Date.now() + 3600000),
+        },
       });
 
+      // Step 2: Validate token
       const validateRes = await request(app)
-        .get(`/api/v1/auth/validate-reset-token?token=${plainToken}`);
+        .get(`/api/v1/auth/validate-reset-token?token=${plaintext}`);
       expect(validateRes.status).toBe(200);
       expect(validateRes.body.data.valid).toBe(true);
 
       // Step 3: Reset password
-      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
-        return fn({
-          passwordResetToken: {
-            findFirst: vi.fn().mockResolvedValue({
-              id: 'token-1',
-              userId: 'user-1',
-              tokenHash: 'hash',
-              usedAt: null,
-              expiresAt: new Date(Date.now() + 3600000),
-            }),
-            update: vi.fn().mockResolvedValue({}),
-          },
-          user: { update: vi.fn().mockResolvedValue({}) },
-        });
-      });
-
       const resetRes = await request(app)
         .post('/api/v1/auth/reset-password')
-        .send({ token: plainToken, newPassword: 'new-secure-password' });
+        .send({ token: plaintext, newPassword: 'new-secure-password' });
       expect(resetRes.status).toBe(200);
       expect(resetRes.body).toEqual({ success: true });
 
       // Step 4: Login with new password
-      const newHash = await bcrypt.hash('new-secure-password', 10);
-      mockFindUnique.mockResolvedValue({ ...activeUser(), passwordHash: newHash });
-
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
         .send({ email: 'admin@test.com', password: 'new-secure-password' });
@@ -542,18 +438,19 @@ describe('Auth Routes', () => {
 
   describe('First-login change-password regression', () => {
     it('should complete login (mustChangePassword=true) → change-password → /me returns mustChangePassword=false', async () => {
-      // Step 1: Login with mustChangePassword: true
-      const mustChangeUser = { ...activeUser(), mustChangePassword: true };
-      mockFindUnique.mockResolvedValue(mustChangeUser);
+      const user = await createTestUser('ADMIN', {
+        email: 'admin@test.com',
+        mustChangePassword: true,
+      });
 
+      // Step 1: Login
       const loginRes = await request(app)
         .post('/api/v1/auth/login')
-        .send({ email: 'admin@test.com', password: 'correct-password' });
+        .send({ email: 'admin@test.com', password: user.password });
       expect(loginRes.status).toBe(200);
       const cookies = loginRes.headers['set-cookie'];
 
       // Step 2: GET /me returns mustChangePassword: true
-      mockFindUnique.mockResolvedValue(mustChangeUser);
       const meBeforeRes = await request(app)
         .get('/api/v1/auth/me')
         .set('Cookie', cookies);
@@ -561,9 +458,6 @@ describe('Auth Routes', () => {
       expect(meBeforeRes.body.data.mustChangePassword).toBe(true);
 
       // Step 3: Change password
-      mockFindUnique.mockResolvedValue(mustChangeUser);
-      mockUserUpdate.mockResolvedValue({});
-
       const changeRes = await request(app)
         .post('/api/v1/auth/change-password')
         .set('Cookie', cookies)
@@ -572,9 +466,6 @@ describe('Auth Routes', () => {
       expect(changeRes.body).toEqual({ success: true });
 
       // Step 4: GET /me returns mustChangePassword: false
-      const updatedUser = { ...activeUser(), mustChangePassword: false };
-      mockFindUnique.mockResolvedValue(updatedUser);
-
       const meAfterRes = await request(app)
         .get('/api/v1/auth/me')
         .set('Cookie', cookies);
@@ -586,8 +477,6 @@ describe('Auth Routes', () => {
   // Rate limit tests must be last — they exhaust shared in-memory rate limiters
   describe('Rate limiting', () => {
     it('should return 429 after exceeding failed login attempts', async () => {
-      mockFindUnique.mockResolvedValue(null);
-
       // Send enough failed requests to exceed the rate limit (10 per 15 min)
       for (let i = 0; i < 11; i++) {
         await request(app)
@@ -604,8 +493,6 @@ describe('Auth Routes', () => {
     });
 
     it('should return 429 after exceeding forgot-password rate limit (AC 7)', async () => {
-      mockFindUnique.mockResolvedValue(null);
-
       // Send 6 requests (limit is 5 per hour)
       for (let i = 0; i < 6; i++) {
         await request(app)

@@ -23,6 +23,11 @@ export interface Project {
   deliveryManagerName: string | null;
   rejectionComment: string | null;
   completionPercent: number | null;
+  slaDescription: string | null;
+  vendorCostPaise: number | null;
+  manpowerCostPaise: number | null;
+  budgetPaise: number | null;
+  infraCostMode: string | null;
   startDate: string;
   endDate: string;
   createdAt: string;

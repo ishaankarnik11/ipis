@@ -16,7 +16,10 @@ so that the Ledger Drawer UI can render the detailed input decomposition without
 
 2. **Given** the response shape,
    **When** a snapshot exists for that project/period,
-   **Then** the JSON conforms to: `{ revenue_paise, cost_paise, profit_paise, margin_percent, engagement_model, calculated_at, engine_version, recalculation_run_id, inputs: [{ employeeId, employeeName, designation, hours, cost_per_hour_paise, contribution_paise }] }`.
+   **Then** the JSON always contains the envelope: `{ revenue_paise, cost_paise, profit_paise, margin_percent, engagement_model, infra_cost_mode?, calculated_at, engine_version, recalculation_run_id }` plus a **model-specific breakdown**:
+   - **T&M / Fixed Cost / AMC / Infra DETAILED**: `employees: [{ employeeId, employeeName, designation, hours, cost_per_hour_paise, contribution_paise }]`
+   - **Infra DETAILED** additionally includes: `vendor_cost_paise`
+   - **Infra SIMPLE**: `vendor_cost_paise, manpower_cost_paise` — **no `employees` array**
 
 3. **Given** no snapshot exists for the requested project/period,
    **When** the endpoint is called,
@@ -36,7 +39,7 @@ so that the Ledger Drawer UI can render the detailed input decomposition without
 
 7. **Given** `ledger.service.test.ts`,
    **When** `pnpm test` runs,
-   **Then** tests cover: valid snapshot retrieval, 404 on missing snapshot, response shape validation, RBAC 403 on wrong DM, paise integer constraint.
+   **Then** tests cover: valid snapshot retrieval, 404 on missing snapshot, response shape validation (with employees array for T&M/AMC/FC/Infra DETAILED, without employees for Infra SIMPLE), RBAC 403 on wrong DM, paise integer constraint.
 
 ## Tasks / Subtasks
 
@@ -58,16 +61,21 @@ so that the Ledger Drawer UI can render the detailed input decomposition without
   - [ ] 3.4 Register in `routes/index.ts`
 
 - [ ] Task 4: Zod schema — ledger response (AC: 2, 6)
-  - [ ] 4.1 Add `ledgerResponseSchema` to `shared/schemas/dashboard.schema.ts`
+  - [ ] 4.1 Add `ledgerResponseSchema` to `shared/schemas/dashboard.schema.ts` — model-aware discriminated shape
   - [ ] 4.2 Validate: all monetary fields are integers (paise), `margin_percent` is decimal
+  - [ ] 4.3 Validate: `engagement_model` always present; `infra_cost_mode` present only for Infrastructure
+  - [ ] 4.4 Validate: `employees` array present for T&M/FC/AMC/Infra DETAILED; `vendor_cost_paise` + `manpower_cost_paise` for Infra SIMPLE (no employees)
 
 - [ ] Task 5: Tests (AC: 7)
   - [ ] 5.1 Create `services/ledger.service.test.ts`
-  - [ ] 5.2 Test: Valid project/period — returns correct breakdown_json shape
-  - [ ] 5.3 Test: No snapshot for period — 404 SNAPSHOT_NOT_FOUND
-  - [ ] 5.4 Test: DM accessing non-owned project — 403
-  - [ ] 5.5 Test: Finance accessing any project — 200
-  - [ ] 5.6 Test: All monetary values are integer paise (no decimals)
+  - [ ] 5.2 Test: Valid T&M project/period — returns breakdown with employees array
+  - [ ] 5.3 Test: Valid AMC project/period — returns breakdown with employees array (multi-employee)
+  - [ ] 5.4 Test: Valid Infra SIMPLE project — returns breakdown with vendor_cost_paise + manpower_cost_paise, no employees
+  - [ ] 5.5 Test: Valid Infra DETAILED project — returns breakdown with vendor_cost_paise + employees array
+  - [ ] 5.6 Test: No snapshot for period — 404 SNAPSHOT_NOT_FOUND
+  - [ ] 5.7 Test: DM accessing non-owned project — 403
+  - [ ] 5.8 Test: Finance accessing any project — 200
+  - [ ] 5.9 Test: All monetary values are integer paise (no decimals)
 
 ## Dev Notes
 
@@ -89,22 +97,22 @@ so that the Ledger Drawer UI can render the detailed input decomposition without
 | asyncHandler | `middleware/async-handler.ts` | Story 1.1 |
 | Prisma client | `lib/prisma.ts` | Story 1.1 |
 
-### API Response Pattern
+### API Response Patterns
 
 ```typescript
 // GET /api/v1/reports/projects/:id/ledger?period=2026-01
-// Response 200:
+// Response 200 — T&M / Fixed Cost / AMC (employee-based models):
 {
   "data": {
     "revenue_paise": 50000000,
     "cost_paise": 35000000,
     "profit_paise": 15000000,
     "margin_percent": 0.3,
-    "engagement_model": "T_AND_M",
+    "engagement_model": "TIME_AND_MATERIALS",
     "calculated_at": "2026-01-15T10:30:00Z",
     "engine_version": "1.0.0",
     "recalculation_run_id": "uuid",
-    "inputs": [
+    "employees": [
       {
         "employeeId": "uuid",
         "employeeName": "Jane Doe",
@@ -114,6 +122,49 @@ so that the Ledger Drawer UI can render the detailed input decomposition without
         "contribution_paise": 8500000
       }
     ]
+  }
+}
+
+// Response 200 — Infrastructure DETAILED:
+{
+  "data": {
+    "revenue_paise": 100000000,
+    "cost_paise": 75000000,
+    "profit_paise": 25000000,
+    "margin_percent": 0.25,
+    "engagement_model": "INFRASTRUCTURE",
+    "infra_cost_mode": "DETAILED",
+    "calculated_at": "2026-01-15T10:30:00Z",
+    "engine_version": "1.0.0",
+    "recalculation_run_id": "uuid",
+    "vendor_cost_paise": 50000000,
+    "employees": [
+      {
+        "employeeId": "uuid",
+        "employeeName": "Ops Engineer",
+        "designation": "DevOps Lead",
+        "hours": 120,
+        "cost_per_hour_paise": 62500,
+        "contribution_paise": 7500000
+      }
+    ]
+  }
+}
+
+// Response 200 — Infrastructure SIMPLE:
+{
+  "data": {
+    "revenue_paise": 100000000,
+    "cost_paise": 80000000,
+    "profit_paise": 20000000,
+    "margin_percent": 0.2,
+    "engagement_model": "INFRASTRUCTURE",
+    "infra_cost_mode": "SIMPLE",
+    "calculated_at": "2026-01-15T10:30:00Z",
+    "engine_version": "1.0.0",
+    "recalculation_run_id": "uuid",
+    "vendor_cost_paise": 50000000,
+    "manpower_cost_paise": 30000000
   }
 }
 
@@ -153,7 +204,8 @@ packages/shared/src/schemas/
 
 ### Previous Story Intelligence
 
-- **From 4.5:** `breakdown_json` in `calculation_snapshots` contains the full decomposed input set — `{ revenue, cost, profit, inputs: [{ employeeId, name, hours, costPerHour, contribution }] }`. This is the Ledger Drawer's data source.
+- **From 4.5:** `breakdown_json` in `calculation_snapshots` is **model-aware** — T&M/FC/AMC/Infra DETAILED have `employees[]` array; Infra SIMPLE has `vendorCostPaise` + `manpowerCostPaise` with no employees. The ledger API passes this through — shape varies by `engagement_model` + `infra_cost_mode`.
+- **From 4.0:** `infraCostMode` persisted on Project model as `'SIMPLE' | 'DETAILED'` — available in snapshot breakdown for frontend conditional rendering.
 - **From 6.1:** `dashboards.routes.ts` exists. Ledger gets its own `ledger.routes.ts` since it's a distinct concern (detail view vs list view).
 
 ## Dev Agent Record

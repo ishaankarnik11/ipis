@@ -75,10 +75,11 @@ development_status:
 
   # Epic 4: Profitability Calculation Engine
   epic-4: in-progress
+  4-0-project-field-persistence-and-infra-cost-mode: ready-for-dev
   4-1-employee-cost-rate-calculation: done
-  4-2-tm-profitability-calculator: ready-for-dev
-  4-3-fixed-cost-profitability-calculator: ready-for-dev
-  4-4-amc-and-infrastructure-calculators: ready-for-dev
+  4-2-tm-profitability-calculator: done
+  4-3-fixed-cost-profitability-calculator: review
+  4-4-amc-and-infrastructure-calculators: ready-for-dev  # revised: depends on 4.0
   4-5-snapshot-persistence-and-multi-level-profitability-surfacing: ready-for-dev
   epic-4-retrospective: optional
 

@@ -30,18 +30,23 @@ const fixedCostSchema = z.object({
   ...baseProjectFields,
   engagementModel: z.literal('FIXED_COST'),
   contractValuePaise: z.number().int().positive('contractValuePaise must be positive'),
+  budgetPaise: z.number().int().positive().optional(),
 });
 
 const amcSchema = z.object({
   ...baseProjectFields,
   engagementModel: z.literal('AMC'),
   contractValuePaise: z.number().int().positive('contractValuePaise must be positive'),
+  slaDescription: z.string().optional(),
 });
 
 const infrastructureSchema = z.object({
   ...baseProjectFields,
   engagementModel: z.literal('INFRASTRUCTURE'),
   contractValuePaise: z.number().int().positive('contractValuePaise must be positive').optional(),
+  vendorCostPaise: z.number().int().positive().optional(),
+  manpowerCostPaise: z.number().int().positive().optional(),
+  infraCostMode: z.enum(['SIMPLE', 'DETAILED']).default('SIMPLE'),
 });
 
 export const createProjectSchema = z.discriminatedUnion('engagementModel', [
@@ -71,6 +76,11 @@ export const updateProjectSchema = z.object({
   startDate: isoDateString.optional(),
   endDate: isoDateString.optional(),
   completionPercent: z.number().min(0).max(1).optional(),
+  slaDescription: z.string().optional(),
+  vendorCostPaise: z.number().int().positive().optional(),
+  manpowerCostPaise: z.number().int().positive().optional(),
+  budgetPaise: z.number().int().positive().optional(),
+  infraCostMode: z.enum(['SIMPLE', 'DETAILED']).optional(),
 });
 
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;

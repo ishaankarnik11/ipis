@@ -47,12 +47,19 @@ so that dashboard queries are fast reads against pre-computed data and the Ledge
    **Then** indexes are created on `calculation_snapshots`: `(entity_type, entity_id, period_month, period_year)` and `(recalculation_run_id)`.
 
 10. **Given** the `breakdown_json` field,
-    **When** a snapshot is written for any figure type,
-    **Then** the JSON contains the full decomposed input set — for MARGIN_PERCENT: `{ revenue, cost, profit, inputs: [{ employeeId, name, hours, costPerHour, contribution }] }`.
+    **When** a snapshot is written for `figure_type = 'MARGIN_PERCENT'`,
+    **Then** the JSON is **model-aware** and contains the full decomposed input set:
+    - **T&M / Fixed Cost / AMC**: `{ engagementModel, revenue, cost, profit, employees: [{ employeeId, name, designation, hours, costPerHourPaise, contributionPaise }] }`
+    - **Infrastructure DETAILED**: `{ engagementModel, infraCostMode: 'DETAILED', revenue, cost, profit, vendorCostPaise, employees: [{ employeeId, name, designation, hours, costPerHourPaise, contributionPaise }] }`
+    - **Infrastructure SIMPLE**: `{ engagementModel, infraCostMode: 'SIMPLE', revenue, cost, profit, vendorCostPaise, manpowerCostPaise }` — **no employees array**
 
-11. **Given** `snapshot.service.test.ts`,
+11. **Given** EMPLOYEE-level snapshot rows,
+    **When** written for an Infrastructure SIMPLE project,
+    **Then** no EMPLOYEE-level rows are written (there are no employee assignments to decompose); all other engagement models write one EMPLOYEE row per active employee per figure type per period.
+
+12. **Given** `snapshot.service.test.ts`,
     **When** `pnpm test` runs,
-    **Then** tests verify: correct row count per recalculation run, correct entity_type aggregation, snapshot isolation on failure (no partial writes).
+    **Then** tests verify: correct row count per recalculation run, correct entity_type aggregation, snapshot isolation on failure (no partial writes), model-aware `breakdown_json` shape for T&M vs AMC vs Infra SIMPLE vs Infra DETAILED.
 
 ## Tasks / Subtasks
 
@@ -62,20 +69,23 @@ so that dashboard queries are fast reads against pre-computed data and the Ledge
   - [ ] 1.3 Add indexes: `(entity_type, entity_id, period_month, period_year)`, `(recalculation_run_id)`
   - [ ] 1.4 Run `pnpm prisma migrate dev`
 
-- [ ] Task 2: Snapshot service (AC: 1, 3, 4, 5, 6, 7, 10)
+- [ ] Task 2: Snapshot service (AC: 1, 3, 4, 5, 6, 7, 10, 11)
   - [ ] 2.1 Create `services/snapshot.service.ts`
   - [ ] 2.2 `persistSnapshots({ recalculationRunId, projectResults })` — writes PROJECT-level rows
   - [ ] 2.3 Aggregate PRACTICE-level rows (by designation)
   - [ ] 2.4 Aggregate DEPARTMENT-level rows (by department)
   - [ ] 2.5 Aggregate COMPANY-level row (all departments)
-  - [ ] 2.6 Write EMPLOYEE-level rows (per active employee per figure type)
-  - [ ] 2.7 Populate `breakdown_json` with full decomposed input set
+  - [ ] 2.6 Write EMPLOYEE-level rows (per active employee per figure type) — **skip for Infrastructure SIMPLE** (no employee assignments)
+  - [ ] 2.7 Populate `breakdown_json` with **model-aware** decomposed input set:
+    - T&M / Fixed Cost / AMC: `{ engagementModel, ..., employees: [...] }`
+    - Infra DETAILED: `{ engagementModel, infraCostMode: 'DETAILED', vendorCostPaise, employees: [...] }`
+    - Infra SIMPLE: `{ engagementModel, infraCostMode: 'SIMPLE', vendorCostPaise, manpowerCostPaise }` — no employees array
 
 - [ ] Task 3: Error isolation (AC: 8)
   - [ ] 3.1 Wrap snapshot writes in try/catch — log via pino, never rethrow to corrupt prior snapshots
   - [ ] 3.2 Use `prisma.$transaction` for all snapshot writes within a single run
 
-- [ ] Task 4: Tests (AC: 11)
+- [ ] Task 4: Tests (AC: 12)
   - [ ] 4.1 Create `services/snapshot.service.test.ts`
   - [ ] 4.2 Test: Correct row count per recalculation run (PROJECT + PRACTICE + DEPARTMENT + COMPANY + EMPLOYEE)
   - [ ] 4.3 Test: PRACTICE aggregation by designation
@@ -83,6 +93,11 @@ so that dashboard queries are fast reads against pre-computed data and the Ledge
   - [ ] 4.5 Test: COMPANY rollup
   - [ ] 4.6 Test: EMPLOYEE-level rows with utilisation metrics
   - [ ] 4.7 Test: Snapshot isolation on failure — no partial writes
+  - [ ] 4.8 Test: breakdown_json shape for T&M project (has employees array)
+  - [ ] 4.9 Test: breakdown_json shape for AMC project (has employees array, multi-employee)
+  - [ ] 4.10 Test: breakdown_json shape for Infra SIMPLE (vendorCostPaise + manpowerCostPaise, no employees)
+  - [ ] 4.11 Test: breakdown_json shape for Infra DETAILED (vendorCostPaise + employees array)
+  - [ ] 4.12 Test: Infra SIMPLE project produces zero EMPLOYEE-level rows
 
 ## Dev Notes
 
@@ -90,8 +105,9 @@ so that dashboard queries are fast reads against pre-computed data and the Ledge
 
 1. **Called only from `upload.service.ts`**: Never from route handlers or other services.
 2. **All paise**: `value_paise` is BIGINT integer paise.
-3. **`breakdown_json`**: Full decomposed input set for Ledger Drawer.
+3. **`breakdown_json`**: Model-aware decomposed input set for Ledger Drawer. Shape varies by `engagementModel` + `infraCostMode`. Always includes `engagementModel` field so downstream consumers (Ledger API/UI) can switch on it.
 4. **Entity types**: `PROJECT`, `PRACTICE`, `DEPARTMENT`, `COMPANY`, `EMPLOYEE`.
+   - **Note**: Infrastructure SIMPLE projects produce no EMPLOYEE-level rows.
 5. **Figure types**: `MARGIN_PERCENT`, `EMPLOYEE_COST`, `UTILIZATION_PERCENT`, `BILLABLE_PERCENT`, `COST_PER_HOUR`, `REVENUE_CONTRIBUTION`.
 6. **Atomic writes**: All snapshot rows for a single run written in one `prisma.$transaction`.
 7. **Error isolation**: Failed recalculation must not corrupt previous snapshots.
@@ -165,7 +181,8 @@ packages/backend/prisma/schema.prisma   # Add recalculation_runs, calculation_sn
 
 ### Previous Story Intelligence
 
-- **From 4.1-4.4:** All 5 calculator functions available in calculation-engine/index.ts. Pure functions — snapshot service fetches data from Prisma, calls calculators, writes results.
+- **From 4.1-4.4:** All 5 calculator functions available in calculation-engine/index.ts. Pure functions — snapshot service fetches data from Prisma, calls calculators, writes results. AMC uses `employeeCosts[]` array. Infrastructure uses `mode: 'SIMPLE' | 'DETAILED'` discriminated union.
+- **From 4.0:** `infraCostMode` column persisted on Project model — snapshot service reads this to determine SIMPLE vs DETAILED breakdown shape.
 - **From Epic 3:** Project table with engagement model, department, delivery manager established. `completionPercent` for Fixed Cost projects stored in projects table.
 
 ## Dev Agent Record

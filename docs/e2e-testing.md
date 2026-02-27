@@ -279,6 +279,29 @@ Unit and integration tests (`pnpm test`) are fast — run those fully on every t
 
 ---
 
+## Quality Gate: E2E Pass Required
+
+The full E2E suite (`pnpm test:e2e`) is a mandatory quality gate at two checkpoints in every story's lifecycle. **No exceptions.**
+
+### When the gate applies
+
+1. **Dev-story exit (Step 9 — before "review"):** The developer must run the full E2E suite and achieve zero failures before setting the story status to `review`. A story with any E2E failure cannot leave development.
+
+2. **Code-review (before "done"):** The reviewer must run the full E2E suite and confirm zero failures before marking the story as `done`. Any failing test produces an automatic HIGH finding with an `[E2E-FAIL]` prefix that blocks completion.
+
+### What is NOT a valid bypass
+
+- **"Inherited failures"** — If a test was already failing before this story, it must still be fixed or the root cause investigated. Pre-existing failures do not excuse new regressions.
+- **"Will fix later" / deferrals** — E2E failures cannot be deferred to a follow-up story. They are blocking.
+- **"Only my spec matters"** — The full suite runs, not just the story's own spec file. Cross-story regressions are the developer's responsibility.
+- **"Noted"** — Acknowledging an E2E failure without resolving it is not a valid resolution. HIGH findings from the E2E gate must be FIXED.
+
+### Evidence: timestamped report archival
+
+Every E2E run produces a timestamped report in `e2e-report/` containing `results.json` (machine-readable pass/fail counts), an HTML report, and failure artifacts (screenshots, traces, videos). These reports serve as auditable evidence that the quality gate was satisfied. Reviewers should reference the report timestamp when confirming the gate passed.
+
+---
+
 ## Troubleshooting
 
 - **Tests fail with "database does not exist":** Ensure PostgreSQL is running and the `ipis` user has `CREATEDB` permission

@@ -13,6 +13,7 @@
 - [ ] File List reviewed and validated for completeness
 - [ ] Tests identified and mapped to ACs; gaps noted
 - [ ] **Persist-and-Verify:** Every E2E test that submits data includes a DB query asserting persistence
+- [ ] **E2E Quality Gate (ABSOLUTE):** Full E2E suite (`pnpm test:e2e`) executed with ALL tests passing. Any failing E2E test = automatic HIGH finding. Story CANNOT be marked done with any E2E failure. No exceptions.
 - [ ] Code quality review performed on changed files
 - [ ] Security review performed on changed files and dependencies
 - [ ] **HIGH Findings Gate:** All HIGH findings are FIXED (not "Noted"). No unresolved HIGHs permitted.

@@ -44,7 +44,7 @@ validation-rules:
 - [ ] **End-to-End Tests:** End-to-end tests created for critical user flows when story requirements specify them
 - [ ] **Data Contract Verified:** Every field in the story's Data Contract table has a corresponding test that verifies DB persistence after form submission or API call (persist-and-verify pattern). If ANY Data Contract field lacks a DB assertion, this gate FAILS.
 - [ ] **Test Coverage:** Tests cover acceptance criteria and edge cases from story Dev Notes
-- [ ] **Regression Prevention:** ALL existing tests pass — unit, integration, AND E2E when E2E infrastructure exists in the project (no regressions, no deferrals — if a test suite exists, it must be run)
+- [ ] **Regression Prevention (ABSOLUTE):** ALL existing tests pass — unit, integration, AND full E2E suite. Zero failures required. Story CANNOT move to review with ANY test failure. No inherited reds, no deferrals, no exceptions.
 - [ ] **Code Quality:** Linting and static checks pass when configured in project
 - [ ] **Test Framework Compliance:** Tests use project's testing frameworks and patterns from Dev Notes
 

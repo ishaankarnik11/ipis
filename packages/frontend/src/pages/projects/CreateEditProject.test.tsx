@@ -175,6 +175,78 @@ describe('CreateEditProject', () => {
     });
   });
 
+  describe('Infrastructure cost mode (AC: 5)', () => {
+    it('shows cost tracking mode radio when Infrastructure model selected', async () => {
+      renderComponent();
+
+      await selectEngagementModel('Infrastructure');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('infra-cost-mode-radio')).toBeInTheDocument();
+      expect(screen.getByLabelText('Simple')).toBeInTheDocument();
+      expect(screen.getByLabelText('Detailed')).toBeInTheDocument();
+    });
+
+    it('shows Manpower Cost input in SIMPLE mode (default)', async () => {
+      renderComponent();
+
+      await selectEngagementModel('Infrastructure');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
+      });
+      // SIMPLE mode is default — Manpower Cost should be visible
+      expect(screen.getByText('Manpower Cost')).toBeInTheDocument();
+      expect(screen.queryByTestId('detailed-mode-info')).not.toBeInTheDocument();
+    });
+
+    it('shows info text and hides Manpower Cost in DETAILED mode', async () => {
+      renderComponent();
+      const user = userEvent.setup({ delay: null });
+
+      await selectEngagementModel('Infrastructure');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
+      });
+
+      // Switch to Detailed mode
+      await user.click(screen.getByLabelText('Detailed'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('detailed-mode-info')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/manpower costs will be calculated from employee timesheets/i)).toBeInTheDocument();
+      expect(screen.queryByText('Manpower Cost')).not.toBeInTheDocument();
+    });
+
+    it('shows Vendor Costs input in both modes', async () => {
+      renderComponent();
+      const user = userEvent.setup({ delay: null });
+
+      await selectEngagementModel('Infrastructure');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
+      });
+
+      // Vendor Costs visible in SIMPLE mode
+      expect(screen.getByText('Vendor Costs')).toBeInTheDocument();
+
+      // Switch to Detailed mode
+      await user.click(screen.getByLabelText('Detailed'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('detailed-mode-info')).toBeInTheDocument();
+      });
+
+      // Vendor Costs still visible in DETAILED mode
+      expect(screen.getByText('Vendor Costs')).toBeInTheDocument();
+    });
+  });
+
   describe('Edit mode (AC: 9)', () => {
     it('shows Edit & Resubmit title in edit mode', async () => {
       mockParams.id = 'test-id-123';
@@ -192,6 +264,11 @@ describe('CreateEditProject', () => {
           endDate: '2026-12-31',
           deliveryManagerId: 'dm-1',
           completionPercent: null,
+          slaDescription: null,
+          vendorCostPaise: null,
+          manpowerCostPaise: null,
+          budgetPaise: null,
+          infraCostMode: null,
           createdAt: '2026-02-01',
           updatedAt: '2026-02-10',
         },
@@ -221,6 +298,11 @@ describe('CreateEditProject', () => {
           endDate: '2026-12-31',
           deliveryManagerId: 'dm-1',
           completionPercent: null,
+          slaDescription: null,
+          vendorCostPaise: null,
+          manpowerCostPaise: null,
+          budgetPaise: null,
+          infraCostMode: null,
           createdAt: '2026-02-01',
           updatedAt: '2026-02-10',
         },

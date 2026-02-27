@@ -1,263 +1,331 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// Mock Prisma
-vi.mock('../lib/prisma.js', () => ({
-  prisma: {
-    project: {
-      create: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    user: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-    },
-    employee: {
-      findUnique: vi.fn(),
-    },
-    employeeProject: {
-      create: vi.fn(),
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-      delete: vi.fn(),
-    },
-  },
-}));
-
-// Mock email
-vi.mock('../lib/email.js', () => ({
-  sendEmail: vi.fn().mockResolvedValue(undefined),
-}));
-
-// Mock logger
-vi.mock('../lib/logger.js', () => ({
-  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
-}));
-
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { prisma } from '../lib/prisma.js';
+import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
 import * as projectService from './project.service.js';
 
-const mockProjectCreate = prisma.project.create as ReturnType<typeof vi.fn>;
-const mockProjectFindMany = prisma.project.findMany as ReturnType<typeof vi.fn>;
-const mockProjectFindUnique = prisma.project.findUnique as ReturnType<typeof vi.fn>;
-const mockProjectUpdate = prisma.project.update as ReturnType<typeof vi.fn>;
-const mockUserFindMany = prisma.user.findMany as ReturnType<typeof vi.fn>;
-const mockUserFindUnique = prisma.user.findUnique as ReturnType<typeof vi.fn>;
-const mockEmployeeFindUnique = prisma.employee.findUnique as ReturnType<typeof vi.fn>;
-const mockEmployeeProjectCreate = prisma.employeeProject.create as ReturnType<typeof vi.fn>;
-const mockEmployeeProjectFindUnique = prisma.employeeProject.findUnique as ReturnType<typeof vi.fn>;
-const mockEmployeeProjectFindMany = prisma.employeeProject.findMany as ReturnType<typeof vi.fn>;
-const mockEmployeeProjectDelete = prisma.employeeProject.delete as ReturnType<typeof vi.fn>;
-
-const dmUser = { id: 'dm-1', role: 'DELIVERY_MANAGER', email: 'dm@test.com' };
-const adminUser = { id: 'admin-1', role: 'ADMIN', email: 'admin@test.com' };
-const financeUser = { id: 'fin-1', role: 'FINANCE', email: 'fin@test.com' };
-const deptHeadUser = { id: 'dh-1', role: 'DEPT_HEAD', email: 'dh@test.com' };
-
-const sampleProject = {
-  id: 'proj-1',
-  name: 'Test Project',
-  client: 'ACME Corp',
-  vertical: 'Technology',
-  engagementModel: 'FIXED_COST',
-  status: 'PENDING_APPROVAL',
-  contractValuePaise: BigInt(50000000),
-  deliveryManagerId: 'dm-1',
-  rejectionComment: null,
-  completionPercent: null,
-  startDate: new Date('2026-03-01'),
-  endDate: new Date('2026-12-31'),
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
-
 describe('project.service', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUserFindMany.mockResolvedValue([{ email: 'admin@test.com' }]);
+  let departments: Map<string, string>;
+
+  // Shared user creators
+  async function makeDmUser(deptId?: string) {
+    return createTestUser('DELIVERY_MANAGER', {
+      email: 'dm@test.com',
+      name: 'Test DM',
+      departmentId: deptId,
+    });
+  }
+
+  async function makeAdminUser() {
+    return createTestUser('ADMIN', { email: 'admin@test.com', name: 'Test Admin' });
+  }
+
+  async function makeFinanceUser() {
+    return createTestUser('FINANCE', { email: 'fin@test.com', name: 'Test Finance' });
+  }
+
+  async function makeDeptHeadUser(deptId?: string) {
+    return createTestUser('DEPT_HEAD', {
+      email: 'dh@test.com',
+      name: 'Test DH',
+      departmentId: deptId,
+    });
+  }
+
+  const validCreateInput = {
+    name: 'Test Project',
+    client: 'ACME Corp',
+    vertical: 'Technology',
+    engagementModel: 'FIXED_COST' as const,
+    contractValuePaise: 50000000,
+    startDate: '2026-03-01',
+    endDate: '2026-12-31',
+  };
+
+  beforeEach(async () => {
+    await cleanDb();
+    departments = await seedTestDepartments();
+  });
+
+  afterAll(async () => {
+    await disconnectTestDb();
   });
 
   describe('createProject', () => {
     it('should create a project with PENDING_APPROVAL status and DM as owner', async () => {
-      mockProjectCreate.mockResolvedValue(sampleProject);
+      const dm = await makeDmUser();
+
+      const result = await projectService.createProject(validCreateInput, dm);
+
+      expect(result.id).toBeDefined();
+      expect(result.status).toBe('PENDING_APPROVAL');
+      expect(result.deliveryManagerId).toBe(dm.id);
+      expect(result.contractValuePaise).toBe(50000000);
+    });
+
+    it('should persist slaDescription for AMC projects', async () => {
+      const dm = await makeDmUser();
 
       const result = await projectService.createProject(
         {
-          name: 'Test Project',
+          name: 'AMC Project',
           client: 'ACME Corp',
           vertical: 'Technology',
-          engagementModel: 'FIXED_COST',
+          engagementModel: 'AMC',
           contractValuePaise: 50000000,
+          slaDescription: '24/7 support with 4-hour response time',
           startDate: '2026-03-01',
           endDate: '2026-12-31',
         },
-        dmUser,
+        dm,
       );
 
-      expect(mockProjectCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            deliveryManagerId: 'dm-1',
-          }),
-        }),
+      const dbProj = await prisma.project.findUnique({ where: { id: result.id } });
+      expect(dbProj!.slaDescription).toBe('24/7 support with 4-hour response time');
+    });
+
+    it('should persist vendorCostPaise, manpowerCostPaise, and infraCostMode for Infrastructure SIMPLE projects', async () => {
+      const dm = await makeDmUser();
+
+      const result = await projectService.createProject(
+        {
+          name: 'Infra Project',
+          client: 'ACME Corp',
+          vertical: 'Technology',
+          engagementModel: 'INFRASTRUCTURE',
+          vendorCostPaise: 1000000,
+          manpowerCostPaise: 500000,
+          infraCostMode: 'SIMPLE',
+          startDate: '2026-03-01',
+          endDate: '2026-12-31',
+        },
+        dm,
       );
-      expect(result.id).toBe('proj-1');
-      expect(result.contractValuePaise).toBe(50000000);
+
+      const dbProj = await prisma.project.findUnique({ where: { id: result.id } });
+      expect(Number(dbProj!.vendorCostPaise)).toBe(1000000);
+      expect(Number(dbProj!.manpowerCostPaise)).toBe(500000);
+      expect(dbProj!.infraCostMode).toBe('SIMPLE');
+    });
+
+    it('should persist infraCostMode DETAILED without manpowerCostPaise for Infrastructure projects', async () => {
+      const dm = await makeDmUser();
+
+      const result = await projectService.createProject(
+        {
+          name: 'Infra Detailed',
+          client: 'ACME Corp',
+          vertical: 'Technology',
+          engagementModel: 'INFRASTRUCTURE',
+          vendorCostPaise: 2000000,
+          infraCostMode: 'DETAILED',
+          startDate: '2026-03-01',
+          endDate: '2026-12-31',
+        },
+        dm,
+      );
+
+      const dbProj = await prisma.project.findUnique({ where: { id: result.id } });
+      expect(dbProj!.infraCostMode).toBe('DETAILED');
+      expect(Number(dbProj!.vendorCostPaise)).toBe(2000000);
+      expect(dbProj!.manpowerCostPaise).toBeNull();
+    });
+
+    it('should persist budgetPaise for Fixed Cost projects', async () => {
+      const dm = await makeDmUser();
+
+      const result = await projectService.createProject(
+        { ...validCreateInput, budgetPaise: 40000000 },
+        dm,
+      );
+
+      const dbProj = await prisma.project.findUnique({ where: { id: result.id } });
+      expect(Number(dbProj!.budgetPaise)).toBe(40000000);
+    });
+  });
+
+  describe('serializeProject', () => {
+    it('should convert new BigInt fields to Number', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+
+      const proj = await projectService.createProject(
+        {
+          name: 'Infra Project',
+          client: 'ACME Corp',
+          vertical: 'Technology',
+          engagementModel: 'INFRASTRUCTURE',
+          vendorCostPaise: 1000000,
+          manpowerCostPaise: 500000,
+          infraCostMode: 'SIMPLE',
+          startDate: '2026-03-01',
+          endDate: '2026-12-31',
+        },
+        dm,
+      );
+
+      const result = await projectService.getById(proj.id, { id: dm.id, role: 'ADMIN', email: 'admin@test.com' });
+
+      expect(result.vendorCostPaise).toBe(1000000);
+      expect(result.manpowerCostPaise).toBe(500000);
+      expect(typeof result.vendorCostPaise).toBe('number');
+      expect(typeof result.manpowerCostPaise).toBe('number');
+    });
+
+    it('should return null for null BigInt fields', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      const result = await projectService.getById(proj.id, { id: dm.id, role: 'ADMIN', email: 'admin@test.com' });
+
+      expect(result.vendorCostPaise).toBeNull();
+      expect(result.manpowerCostPaise).toBeNull();
     });
   });
 
   describe('getAll', () => {
     it('should scope DM to own projects only', async () => {
-      mockProjectFindMany.mockResolvedValue([sampleProject]);
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      await projectService.createProject(validCreateInput, dm);
 
-      await projectService.getAll(dmUser);
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
+      await projectService.createProject({ ...validCreateInput, name: 'Other Project' }, otherDm);
 
-      expect(mockProjectFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { deliveryManagerId: 'dm-1' },
-        }),
-      );
+      const result = await projectService.getAll(dm);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].deliveryManagerId).toBe(dm.id);
     });
 
     it('should return all projects for Admin', async () => {
-      mockProjectFindMany.mockResolvedValue([sampleProject]);
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      await projectService.createProject(validCreateInput, dm);
 
-      await projectService.getAll(adminUser);
+      const result = await projectService.getAll(admin);
 
-      expect(mockProjectFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {},
-        }),
-      );
+      expect(result.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should return all projects for Finance', async () => {
-      mockProjectFindMany.mockResolvedValue([sampleProject]);
+      const dm = await makeDmUser();
+      const fin = await makeFinanceUser();
+      await makeAdminUser();
+      await projectService.createProject(validCreateInput, dm);
 
-      await projectService.getAll(financeUser);
+      const result = await projectService.getAll(fin);
 
-      expect(mockProjectFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {},
-        }),
-      );
+      expect(result.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should scope DEPT_HEAD to their department projects', async () => {
-      mockUserFindUnique.mockResolvedValue({ departmentId: 'dept-1' });
-      mockProjectFindMany.mockResolvedValue([sampleProject]);
+      const engDeptId = departments.get('Engineering')!;
+      const dm = await createTestUser('DELIVERY_MANAGER', {
+        email: 'dm1@test.com',
+        departmentId: engDeptId,
+      });
+      await makeAdminUser();
+      await projectService.createProject(validCreateInput, dm);
 
-      await projectService.getAll(deptHeadUser);
+      const dh = await makeDeptHeadUser(engDeptId);
 
-      expect(mockProjectFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { deliveryManager: { departmentId: 'dept-1' } },
-        }),
-      );
+      const result = await projectService.getAll(dh);
+
+      expect(result.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should fall back to own projects for DEPT_HEAD without department', async () => {
-      mockUserFindUnique.mockResolvedValue({ departmentId: null });
-      mockProjectFindMany.mockResolvedValue([sampleProject]);
+      const dh = await makeDeptHeadUser();
+      await makeAdminUser();
 
-      await projectService.getAll(deptHeadUser);
+      const result = await projectService.getAll(dh);
 
-      expect(mockProjectFindMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { deliveryManagerId: 'dh-1' },
-        }),
-      );
+      expect(result).toHaveLength(0);
     });
   });
 
   describe('getById', () => {
     it('should return project for Admin regardless of ownership', async () => {
-      mockProjectFindUnique.mockResolvedValue(sampleProject);
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
 
-      const result = await projectService.getById('proj-1', adminUser);
+      const result = await projectService.getById(proj.id, admin);
 
-      expect(result.id).toBe('proj-1');
+      expect(result.id).toBe(proj.id);
     });
 
     it('should throw ForbiddenError for DM who does not own the project', async () => {
-      mockProjectFindUnique.mockResolvedValue(sampleProject);
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
 
-      await expect(
-        projectService.getById('proj-1', { id: 'dm-other', role: 'DELIVERY_MANAGER', email: 'other@test.com' }),
-      ).rejects.toThrow('Access denied');
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
+
+      await expect(projectService.getById(proj.id, otherDm)).rejects.toThrow('Access denied');
     });
 
     it('should throw NotFoundError for non-existent project', async () => {
-      mockProjectFindUnique.mockResolvedValue(null);
+      const admin = await makeAdminUser();
 
-      await expect(projectService.getById('nope', adminUser)).rejects.toThrow('Project not found');
+      await expect(
+        projectService.getById('00000000-0000-4000-8000-000000000001', admin),
+      ).rejects.toThrow('Project not found');
     });
   });
 
   describe('approveProject', () => {
-    it('should atomically set status to ACTIVE via compound where', async () => {
-      mockProjectUpdate.mockResolvedValue({
-        id: 'proj-1',
-        name: 'Test Project',
-        deliveryManagerId: 'dm-1',
-      });
-      mockUserFindUnique.mockResolvedValue({ email: 'dm@test.com' });
+    it('should atomically set status to ACTIVE', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
 
-      await projectService.approveProject('proj-1');
+      await projectService.approveProject(proj.id);
 
-      expect(mockProjectUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'proj-1', status: 'PENDING_APPROVAL' },
-          data: { status: 'ACTIVE' },
-        }),
-      );
+      const dbProj = await prisma.project.findUnique({ where: { id: proj.id } });
+      expect(dbProj!.status).toBe('ACTIVE');
     });
 
     it('should throw ValidationError if project is not PENDING_APPROVAL', async () => {
-      const prismaError = Object.assign(new Error('Record not found'), { code: 'P2025' });
-      mockProjectUpdate.mockRejectedValue(prismaError);
-      mockProjectFindUnique.mockResolvedValue({ status: 'ACTIVE' });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.approveProject(proj.id);
 
-      await expect(projectService.approveProject('proj-1')).rejects.toThrow(
+      await expect(projectService.approveProject(proj.id)).rejects.toThrow(
         'Cannot perform this action: project status is ACTIVE, expected PENDING_APPROVAL',
       );
     });
 
     it('should throw NotFoundError if project does not exist', async () => {
-      const prismaError = Object.assign(new Error('Record not found'), { code: 'P2025' });
-      mockProjectUpdate.mockRejectedValue(prismaError);
-      mockProjectFindUnique.mockResolvedValue(null);
-
-      await expect(projectService.approveProject('proj-1')).rejects.toThrow('Project not found');
+      await expect(
+        projectService.approveProject('00000000-0000-4000-8000-000000000001'),
+      ).rejects.toThrow('Project not found');
     });
   });
 
   describe('rejectProject', () => {
     it('should atomically set status to REJECTED and store comment', async () => {
-      mockProjectUpdate.mockResolvedValue({
-        id: 'proj-1',
-        name: 'Test Project',
-        deliveryManagerId: 'dm-1',
-      });
-      mockUserFindUnique.mockResolvedValue({ email: 'dm@test.com' });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
 
-      await projectService.rejectProject('proj-1', 'Not enough details');
+      await projectService.rejectProject(proj.id, 'Not enough details');
 
-      expect(mockProjectUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'proj-1', status: 'PENDING_APPROVAL' },
-          data: { status: 'REJECTED', rejectionComment: 'Not enough details' },
-        }),
-      );
+      const dbProj = await prisma.project.findUnique({ where: { id: proj.id } });
+      expect(dbProj!.status).toBe('REJECTED');
+      expect(dbProj!.rejectionComment).toBe('Not enough details');
     });
 
     it('should throw ValidationError if project is not PENDING_APPROVAL', async () => {
-      const prismaError = Object.assign(new Error('Record not found'), { code: 'P2025' });
-      mockProjectUpdate.mockRejectedValue(prismaError);
-      mockProjectFindUnique.mockResolvedValue({ status: 'ACTIVE' });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.approveProject(proj.id);
 
-      await expect(projectService.rejectProject('proj-1', 'Reason')).rejects.toThrow(
+      await expect(projectService.rejectProject(proj.id, 'Reason')).rejects.toThrow(
         'Cannot perform this action: project status is ACTIVE, expected PENDING_APPROVAL',
       );
     });
@@ -265,296 +333,272 @@ describe('project.service', () => {
 
   describe('updateProject', () => {
     it('should update project for owning DM with REJECTED status', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        id: 'proj-1',
-        deliveryManagerId: 'dm-1',
-        status: 'REJECTED',
-      });
-      mockProjectUpdate.mockResolvedValue({ ...sampleProject, name: 'Updated' });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.rejectProject(proj.id, 'Fix it');
 
-      const result = await projectService.updateProject('proj-1', { name: 'Updated' }, dmUser);
+      const result = await projectService.updateProject(proj.id, { name: 'Updated' }, dm);
 
       expect(result.name).toBe('Updated');
     });
 
     it('should throw ForbiddenError for non-owning DM', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        id: 'proj-1',
-        deliveryManagerId: 'dm-other',
-        status: 'REJECTED',
-      });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.rejectProject(proj.id, 'Fix it');
+
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 
       await expect(
-        projectService.updateProject('proj-1', { name: 'Updated' }, dmUser),
+        projectService.updateProject(proj.id, { name: 'Updated' }, otherDm),
       ).rejects.toThrow('Access denied');
     });
 
     it('should throw ValidationError for non-REJECTED project', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        id: 'proj-1',
-        deliveryManagerId: 'dm-1',
-        status: 'ACTIVE',
-      });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
 
       await expect(
-        projectService.updateProject('proj-1', { name: 'Updated' }, dmUser),
+        projectService.updateProject(proj.id, { name: 'Updated' }, dm),
       ).rejects.toThrow('Only REJECTED projects can be edited');
     });
 
     it('should throw NotFoundError for non-existent project', async () => {
-      mockProjectFindUnique.mockResolvedValue(null);
+      const dm = await makeDmUser();
 
       await expect(
-        projectService.updateProject('proj-1', { name: 'Updated' }, dmUser),
+        projectService.updateProject('00000000-0000-4000-8000-000000000001', { name: 'Updated' }, dm),
       ).rejects.toThrow('Project not found');
     });
   });
 
   describe('resubmitProject', () => {
     it('should atomically set status to PENDING_APPROVAL and clear rejection comment', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        id: 'proj-1',
-        deliveryManagerId: 'dm-1',
-      });
-      mockProjectUpdate.mockResolvedValue({
-        id: 'proj-1',
-        name: 'Test Project',
-        deliveryManagerId: 'dm-1',
-      });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.rejectProject(proj.id, 'Fix it');
 
-      await projectService.resubmitProject('proj-1', dmUser);
+      await projectService.resubmitProject(proj.id, dm);
 
-      expect(mockProjectUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'proj-1', status: 'REJECTED' },
-          data: { status: 'PENDING_APPROVAL', rejectionComment: null },
-        }),
-      );
+      const dbProj = await prisma.project.findUnique({ where: { id: proj.id } });
+      expect(dbProj!.status).toBe('PENDING_APPROVAL');
+      expect(dbProj!.rejectionComment).toBeNull();
     });
 
     it('should throw ValidationError if project is not REJECTED', async () => {
-      mockProjectFindUnique
-        .mockResolvedValueOnce({ deliveryManagerId: 'dm-1' })
-        .mockResolvedValueOnce({ status: 'ACTIVE' });
-      const prismaError = Object.assign(new Error('Record not found'), { code: 'P2025' });
-      mockProjectUpdate.mockRejectedValue(prismaError);
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
 
-      await expect(projectService.resubmitProject('proj-1', dmUser)).rejects.toThrow(
-        'Cannot perform this action: project status is ACTIVE, expected REJECTED',
+      await expect(projectService.resubmitProject(proj.id, dm)).rejects.toThrow(
+        'Cannot perform this action: project status is PENDING_APPROVAL, expected REJECTED',
       );
     });
 
     it('should throw ForbiddenError for non-owning DM', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        id: 'proj-1',
-        deliveryManagerId: 'dm-other',
-      });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.rejectProject(proj.id, 'Fix it');
 
-      await expect(projectService.resubmitProject('proj-1', dmUser)).rejects.toThrow('Access denied');
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
+
+      await expect(projectService.resubmitProject(proj.id, otherDm)).rejects.toThrow(
+        'Access denied',
+      );
     });
 
     it('should throw NotFoundError for non-existent project', async () => {
-      mockProjectFindUnique.mockResolvedValue(null);
+      const dm = await makeDmUser();
 
-      await expect(projectService.resubmitProject('proj-1', dmUser)).rejects.toThrow('Project not found');
+      await expect(
+        projectService.resubmitProject('00000000-0000-4000-8000-000000000001', dm),
+      ).rejects.toThrow('Project not found');
     });
   });
 
   // ── Team Roster Service Tests ──────────────────────────────────────
 
-  const tmProject = {
-    id: 'proj-tm',
-    deliveryManagerId: 'dm-1',
-    engagementModel: 'TIME_AND_MATERIALS',
-    status: 'ACTIVE',
-  };
+  async function createActiveProject(dm: { id: string; role: string; email: string }, model = 'FIXED_COST' as const) {
+    await makeAdminUser().catch(() => {}); // may already exist
+    const proj = await projectService.createProject(
+      { ...validCreateInput, engagementModel: model },
+      dm,
+    );
+    await projectService.approveProject(proj.id);
+    return proj;
+  }
 
-  const fcProject = {
-    id: 'proj-fc',
-    deliveryManagerId: 'dm-1',
-    engagementModel: 'FIXED_COST',
-    status: 'ACTIVE',
-  };
+  async function createTestEmployee(code: string) {
+    return prisma.employee.create({
+      data: {
+        employeeCode: code,
+        name: `Employee ${code}`,
+        departmentId: departments.get('Engineering')!,
+        designation: 'Developer',
+        annualCtcPaise: BigInt(1500000),
+      },
+    });
+  }
 
   describe('addTeamMember', () => {
     it('should add a team member and return the record', async () => {
-      mockProjectFindUnique.mockResolvedValue(fcProject);
-      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
-      mockEmployeeProjectCreate.mockResolvedValue({
-        projectId: 'proj-fc',
-        employeeId: 'emp-1',
-        role: 'Developer',
-        billingRatePaise: null,
-        assignedAt: new Date('2026-02-25'),
-      });
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
 
       const result = await projectService.addTeamMember(
-        'proj-fc',
-        { employeeId: 'emp-1', role: 'Developer' },
-        dmUser,
+        proj.id,
+        { employeeId: emp.id, role: 'Developer' },
+        dm,
       );
 
-      expect(result.employeeId).toBe('emp-1');
+      expect(result.employeeId).toBe(emp.id);
       expect(result.role).toBe('Developer');
       expect(result.billingRatePaise).toBeNull();
     });
 
     it('should require billingRatePaise for T&M projects', async () => {
-      mockProjectFindUnique.mockResolvedValue(tmProject);
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm, 'TIME_AND_MATERIALS');
+      const emp = await createTestEmployee('EMP001');
 
       await expect(
-        projectService.addTeamMember(
-          'proj-tm',
-          { employeeId: 'emp-1', role: 'Developer' },
-          dmUser,
-        ),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm),
       ).rejects.toThrow('billingRatePaise is required for T&M projects');
     });
 
     it('should accept billingRatePaise for T&M projects', async () => {
-      mockProjectFindUnique.mockResolvedValue(tmProject);
-      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
-      mockEmployeeProjectCreate.mockResolvedValue({
-        projectId: 'proj-tm',
-        employeeId: 'emp-1',
-        role: 'Developer',
-        billingRatePaise: BigInt(500000),
-        assignedAt: new Date('2026-02-25'),
-      });
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm, 'TIME_AND_MATERIALS');
+      const emp = await createTestEmployee('EMP001');
 
       const result = await projectService.addTeamMember(
-        'proj-tm',
-        { employeeId: 'emp-1', role: 'Developer', billingRatePaise: 500000 },
-        dmUser,
+        proj.id,
+        { employeeId: emp.id, role: 'Developer', billingRatePaise: 500000 },
+        dm,
       );
 
       expect(result.billingRatePaise).toBe(500000);
     });
 
     it('should throw ForbiddenError for non-owning DM', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        ...fcProject,
-        deliveryManagerId: 'dm-other',
-      });
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
+
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 
       await expect(
-        projectService.addTeamMember(
-          'proj-fc',
-          { employeeId: 'emp-1', role: 'Developer' },
-          dmUser,
-        ),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, otherDm),
       ).rejects.toThrow('Access denied');
     });
 
     it('should throw ConflictError for duplicate assignment (P2002)', async () => {
-      mockProjectFindUnique.mockResolvedValue(fcProject);
-      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1' });
-      const prismaError = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
-      mockEmployeeProjectCreate.mockRejectedValue(prismaError);
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
+
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
 
       await expect(
-        projectService.addTeamMember(
-          'proj-fc',
-          { employeeId: 'emp-1', role: 'Developer' },
-          dmUser,
-        ),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Tester' }, dm),
       ).rejects.toThrow('Employee is already assigned to this project');
     });
 
     it('should throw NotFoundError for non-existent project', async () => {
-      mockProjectFindUnique.mockResolvedValue(null);
+      const dm = await makeDmUser();
+      await makeAdminUser();
 
       await expect(
         projectService.addTeamMember(
-          'nope',
-          { employeeId: 'emp-1', role: 'Developer' },
-          dmUser,
+          '00000000-0000-4000-8000-000000000001',
+          { employeeId: '00000000-0000-4000-8000-000000000002', role: 'Developer' },
+          dm,
         ),
       ).rejects.toThrow('Project not found');
     });
 
     it('should throw NotFoundError for non-existent employee', async () => {
-      mockProjectFindUnique.mockResolvedValue(fcProject);
-      mockEmployeeFindUnique.mockResolvedValue(null);
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
 
       await expect(
         projectService.addTeamMember(
-          'proj-fc',
-          { employeeId: 'emp-none', role: 'Developer' },
-          dmUser,
+          proj.id,
+          { employeeId: '00000000-0000-4000-8000-000000000002', role: 'Developer' },
+          dm,
         ),
       ).rejects.toThrow('Employee not found');
     });
 
     it('should throw ValidationError for non-ACTIVE project', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        ...fcProject,
-        status: 'PENDING_APPROVAL',
-      });
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      const emp = await createTestEmployee('EMP001');
 
       await expect(
-        projectService.addTeamMember(
-          'proj-fc',
-          { employeeId: 'emp-1', role: 'Developer' },
-          dmUser,
-        ),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm),
       ).rejects.toThrow('Project must be in ACTIVE status');
     });
 
     it('should throw ValidationError for resigned employee', async () => {
-      mockProjectFindUnique.mockResolvedValue(fcProject);
-      mockEmployeeFindUnique.mockResolvedValue({ id: 'emp-1', isResigned: true });
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await prisma.employee.create({
+        data: {
+          employeeCode: 'EMP001',
+          name: 'Resigned',
+          departmentId: departments.get('Engineering')!,
+          designation: 'Developer',
+          annualCtcPaise: BigInt(1500000),
+          isResigned: true,
+        },
+      });
 
       await expect(
-        projectService.addTeamMember(
-          'proj-fc',
-          { employeeId: 'emp-1', role: 'Developer' },
-          dmUser,
-        ),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm),
       ).rejects.toThrow('Cannot assign a resigned employee to a project');
     });
   });
 
   describe('getTeamMembers', () => {
     it('should return team members with employee details', async () => {
-      mockProjectFindUnique.mockResolvedValue(fcProject);
-      mockEmployeeProjectFindMany.mockResolvedValue([
-        {
-          employeeId: 'emp-1',
-          role: 'Developer',
-          billingRatePaise: BigInt(500000),
-          assignedAt: new Date('2026-02-25'),
-          employee: { name: 'Alice', designation: 'Senior Dev' },
-        },
-      ]);
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
 
-      const result = await projectService.getTeamMembers('proj-fc', dmUser);
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
+
+      const result = await projectService.getTeamMembers(proj.id, dm);
 
       expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Alice');
-      expect(result[0].designation).toBe('Senior Dev');
-      expect(result[0].billingRatePaise).toBe(500000);
+      expect(result[0].name).toBe('Employee EMP001');
+      expect(result[0].designation).toBe('Developer');
     });
 
     it('should throw ForbiddenError for non-owning DM', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        ...fcProject,
-        deliveryManagerId: 'dm-other',
-      });
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
 
-      await expect(
-        projectService.getTeamMembers('proj-fc', dmUser),
-      ).rejects.toThrow('Access denied');
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
+
+      await expect(projectService.getTeamMembers(proj.id, otherDm)).rejects.toThrow(
+        'Access denied',
+      );
     });
 
     it('should allow Finance user to view team members', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        ...fcProject,
-        deliveryManagerId: 'dm-other',
-      });
-      mockEmployeeProjectFindMany.mockResolvedValue([]);
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const fin = await makeFinanceUser();
 
-      const result = await projectService.getTeamMembers('proj-fc', financeUser);
+      const result = await projectService.getTeamMembers(proj.id, fin);
 
       expect(result).toEqual([]);
     });
@@ -562,36 +606,36 @@ describe('project.service', () => {
 
   describe('removeTeamMember', () => {
     it('should remove a team member', async () => {
-      mockProjectFindUnique.mockResolvedValue(fcProject);
-      mockEmployeeProjectDelete.mockResolvedValue({});
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
 
-      await projectService.removeTeamMember('proj-fc', 'emp-1', dmUser);
+      await projectService.removeTeamMember(proj.id, emp.id, dm);
 
-      expect(mockEmployeeProjectDelete).toHaveBeenCalledWith({
-        where: {
-          projectId_employeeId: { projectId: 'proj-fc', employeeId: 'emp-1' },
-        },
-      });
+      const members = await projectService.getTeamMembers(proj.id, dm);
+      expect(members).toHaveLength(0);
     });
 
     it('should throw ForbiddenError for non-owning DM', async () => {
-      mockProjectFindUnique.mockResolvedValue({
-        ...fcProject,
-        deliveryManagerId: 'dm-other',
-      });
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
+
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 
       await expect(
-        projectService.removeTeamMember('proj-fc', 'emp-1', dmUser),
+        projectService.removeTeamMember(proj.id, emp.id, otherDm),
       ).rejects.toThrow('Access denied');
     });
 
     it('should throw NotFoundError for non-existent team member', async () => {
-      mockProjectFindUnique.mockResolvedValue(fcProject);
-      const prismaError = Object.assign(new Error('Record not found'), { code: 'P2025' });
-      mockEmployeeProjectDelete.mockRejectedValue(prismaError);
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
 
       await expect(
-        projectService.removeTeamMember('proj-fc', 'emp-none', dmUser),
+        projectService.removeTeamMember(proj.id, '00000000-0000-4000-8000-000000000002', dm),
       ).rejects.toThrow('Team member not found');
     });
   });

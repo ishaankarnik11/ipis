@@ -94,6 +94,15 @@
       5. **Test Quality**: Are tests real assertions or placeholders?
     </action>
 
+    <!-- E2E Quality Gate (ABSOLUTE) -->
+    <gate id="e2e-quality-gate">
+      <instruction>Run the full E2E suite: pnpm test:e2e</instruction>
+      <instruction>Parse e2e-report/latest/results.json for pass/fail counts</instruction>
+      <instruction>Any failure → automatic HIGH finding with [E2E-FAIL] prefix</instruction>
+      <instruction>Set e2e_gate_passed = true/false based on results</instruction>
+      <instruction>Story CANNOT proceed to "done" if e2e_gate_passed = false</instruction>
+    </gate>
+
     <check if="total_issues_found lt 3">
       <critical>NOT LOOKING HARD ENOUGH - Find more problems!</critical>
       <action>Re-examine code for:

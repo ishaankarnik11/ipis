@@ -2,6 +2,14 @@ import { defineConfig } from '@playwright/test';
 import path from 'path';
 import { E2E_DB_URL } from './helpers/constants.js';
 
+// Generate a single timestamp for this entire test run
+const timestamp = new Date()
+  .toISOString()
+  .replace(/:/g, '-')
+  .replace(/\.\d+Z$/, '');
+
+const reportRoot = path.resolve(__dirname, '..', '..', 'e2e-report', timestamp);
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
@@ -13,13 +21,15 @@ export default defineConfig({
     ['list'],
     // HTML report: full interactive report with screenshots, traces, and error details
     // Open after run: pnpm --filter @ipis/e2e exec playwright show-report
-    ['html', { open: 'never', outputFolder: '../../../e2e-report/html' }],
+    ['html', { open: 'never', outputFolder: path.join(reportRoot, 'html') }],
     // JSON report: machine-readable for CI pipelines or custom tooling
-    ['json', { outputFile: '../../../e2e-report/results.json' }],
+    ['json', { outputFile: path.join(reportRoot, 'results.json') }],
+    // Custom CSV/XLSX reporter with DB-verification detection
+    ['./reporters/csv-reporter.ts', { timestamp }],
   ],
   globalSetup: './global-setup.ts',
   // Output directory for screenshots, videos, and traces from failed tests
-  outputDir: '../../../e2e-report/test-artifacts',
+  outputDir: path.join(reportRoot, 'test-artifacts'),
   use: {
     baseURL: 'http://localhost:5173',
     // Screenshots: capture on every failure so devs can see what the page looked like

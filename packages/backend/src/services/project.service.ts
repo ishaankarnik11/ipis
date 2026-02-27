@@ -19,6 +19,11 @@ const PROJECT_SELECT = {
   engagementModel: true,
   status: true,
   contractValuePaise: true,
+  slaDescription: true,
+  vendorCostPaise: true,
+  manpowerCostPaise: true,
+  budgetPaise: true,
+  infraCostMode: true,
   deliveryManagerId: true,
   deliveryManager: { select: { name: true } },
   rejectionComment: true,
@@ -38,6 +43,15 @@ function serializeProject(project: ProjectRow) {
     deliveryManagerName: deliveryManager?.name ?? null,
     contractValuePaise: project.contractValuePaise != null
       ? Number(project.contractValuePaise)
+      : null,
+    vendorCostPaise: project.vendorCostPaise != null
+      ? Number(project.vendorCostPaise)
+      : null,
+    manpowerCostPaise: project.manpowerCostPaise != null
+      ? Number(project.manpowerCostPaise)
+      : null,
+    budgetPaise: project.budgetPaise != null
+      ? Number(project.budgetPaise)
       : null,
     completionPercent: project.completionPercent != null
       ? Number(project.completionPercent)
@@ -97,6 +111,32 @@ async function atomicStatusTransition(
 }
 
 export async function createProject(data: CreateProjectInput, user: RequestUser) {
+  // Extract model-specific fields based on engagement model
+  let modelFields: Record<string, unknown> = {};
+  switch (data.engagementModel) {
+    case 'AMC':
+      if ('slaDescription' in data && data.slaDescription) {
+        modelFields.slaDescription = data.slaDescription;
+      }
+      break;
+    case 'FIXED_COST':
+      if ('budgetPaise' in data && data.budgetPaise != null) {
+        modelFields.budgetPaise = data.budgetPaise;
+      }
+      break;
+    case 'INFRASTRUCTURE':
+      if ('vendorCostPaise' in data && data.vendorCostPaise != null) {
+        modelFields.vendorCostPaise = data.vendorCostPaise;
+      }
+      if ('manpowerCostPaise' in data && data.manpowerCostPaise != null) {
+        modelFields.manpowerCostPaise = data.manpowerCostPaise;
+      }
+      if ('infraCostMode' in data) {
+        modelFields.infraCostMode = data.infraCostMode;
+      }
+      break;
+  }
+
   const project = await prisma.project.create({
     data: {
       name: data.name,
@@ -107,6 +147,7 @@ export async function createProject(data: CreateProjectInput, user: RequestUser)
       deliveryManagerId: user.id,
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),
+      ...modelFields,
     },
     select: PROJECT_SELECT,
   });
