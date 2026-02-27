@@ -1,6 +1,6 @@
 # Story 4.4: AMC & Infrastructure Calculators
 
-Status: review
+Status: done
 
 ## Story
 
@@ -166,7 +166,7 @@ N/A — no debugging needed; all tests passed on first run.
 - Code review identified 7 critical issues (C1-C7): wrong AMC type design (single value vs array), missing infrastructure calculator, missing discriminated union, missing exports
 - All 7 critical issues resolved in this implementation pass
 - Backward compatibility preserved via `TmEmployeeCost` type alias with `@deprecated` JSDoc tag
-- All 45 tests pass across 5 calculator test suites (cost-rate: 9, tm: 9, fixed-cost: 7, amc: 6, infrastructure: 9, output-shape: 5)
+- All 45 tests pass across 5 calculator test suites (cost-rate: 14, tm: 9, fixed-cost: 7, amc: 6, infrastructure: 9)
 - Existing T&M and Fixed Cost tests verified passing after `EmployeeCostEntry` rename (H2 resolved)
 
 ### Change Log
@@ -181,9 +181,57 @@ N/A — no debugging needed; all tests passed on first run.
 | File | Action |
 |------|--------|
 | `packages/backend/src/services/calculation-engine/types.ts` | Modified |
-| `packages/backend/src/services/calculation-engine/amc.calculator.ts` | Modified |
-| `packages/backend/src/services/calculation-engine/amc.calculator.test.ts` | Modified |
+| `packages/backend/src/services/calculation-engine/amc.calculator.ts` | Created |
+| `packages/backend/src/services/calculation-engine/amc.calculator.test.ts` | Created |
 | `packages/backend/src/services/calculation-engine/infrastructure.calculator.ts` | Created |
 | `packages/backend/src/services/calculation-engine/infrastructure.calculator.test.ts` | Created |
 | `packages/backend/src/services/calculation-engine/index.ts` | Modified |
 | `_bmad-output/implementation-artifacts/4-4-amc-and-infrastructure-calculators.md` | Modified |
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Quinn (Code Review Agent) | **Date:** 2026-02-27
+**Model:** Claude Opus 4.6
+
+### Findings Summary
+
+| Severity | Count | Status |
+|----------|-------|--------|
+| HIGH | 1 | FIXED |
+| MEDIUM | 3 | FIXED |
+| LOW | 1 | Noted (advisory) |
+
+### HIGH Findings
+
+**H1: Master Test Plan DEVELOPED_UNTESTED gap** — FR32 (32.1, 32.2) and FR33 (33.1, 33.2) were marked DEVELOPED_UNTESTED despite having 15 passing tests. FR33 referenced wrong filename `infra.calculator.test.ts` (actual: `infrastructure.calculator.test.ts`). **FIXED:** Promoted to TEST_WRITTEN with correct paths and date 2026-02-27. Dashboard and Epic 4 Closure row updated.
+
+### MEDIUM Findings
+
+**M1: File List Action column inaccurate** — `amc.calculator.ts` and `amc.calculator.test.ts` listed as "Modified" but git commit `c15f0b4` shows `A` (Added). **FIXED:** Changed to "Created".
+
+**M2: Missing JSDoc headers** — `amc.calculator.ts` and `infrastructure.calculator.ts` lacked JSDoc headers that `tm.calculator.ts` and `fixed-cost.calculator.ts` both have. **FIXED:** Added convention-matching JSDoc headers documenting purity and validation strategy.
+
+**M3: Completion Notes test count breakdown misleading** — Listed `cost-rate: 9` but actual count is 14; included phantom "output-shape: 5" category that doesn't map to any test file. Total of 45 was correct. **FIXED:** Updated to accurate per-suite breakdown (cost-rate: 14, tm: 9, fixed-cost: 7, amc: 6, infrastructure: 9).
+
+### LOW Findings
+
+**L1: AMC structurally near-identical to FixedCost** — Advisory only. Separate functions per engagement model is the correct architecture per party-mode design decision.
+
+### Verified OK
+
+- All 9 Acceptance Criteria: IMPLEMENTED
+- All 6 Tasks (30 subtasks): VERIFIED COMPLETE
+- Data Contract Audit: N/A (pure-function calculators, no UI/DB/forms)
+- Security Review: PASS (no injection surfaces, no user input, no HTTP)
+- Code Quality: PASS (consistent patterns, type safety, exhaustive switch checking, division-by-zero guards)
+- Backward Compatibility: PASS (TmEmployeeCost alias preserved with @deprecated)
+- Calculator Tests: 45/45 PASS (all 5 suites green)
+
+### Pre-existing Issues Noted (out of scope)
+
+- `employees.routes.test.ts` RBAC test failure — DELIVERY_MANAGER getting 200 on GET /employees due to uncommitted Story 4-0 RBAC change. Not related to Story 4-4.
+- Master Test Plan Coverage Dashboard DEVELOPED_UNTESTED count is stale (shows 9, actual scenario count is ~20). Full reconciliation deferred to epic retrospective.
+
+### Change Log Entry
+
+7. **Code Review** — H1: Master test plan FR32/FR33 promoted to TEST_WRITTEN. M1: File List corrected. M2: JSDoc headers added. M3: Test count breakdown fixed.

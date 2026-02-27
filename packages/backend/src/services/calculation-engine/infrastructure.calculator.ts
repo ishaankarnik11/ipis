@@ -1,5 +1,10 @@
 import type { InfrastructureInput, InfrastructureResult } from './types.js';
 
+/**
+ * Pure infrastructure profitability calculator with SIMPLE/DETAILED cost modes.
+ * No input validation — callers must ensure inputs are finite non-NaN numbers.
+ * Validation is enforced at the API layer.
+ */
 export function calculateInfrastructure(input: InfrastructureInput): InfrastructureResult {
   const revenuePaise = input.infraInvoicePaise;
 

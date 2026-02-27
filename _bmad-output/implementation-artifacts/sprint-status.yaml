@@ -76,11 +76,11 @@ development_status:
   # Epic 4: Profitability Calculation Engine
   epic-4: in-progress
   4-0-project-field-persistence-and-infra-cost-mode: done
-  4-0b-tier3-cross-role-e2e-chains: review
+  4-0b-tier3-cross-role-e2e-chains: done
   4-1-employee-cost-rate-calculation: done
   4-2-tm-profitability-calculator: done
-  4-3-fixed-cost-profitability-calculator: review
-  4-4-amc-and-infrastructure-calculators: review
+  4-3-fixed-cost-profitability-calculator: done
+  4-4-amc-and-infrastructure-calculators: done
   4-5-snapshot-persistence-and-multi-level-profitability-surfacing: review
   epic-4-retrospective: optional
 

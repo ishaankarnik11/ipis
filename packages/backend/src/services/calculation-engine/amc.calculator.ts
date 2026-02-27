@@ -1,5 +1,9 @@
 import type { AmcInput, AmcResult } from './types.js';
 
+/**
+ * Pure AMC profitability calculator. No input validation — callers must ensure
+ * inputs are finite non-NaN numbers. Validation is enforced at the API layer.
+ */
 export function calculateAmc({
   contractValuePaise,
   employeeCosts,
