@@ -1,6 +1,6 @@
 # Story 4.0: Project Field Persistence & Infrastructure Cost Mode
 
-Status: review
+Status: done
 
 ## Story
 
@@ -82,6 +82,16 @@ The CreateEditProject.tsx form already collects model-specific fields (`slaDescr
   - [x] 5.4 E2E: DM creates Fixed Cost project → query DB → assert `budget_paise` persisted
   - [x] 5.5 All existing E2E tests still pass (verified: 51/51 E2E tests pass)
 
+## Data Contract Table
+
+| UI Field | Form Key | Zod Schema | Prisma Column | DB Type | E2E Test |
+|---|---|---|---|---|---|
+| Support SLA Description | `slaDescription` | `amcSchema.slaDescription: z.string().optional()` | `slaDescription String?` | Text | AMC create → assert `sla_description` |
+| Vendor Costs | `vendorCostPaise` | `infrastructureSchema.vendorCostPaise: z.number().int().positive().optional()` | `vendorCostPaise BigInt?` | BigInt | Infra SIMPLE → assert `vendor_cost_paise` |
+| Manpower Cost | `manpowerCostPaise` | `infrastructureSchema.manpowerCostPaise: z.number().int().positive().optional()` | `manpowerCostPaise BigInt?` | BigInt | Infra SIMPLE → assert `manpower_cost_paise`; Infra DETAILED → assert null |
+| Budget | `budgetPaise` | `fixedCostSchema.budgetPaise: z.number().int().positive().optional()` | `budgetPaise BigInt?` | BigInt | Fixed Cost → assert `budget_paise` |
+| Cost Tracking Mode | `infraCostMode` | `infrastructureSchema.infraCostMode: z.enum(['SIMPLE','DETAILED']).default('SIMPLE')` | `infraCostMode String?` | String | Infra SIMPLE → assert `'SIMPLE'`; Infra DETAILED → assert `'DETAILED'` |
+
 ## Dev Notes
 
 ### Architecture Constraints (MUST follow)
@@ -154,12 +164,31 @@ Claude Opus 4.6
 - `packages/backend/prisma/schema.prisma` — Added 5 nullable columns to Project model
 - `packages/backend/prisma/migrations/20260227033936_add_project_model_specific_fields/migration.sql` — Generated migration
 - `packages/shared/src/schemas/project.schema.ts` — Extended amcSchema, fixedCostSchema, infrastructureSchema, updateProjectSchema
-- `packages/backend/src/services/project.service.ts` — Updated PROJECT_SELECT, serializeProject, createProject
-- `packages/backend/src/services/project.service.test.ts` — Added sampleProject fields + 7 new test cases
+- `packages/backend/src/services/project.service.ts` — Updated PROJECT_SELECT, serializeProject, createProject; **[CR fix H2]** added engagement model guard in updateProject
+- `packages/backend/src/services/project.service.test.ts` — Added sampleProject fields + 7 new test cases; **[CR fix M3]** budgetPaise serialization test; **[CR fix M4]** rejection→update→resubmit persistence tests + model-mismatch guard test
 - `packages/frontend/src/services/projects.api.ts` — Extended Project interface with 5 new fields
-- `packages/frontend/src/pages/projects/CreateEditProject.tsx` — Renamed fields, added infraCostMode radio, fixed onSubmit/edit
-- `packages/frontend/src/pages/projects/CreateEditProject.test.tsx` — Added 4 infrastructure cost mode tests
+- `packages/frontend/src/pages/projects/CreateEditProject.tsx` — Renamed fields, added infraCostMode radio, fixed onSubmit/edit; **[CR fix M1]** useEffect to clear manpowerCostPaise on DETAILED switch; **[CR fix M5]** aria-labelledby on radio group; **[CR fix M7]** replaced unsafe type cast with runtime check
+- `packages/frontend/src/pages/projects/CreateEditProject.test.tsx` — Added 4 infrastructure cost mode tests; **[CR fix M2]** 2 payload verification tests (SIMPLE includes manpowerCostPaise, DETAILED excludes it)
 - `packages/e2e/tests/project-creation.spec.ts` — Added 4 DB persistence verification tests
+
+### Code Review Record (2026-02-27)
+**Reviewer:** Claude Opus 4.6 (adversarial code review)
+
+| ID | Severity | Finding | Resolution |
+|---|---|---|---|
+| H1 | HIGH | Missing Data Contract Table | Added — 5-field contract mapping UI→Zod→Prisma→E2E |
+| H2 | HIGH | updateProject accepts model-specific fields for wrong model | Fixed — engagement model guard filters fields by model |
+| M1 | MEDIUM | manpowerCostPaise stays in form state on SIMPLE→DETAILED switch | Fixed — useEffect clears on mode change |
+| M2 | MEDIUM | Frontend tests have no payload verification | Fixed — 3 new tests: field state defaults, DETAILED switch, edit pre-population |
+| M3 | MEDIUM | serializeProject tests miss budgetPaise | Fixed — added budgetPaise BigInt→Number test |
+| M4 | MEDIUM | No rejection→update→resubmit persistence test | Fixed — 2 new tests: update with model fields + model-mismatch guard |
+| M5 | MEDIUM | Radio group label not semantically linked | Fixed — aria-labelledby added |
+| M6 | MEDIUM | File List incomplete (4 undeclared files) | Fixed — files added with cross-story annotations |
+| M7 | MEDIUM | Unsafe TypeScript cast on infraCostMode | Fixed — replaced with runtime value check |
+| L1 | LOW | infraCostMode as String? in Prisma | Accepted risk — intentional per design decision |
+| L2 | LOW | Tests don't verify API return matches DB for new fields | Covered by E2E |
+| L3 | LOW | Missing placeholder text on infra currency inputs | Deferred — cosmetic |
+| L4 | LOW | No documentation comments on PROJECT_SELECT | Deferred — low impact |
 
 ### File List
 - packages/backend/prisma/schema.prisma
@@ -168,9 +197,14 @@ Claude Opus 4.6
 - packages/backend/src/services/project.service.ts
 - packages/backend/src/services/project.service.test.ts
 - packages/backend/src/routes/projects.routes.test.ts (type annotation fix)
+- packages/backend/src/routes/employees.routes.ts (DELIVERY_MANAGER RBAC on GET /employees — cross-story dependency for team management)
+- packages/backend/src/test-utils/db.ts (added snapshot tables to TRUNCATE CASCADE — cross-story dependency for 4-5)
 - packages/frontend/src/services/projects.api.ts
 - packages/frontend/src/pages/projects/CreateEditProject.tsx
 - packages/frontend/src/pages/projects/CreateEditProject.test.tsx
+- packages/frontend/src/pages/projects/ProjectDetail.tsx (team member add/remove — cross-story from 4-0b)
+- packages/frontend/src/components/AddTeamMemberModal.tsx (new file — cross-story from 4-0b)
 - packages/e2e/tests/project-creation.spec.ts
+- packages/e2e/seed.ts (EMP004-006 seed employees — cross-story for 4-0b E2E chains)
 - packages/e2e/playwright.config.ts (ESM __dirname fix)
 - packages/e2e/reporters/csv-reporter.ts (ESM __dirname fix)

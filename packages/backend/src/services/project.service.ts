@@ -300,13 +300,38 @@ export async function updateProject(id: string, data: UpdateProjectInput, user: 
     throw new ValidationError('Only REJECTED projects can be edited');
   }
 
+  // Separate model-specific fields from base fields to guard by engagement model
+  const {
+    slaDescription, vendorCostPaise, manpowerCostPaise, budgetPaise, infraCostMode,
+    ...baseFields
+  } = otherFields;
+
+  // Use the target engagement model (if changing) or the current one
+  const effectiveModel = (baseFields.engagementModel ?? project.engagementModel) as string;
+
+  const modelFields: Record<string, unknown> = {};
+  switch (effectiveModel) {
+    case 'AMC':
+      if (slaDescription !== undefined) modelFields.slaDescription = slaDescription;
+      break;
+    case 'FIXED_COST':
+      if (budgetPaise !== undefined) modelFields.budgetPaise = budgetPaise;
+      break;
+    case 'INFRASTRUCTURE':
+      if (vendorCostPaise !== undefined) modelFields.vendorCostPaise = vendorCostPaise;
+      if (manpowerCostPaise !== undefined) modelFields.manpowerCostPaise = manpowerCostPaise;
+      if (infraCostMode !== undefined) modelFields.infraCostMode = infraCostMode;
+      break;
+  }
+
   const updated = await prisma.project.update({
     where: { id },
     data: {
-      ...otherFields,
-      engagementModel: otherFields.engagementModel as EngagementModel | undefined,
-      startDate: otherFields.startDate ? new Date(otherFields.startDate) : undefined,
-      endDate: otherFields.endDate ? new Date(otherFields.endDate) : undefined,
+      ...baseFields,
+      ...modelFields,
+      engagementModel: baseFields.engagementModel as EngagementModel | undefined,
+      startDate: baseFields.startDate ? new Date(baseFields.startDate) : undefined,
+      endDate: baseFields.endDate ? new Date(baseFields.endDate) : undefined,
     },
     select: PROJECT_SELECT,
   });

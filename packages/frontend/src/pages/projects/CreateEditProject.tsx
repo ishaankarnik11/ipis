@@ -86,6 +86,7 @@ export default function CreateEditProject() {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<ProjectFormValues>({
     defaultValues: {
@@ -113,6 +114,13 @@ export default function CreateEditProject() {
   const engagementModel = watch('engagementModel');
   const infraCostMode = watch('infraCostMode');
 
+  // Clear manpowerCostPaise when switching to DETAILED mode
+  useEffect(() => {
+    if (infraCostMode === 'DETAILED') {
+      setValue('manpowerCostPaise', null);
+    }
+  }, [infraCostMode, setValue]);
+
   // Pre-populate form for edit mode
   useEffect(() => {
     if (project && isEdit) {
@@ -128,7 +136,7 @@ export default function CreateEditProject() {
         vendorCostPaise: paiseToCurrency(project.vendorCostPaise),
         manpowerCostPaise: paiseToCurrency(project.manpowerCostPaise),
         budgetPaise: paiseToCurrency(project.budgetPaise),
-        infraCostMode: (project.infraCostMode as 'SIMPLE' | 'DETAILED') ?? 'SIMPLE',
+        infraCostMode: project.infraCostMode === 'DETAILED' ? 'DETAILED' : 'SIMPLE',
         teamMembers: [{ role: '', billingRatePaise: null }],
       });
     }
@@ -524,7 +532,7 @@ export default function CreateEditProject() {
         {engagementModel === 'INFRASTRUCTURE' && (
           <Card title="Infrastructure Details" data-testid="infrastructure-section" style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 16 }}>
-              <label>Cost Tracking Mode</label>
+              <label id="infra-cost-mode-label">Cost Tracking Mode</label>
               <Controller
                 name="infraCostMode"
                 control={control}
@@ -532,6 +540,7 @@ export default function CreateEditProject() {
                   <Radio.Group
                     {...field}
                     data-testid="infra-cost-mode-radio"
+                    aria-labelledby="infra-cost-mode-label"
                     style={{ display: 'block', marginTop: 8 }}
                   >
                     <Radio value="SIMPLE">Simple</Radio>

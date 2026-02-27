@@ -247,6 +247,87 @@ describe('CreateEditProject', () => {
     });
   });
 
+  describe('Infrastructure form field state (AC: 3, 4)', () => {
+    it('defaults infraCostMode to SIMPLE with manpowerCostPaise input visible', async () => {
+      renderComponent();
+
+      await selectEngagementModel('Infrastructure');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
+      });
+
+      // SIMPLE is default — radio should be checked, manpower input visible
+      const simpleRadio = screen.getByLabelText('Simple') as HTMLInputElement;
+      expect(simpleRadio.checked).toBe(true);
+      expect(screen.getByText('Manpower Cost')).toBeInTheDocument();
+      expect(screen.queryByTestId('detailed-mode-info')).not.toBeInTheDocument();
+    });
+
+    it('hides manpowerCostPaise and shows info when switching to DETAILED', async () => {
+      renderComponent();
+      const user = userEvent.setup({ delay: null });
+
+      await selectEngagementModel('Infrastructure');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
+      });
+
+      // Switch to Detailed
+      await user.click(screen.getByLabelText('Detailed'));
+
+      await waitFor(() => {
+        const detailedRadio = screen.getByLabelText('Detailed') as HTMLInputElement;
+        expect(detailedRadio.checked).toBe(true);
+      });
+
+      // Manpower cost field should be gone, info text should be present
+      expect(screen.queryByText('Manpower Cost')).not.toBeInTheDocument();
+      expect(screen.getByTestId('detailed-mode-info')).toBeInTheDocument();
+    });
+  });
+
+  describe('Edit mode pre-population (AC: 6)', () => {
+    it('pre-populates infraCostMode from existing project data', async () => {
+      mockParams.id = 'infra-edit-id';
+      mockGetProject.mockResolvedValue({
+        data: {
+          id: 'infra-edit-id',
+          name: 'Infra Project',
+          client: 'Client',
+          vertical: 'IT',
+          engagementModel: 'INFRASTRUCTURE',
+          status: 'REJECTED',
+          contractValuePaise: null,
+          rejectionComment: 'Fix costs',
+          startDate: '2026-03-01',
+          endDate: '2026-12-31',
+          deliveryManagerId: 'dm-1',
+          completionPercent: null,
+          slaDescription: null,
+          vendorCostPaise: 1000000,
+          manpowerCostPaise: null,
+          budgetPaise: null,
+          infraCostMode: 'DETAILED',
+          createdAt: '2026-02-01',
+          updatedAt: '2026-02-10',
+        },
+      });
+
+      renderComponent('/projects/infra-edit-id/edit');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
+      });
+
+      // Should pre-populate DETAILED mode
+      const detailedRadio = screen.getByLabelText('Detailed') as HTMLInputElement;
+      expect(detailedRadio.checked).toBe(true);
+      expect(screen.getByTestId('detailed-mode-info')).toBeInTheDocument();
+    });
+  });
+
   describe('Edit mode (AC: 9)', () => {
     it('shows Edit & Resubmit title in edit mode', async () => {
       mockParams.id = 'test-id-123';

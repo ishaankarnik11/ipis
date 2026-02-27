@@ -172,6 +172,21 @@ describe('project.service', () => {
       expect(typeof result.manpowerCostPaise).toBe('number');
     });
 
+    it('should convert budgetPaise BigInt to Number', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+
+      const proj = await projectService.createProject(
+        { ...validCreateInput, budgetPaise: 40000000 },
+        dm,
+      );
+
+      const result = await projectService.getById(proj.id, { id: dm.id, role: 'ADMIN', email: 'admin@test.com' });
+
+      expect(result.budgetPaise).toBe(40000000);
+      expect(typeof result.budgetPaise).toBe('number');
+    });
+
     it('should return null for null BigInt fields', async () => {
       const dm = await makeDmUser();
       await makeAdminUser();
@@ -373,6 +388,56 @@ describe('project.service', () => {
       await expect(
         projectService.updateProject('00000000-0000-4000-8000-000000000001', { name: 'Updated' }, dm),
       ).rejects.toThrow('Project not found');
+    });
+
+    it('should persist model-specific fields on update of rejected project', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+
+      // Create Infrastructure project, reject it, then update with model-specific fields
+      const proj = await projectService.createProject(
+        {
+          name: 'Infra Project',
+          client: 'ACME Corp',
+          vertical: 'Technology',
+          engagementModel: 'INFRASTRUCTURE',
+          vendorCostPaise: 1000000,
+          infraCostMode: 'SIMPLE',
+          manpowerCostPaise: 500000,
+          startDate: '2026-03-01',
+          endDate: '2026-12-31',
+        },
+        dm,
+      );
+      await projectService.rejectProject(proj.id, 'Fix costs');
+
+      const updated = await projectService.updateProject(
+        proj.id,
+        { vendorCostPaise: 2000000, infraCostMode: 'DETAILED' },
+        dm,
+      );
+
+      expect(updated.vendorCostPaise).toBe(2000000);
+      expect(updated.infraCostMode).toBe('DETAILED');
+    });
+
+    it('should ignore model-specific fields that do not match engagement model on update', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.rejectProject(proj.id, 'Fix it');
+
+      // Try to set slaDescription on a FIXED_COST project — should be ignored
+      const updated = await projectService.updateProject(
+        proj.id,
+        { name: 'Updated', slaDescription: 'should be ignored' },
+        dm,
+      );
+
+      const dbProj = await prisma.project.findUnique({ where: { id: proj.id } });
+      expect(dbProj!.slaDescription).toBeNull();
+      expect(updated.name).toBe('Updated');
     });
   });
 
