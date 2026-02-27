@@ -596,10 +596,10 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 34.1 | Project-level profitability calculated | NOT_DEVELOPED | — | — |
-| 34.2 | Practice/discipline-level cost attribution | NOT_DEVELOPED | — | — |
-| 34.3 | Department-level aggregation | NOT_DEVELOPED | — | — |
-| 34.4 | Company-wide aggregation | NOT_DEVELOPED | — | — |
+| 34.1 | Project-level profitability calculated | TEST_WRITTEN | `snapshot.service.test.ts` — row count, MARGIN_PERCENT value | 2026-02-27 |
+| 34.2 | Practice/discipline-level cost attribution | TEST_WRITTEN | `snapshot.service.test.ts` — PRACTICE aggregation by designation | 2026-02-27 |
+| 34.3 | Department-level aggregation | TEST_WRITTEN | `snapshot.service.test.ts` — DEPARTMENT aggregation + Infra SIMPLE fallback | 2026-02-27 |
+| 34.4 | Company-wide aggregation | TEST_WRITTEN | `snapshot.service.test.ts` — COMPANY rollup, multi-project revenue sum | 2026-02-27 |
 
 ---
 

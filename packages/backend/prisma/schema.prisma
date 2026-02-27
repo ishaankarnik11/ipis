@@ -162,3 +162,34 @@ model SystemConfig {
 
   @@map("system_config")
 }
+
+model RecalculationRun {
+  id                String   @id @default(uuid())
+  uploadEventId     String   @map("upload_event_id")
+  projectsProcessed Int      @map("projects_processed")
+  completedAt       DateTime @map("completed_at")
+
+  snapshots         CalculationSnapshot[]
+
+  @@map("recalculation_runs")
+}
+
+model CalculationSnapshot {
+  id                  String   @id @default(uuid())
+  recalculationRunId  String   @map("recalculation_run_id")
+  entityType          String   @map("entity_type")
+  entityId            String   @map("entity_id")
+  figureType          String   @map("figure_type")
+  periodMonth         Int      @map("period_month")
+  periodYear          Int      @map("period_year")
+  valuePaise          BigInt   @map("value_paise")
+  breakdownJson       Json     @map("breakdown_json")
+  engineVersion       String   @map("engine_version")
+  calculatedAt        DateTime @map("calculated_at")
+
+  recalculationRun    RecalculationRun @relation(fields: [recalculationRunId], references: [id])
+
+  @@index([entityType, entityId, periodMonth, periodYear], name: "snapshots_entity_period_idx")
+  @@index([recalculationRunId], name: "snapshots_run_id_idx")
+  @@map("calculation_snapshots")
+}
