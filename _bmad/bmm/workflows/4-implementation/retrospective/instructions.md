@@ -18,6 +18,19 @@ FACILITATION NOTES:
 - Action items must be achievable with clear ownership
 - Two-part format: (1) Epic Review + (2) Next Epic Preparation
 
+EPIC CLOSURE PRE-CONDITIONS (ABSOLUTE — NO BYPASS):
+
+The facilitator MUST verify ALL of the following before beginning the retrospective. If ANY pre-condition fails, the epic CANNOT close. Issues must be resolved first.
+
+1. ALL stories in the epic are status "done"
+2. ALL code review findings rated HIGH are status "FIXED" (not "Noted")
+3. ALL issues discovered during the epic — regardless of origin (pre-existing gap, code review finding, user-reported, or cross-epic dependency) — are either RESOLVED or tracked as explicit tech debt with stakeholder sign-off from {user_name}
+4. `docs/master-test-plan.md` shows NO status "FAIL" for any FR covered by this epic
+5. `docs/master-test-plan.md` shows NO status "DEVELOPED_UNTESTED" for any FR covered by this epic
+6. ALL Tier 3 (cross-role chain) scenarios relevant to this epic's FRs have been implemented and are PASS
+
+If ANY pre-condition fails → HALT. Present the failing conditions to {user_name}. The epic retrospective cannot proceed until issues are resolved or {user_name} explicitly grants a waiver with documented rationale.
+
 PARTY MODE PROTOCOL:
 
 - ALL agent dialogue MUST use format: "Name (Role): dialogue"

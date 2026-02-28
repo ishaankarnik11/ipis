@@ -56,6 +56,30 @@ function createFixtures(e2eDir: string) {
 
   // invalid-file.txt — wrong file type
   fs.writeFileSync(path.join(fixturesDir, 'invalid-file.txt'), 'This is not an xlsx file');
+
+  // uc-valid-employees.xlsx — 3 valid rows with unique codes for upload-center tests
+  const ucValidData = [
+    { employee_code: 'UC001', name: 'UC Valid Employee One', department: 'Engineering', designation: 'Developer', annual_ctc: 1200000, joining_date: '2024-01-15', is_billable: true },
+    { employee_code: 'UC002', name: 'UC Valid Employee Two', department: 'Finance', designation: 'Analyst', annual_ctc: 1000000, joining_date: '2024-03-01', is_billable: true },
+    { employee_code: 'UC003', name: 'UC Valid Employee Three', department: 'Human Resources', designation: 'Coordinator', annual_ctc: 800000, is_billable: false },
+  ];
+  writeXlsx(path.join(fixturesDir, 'uc-valid-employees.xlsx'), ucValidData);
+
+  // uc-mixed-employees.xlsx — 2 valid + 2 invalid rows with unique codes for upload-center tests
+  const ucMixedData = [
+    { employee_code: 'UC004', name: 'UC Mixed Valid One', department: 'Engineering', designation: 'Tester', annual_ctc: 900000, is_billable: true },
+    { employee_code: 'UC005', name: 'UC Mixed Valid Two', department: 'Delivery', designation: 'Manager', annual_ctc: 1500000, is_billable: true },
+    { employee_code: '', name: 'Missing Code', department: 'Engineering', designation: 'Dev', annual_ctc: 800000 },
+    { employee_code: 'UC006', name: 'Bad Department', department: 'NonExistentDept', designation: 'Dev', annual_ctc: 800000 },
+  ];
+  writeXlsx(path.join(fixturesDir, 'uc-mixed-employees.xlsx'), ucMixedData);
+
+  // invalid-timesheets.xlsx — references employee IDs that don't exist
+  const invalidTimesheetData = [
+    { employee_id: 'NONEXISTENT001', project_name: 'Seeded Active TM Project', hours: 40, period_month: 3, period_year: 2026 },
+    { employee_id: 'NONEXISTENT002', project_name: 'FakeProject', hours: 20, period_month: 3, period_year: 2026 },
+  ];
+  writeXlsx(path.join(fixturesDir, 'invalid-timesheets.xlsx'), invalidTimesheetData);
 }
 
 function writeXlsx(filePath: string, data: Record<string, unknown>[]) {

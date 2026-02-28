@@ -83,3 +83,7 @@ Run directly via `/bmad-bmm-<workflow-name>` or through an agent's menu.
 - **`_bmad/bmm/config.yaml`** — Project config: name, user, language, output paths
 
 Workflows are step-based (each step is a separate `.md` file); frontmatter tracks `stepsCompleted`. Agents accept numbered menu selections or fuzzy-matched command shortcuts. Input discovery scans `docs/` for existing context documents automatically.
+
+## Implementation Gate — Sprint Status (MANDATORY)
+
+After completing ANY story implementation — whether via `/bmad-bmm-dev-story`, a direct implementation plan, ad-hoc coding, or any other method — you MUST update `_bmad-output/implementation-artifacts/sprint-status.yaml` to reflect the current story status (`in-progress` while working, `review` when implementation is complete and ready for code review). This applies regardless of which workflow or agent was used. Skipping this step is a process violation.

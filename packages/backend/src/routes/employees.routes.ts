@@ -52,11 +52,11 @@ router.post(
   }),
 );
 
-// GET /api/v1/employees — List all employees (HR, Admin, Finance)
+// GET /api/v1/employees — List all employees (HR, Admin, Finance, DM)
 router.get(
   '/',
   authMiddleware,
-  rbacMiddleware(['HR', 'ADMIN', 'FINANCE']),
+  rbacMiddleware(['HR', 'ADMIN', 'FINANCE', 'DELIVERY_MANAGER']),
   asyncHandler(async (req, res) => {
     const employees = await employeeService.getAll(req.user!);
     res.json({ data: employees, meta: { total: employees.length } });

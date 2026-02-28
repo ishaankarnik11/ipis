@@ -1,6 +1,6 @@
 # Story 6.3: Ledger Drawer — API & Data Contract
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -43,39 +43,40 @@ so that the Ledger Drawer UI can render the detailed input decomposition without
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Ledger service (AC: 1, 2, 3, 6)
-  - [ ] 1.1 Create `services/ledger.service.ts`
-  - [ ] 1.2 `getProjectLedger(projectId, periodMonth, periodYear, user)` — query `calculation_snapshots` WHERE `entity_type = 'PROJECT'` AND `entity_id = :id` AND period matches, ORDER BY `calculated_at` DESC LIMIT 1
-  - [ ] 1.3 Return `breakdown_json` with envelope fields (`revenue_paise`, `cost_paise`, etc.)
-  - [ ] 1.4 Throw `NotFoundError` with code `SNAPSHOT_NOT_FOUND` if no row found
+- [x] Task 1: Ledger service (AC: 1, 2, 3, 6)
+  - [x] 1.1 Create `services/ledger.service.ts`
+  - [x] 1.2 `getProjectLedger(projectId, periodMonth, periodYear, user)` — query `calculation_snapshots` WHERE `entity_type = 'PROJECT'` AND `entity_id = :id` AND period matches, ORDER BY `calculated_at` DESC LIMIT 1
+  - [x] 1.3 Return `breakdown_json` with envelope fields (`revenue_paise`, `cost_paise`, etc.)
+  - [x] 1.4 Throw `AppError('SNAPSHOT_NOT_FOUND', ...)` with 404 if no row found (NotFoundError hardcodes code='NOT_FOUND')
 
-- [ ] Task 2: RBAC ownership check (AC: 5)
-  - [ ] 2.1 In `ledger.service.ts`, check `project.delivery_manager_id === user.id` for DM role
-  - [ ] 2.2 Finance + Admin bypass ownership check
-  - [ ] 2.3 Throw `ForbiddenError` for DM accessing non-owned project
+- [x] Task 2: RBAC ownership check (AC: 5)
+  - [x] 2.1 In `ledger.service.ts`, check `project.delivery_manager_id === user.id` for DM role
+  - [x] 2.2 Finance + Admin bypass ownership check
+  - [x] 2.3 Throw `ForbiddenError` for DM accessing non-owned project
 
-- [ ] Task 3: Ledger route (AC: 1, 5)
-  - [ ] 3.1 Create `routes/ledger.routes.ts` — mount at `/api/v1/reports`
-  - [ ] 3.2 `GET /projects/:id/ledger` — `rbacMiddleware(['finance', 'admin', 'delivery_manager'])`, `asyncHandler`
-  - [ ] 3.3 Parse `period` query param as YYYY-MM → `periodMonth`, `periodYear`
-  - [ ] 3.4 Register in `routes/index.ts`
+- [x] Task 3: Ledger route (AC: 1, 5)
+  - [x] 3.1 Create `routes/ledger.routes.ts` — mount at `/api/v1/reports`
+  - [x] 3.2 `GET /projects/:id/ledger` — `rbacMiddleware(['FINANCE', 'ADMIN', 'DELIVERY_MANAGER'])`, `asyncHandler`
+  - [x] 3.3 Parse `period` query param as YYYY-MM → `periodMonth`, `periodYear`
+  - [x] 3.4 Register in `routes/index.ts`
 
-- [ ] Task 4: Zod schema — ledger response (AC: 2, 6)
-  - [ ] 4.1 Add `ledgerResponseSchema` to `shared/schemas/dashboard.schema.ts` — model-aware discriminated shape
-  - [ ] 4.2 Validate: all monetary fields are integers (paise), `margin_percent` is decimal
-  - [ ] 4.3 Validate: `engagement_model` always present; `infra_cost_mode` present only for Infrastructure
-  - [ ] 4.4 Validate: `employees` array present for T&M/FC/AMC/Infra DETAILED; `vendor_cost_paise` + `manpower_cost_paise` for Infra SIMPLE (no employees)
+- [x] Task 4: Zod schema — ledger response (AC: 2, 6)
+  - [x] 4.1 Add `ledgerResponseSchema` to `shared/schemas/dashboard.schema.ts` — model-aware union shape (z.union, not discriminatedUnion — two INFRASTRUCTURE variants share discriminator)
+  - [x] 4.2 Validate: all monetary fields are integers (paise), `margin_percent` is decimal
+  - [x] 4.3 Validate: `engagement_model` always present; `infra_cost_mode` present only for Infrastructure
+  - [x] 4.4 Validate: `employees` array present for T&M/FC/AMC/Infra DETAILED; `vendor_cost_paise` + `manpower_cost_paise` for Infra SIMPLE (no employees)
 
-- [ ] Task 5: Tests (AC: 7)
-  - [ ] 5.1 Create `services/ledger.service.test.ts`
-  - [ ] 5.2 Test: Valid T&M project/period — returns breakdown with employees array
-  - [ ] 5.3 Test: Valid AMC project/period — returns breakdown with employees array (multi-employee)
-  - [ ] 5.4 Test: Valid Infra SIMPLE project — returns breakdown with vendor_cost_paise + manpower_cost_paise, no employees
-  - [ ] 5.5 Test: Valid Infra DETAILED project — returns breakdown with vendor_cost_paise + employees array
-  - [ ] 5.6 Test: No snapshot for period — 404 SNAPSHOT_NOT_FOUND
-  - [ ] 5.7 Test: DM accessing non-owned project — 403
-  - [ ] 5.8 Test: Finance accessing any project — 200
-  - [ ] 5.9 Test: All monetary values are integer paise (no decimals)
+- [x] Task 5: Tests (AC: 7)
+  - [x] 5.1 Create `services/ledger.service.test.ts`
+  - [x] 5.2 Test: Valid T&M project/period — returns breakdown with employees array
+  - [x] 5.3 Test: Valid AMC project/period — returns breakdown with employees array (multi-employee)
+  - [x] 5.4 Test: Valid Infra SIMPLE project — returns breakdown with vendor_cost_paise + manpower_cost_paise, no employees
+  - [x] 5.5 Test: Valid Infra DETAILED project — returns breakdown with vendor_cost_paise + employees array
+  - [x] 5.6 Test: No snapshot for period — 404 SNAPSHOT_NOT_FOUND
+  - [x] 5.7 Test: DM accessing non-owned project — 403
+  - [x] 5.8 Test: Finance accessing any project — 200
+  - [x] 5.9 Test: All monetary values are integer paise (no decimals)
+  - [x] 5.10 Test: Latest snapshot returned when multiple exist for same period (bonus coverage)
 
 ## Dev Notes
 
@@ -211,6 +212,29 @@ packages/shared/src/schemas/
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-opus-4-6
+
 ### Debug Log References
+- E2E baseline: 76/76 tests pass before implementation
+- Backend unit tests: 10/10 ledger tests pass; 403/404 total backend tests pass (1 pre-existing failure in employees.routes.test.ts — DELIVERY_MANAGER getting 200 instead of 403 on GET /employees; inherited from prior sprint)
+
 ### Completion Notes List
+- Used `AppError('SNAPSHOT_NOT_FOUND', ..., 404)` instead of `NotFoundError` because NotFoundError hardcodes `code='NOT_FOUND'` (readonly property) — story AC3 requires `SNAPSHOT_NOT_FOUND` code
+- Zod schema uses `z.union()` not `z.discriminatedUnion()` because Infra DETAILED and Infra SIMPLE share `engagement_model: 'INFRASTRUCTURE'` discriminator value
+- Employee mapping in breakdown_json: `name` → `employeeName`, `costPerHourPaise` → `cost_per_hour_paise`, `contributionPaise` → `contribution_paise` (camelCase storage → snake_case API response)
+- `CalculationSnapshot.valuePaise` is BigInt — converted to Number for margin calculation (`Number(snapshot.valuePaise) / 10000`)
+- RBAC: DM ownership check in service layer (not route), Finance/Admin bypass — consistent with project.service.ts pattern
+
 ### File List
+**New files:**
+- `packages/backend/src/services/ledger.service.ts` — Core service: getProjectLedger()
+- `packages/backend/src/services/ledger.service.test.ts` — 10 tests covering all ACs
+- `packages/backend/src/routes/ledger.routes.ts` — GET /projects/:id/ledger route
+- `packages/shared/src/schemas/dashboard.schema.ts` — Zod ledgerResponseSchema (3 union variants)
+
+**Modified files:**
+- `packages/backend/src/routes/index.ts` — Added ledger routes import and mount at /api/v1/reports
+- `packages/shared/src/schemas/index.ts` — Added ledgerResponseSchema + LedgerResponseData exports
+
+### Change Log
+- **2026-02-28:** Implemented Story 6-3 (Ledger Drawer API & Data Contract). Created ledger service, route, Zod schema, and comprehensive tests. All 5 tasks complete, 10/10 tests passing.

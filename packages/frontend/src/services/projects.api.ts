@@ -1,5 +1,5 @@
-import type { CreateProjectInput, UpdateProjectInput } from '@ipis/shared';
-import { get, patch, post } from './api';
+import type { CreateProjectInput, UpdateProjectInput, AddTeamMemberInput } from '@ipis/shared';
+import { get, patch, post, del } from './api';
 import type { DataResponse, ListResponse, SuccessResponse } from './types';
 
 export const projectKeys = {
@@ -73,6 +73,14 @@ export function rejectProject(id: string, rejectionComment: string): Promise<Suc
 
 export function getTeamMembers(projectId: string): Promise<ListResponse<TeamMember>> {
   return get<ListResponse<TeamMember>>(`/projects/${projectId}/team-members`);
+}
+
+export function addTeamMember(projectId: string, data: AddTeamMemberInput): Promise<DataResponse<TeamMember>> {
+  return post<DataResponse<TeamMember>>(`/projects/${projectId}/team-members`, data);
+}
+
+export function removeTeamMember(projectId: string, employeeId: string): Promise<SuccessResponse> {
+  return del<SuccessResponse>(`/projects/${projectId}/team-members/${employeeId}`);
 }
 
 export const engagementModelLabels: Record<string, string> = {

@@ -81,21 +81,21 @@ development_status:
   4-2-tm-profitability-calculator: done
   4-3-fixed-cost-profitability-calculator: done
   4-4-amc-and-infrastructure-calculators: done
-  4-5-snapshot-persistence-and-multi-level-profitability-surfacing: review
+  4-5-snapshot-persistence-and-multi-level-profitability-surfacing: done
   epic-4-retrospective: optional
 
   # Epic 5: Data Upload & Recalculation Pipeline
   epic-5: in-progress
-  5-1-timesheet-upload-and-atomic-validation-api: ready-for-dev
-  5-2-billing-revenue-upload-and-recalculation-trigger: ready-for-dev
-  5-3-upload-center-ui-and-progress-feedback: ready-for-dev
+  5-1-timesheet-upload-and-atomic-validation-api: review
+  5-2-billing-revenue-upload-and-recalculation-trigger: review
+  5-3-upload-center-ui-and-progress-feedback: review
   epic-5-retrospective: optional
 
   # Epic 6: Dashboards, Reporting & Calculation Traceability
   epic-6: in-progress
-  6-1-project-dashboard-and-kpi-tiles: ready-for-dev
+  6-1-project-dashboard-and-kpi-tiles: review
   6-2-executive-practice-department-and-company-wide-dashboards: ready-for-dev
-  6-3-ledger-drawer-api-and-data-contract: ready-for-dev
+  6-3-ledger-drawer-api-and-data-contract: review
   6-4-ledger-drawer-ui-component: ready-for-dev
   6-5-employee-dashboard: ready-for-dev
   epic-6-retrospective: optional

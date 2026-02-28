@@ -11,6 +11,11 @@ async function main() {
   console.log('Seeding E2E test database...');
 
   // Clean all existing data (order matters for foreign keys)
+  await prisma.calculationSnapshot.deleteMany();
+  await prisma.recalculationRun.deleteMany();
+  await prisma.billingRecord.deleteMany();
+  await prisma.timesheetEntry.deleteMany();
+  await prisma.uploadEvent.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.employeeProject.deleteMany();
   await prisma.passwordResetToken.deleteMany();
@@ -78,6 +83,18 @@ async function main() {
     },
   });
 
+  const dm2User = await prisma.user.create({
+    data: {
+      email: 'dm2@e2e.test',
+      passwordHash,
+      name: 'E2E Delivery Manager 2',
+      role: 'DELIVERY_MANAGER',
+      departmentId: engineering.id,
+      isActive: true,
+      mustChangePassword: false,
+    },
+  });
+
   await prisma.user.create({
     data: {
       email: 'depthead@e2e.test',
@@ -134,6 +151,42 @@ async function main() {
       designation: 'HR Coordinator',
       annualCtcPaise: BigInt(80000000),
       isBillable: false,
+    },
+  });
+
+  // Additional employees for cross-role chain tests (Story 4.0b)
+  await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP004',
+      name: 'Seeded Employee Four',
+      departmentId: engineering.id,
+      designation: 'QA Engineer',
+      annualCtcPaise: BigInt(90000000),
+      isBillable: true,
+    },
+  });
+
+  await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP005',
+      name: 'Seeded Employee Five',
+      departmentId: delivery.id,
+      designation: 'Project Manager',
+      annualCtcPaise: BigInt(110000000),
+      isBillable: true,
+    },
+  });
+
+  // Resigned employee for Chain 5 (Resigned Employee Guard)
+  await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP006',
+      name: 'Seeded Resigned Employee',
+      departmentId: engineering.id,
+      designation: 'Junior Developer',
+      annualCtcPaise: BigInt(60000000),
+      isBillable: true,
+      isResigned: true,
     },
   });
 
@@ -204,7 +257,7 @@ async function main() {
   });
 
   // ACTIVE Fixed Cost project for % completion tests (Story 3.4)
-  await prisma.project.create({
+  const activeFcProject = await prisma.project.create({
     data: {
       name: 'Seeded Active FC Project',
       client: 'Delta Corp',
@@ -260,6 +313,148 @@ async function main() {
       },
     });
   }
+
+  // Seed upload history for Upload Center tests (Story 5.3)
+  const hrSeedUser = await prisma.user.findFirst({ where: { email: 'hr@e2e.test' } });
+  const financeSeedUser = await prisma.user.findFirst({ where: { email: 'finance@e2e.test' } });
+
+  if (hrSeedUser) {
+    await prisma.uploadEvent.create({
+      data: {
+        type: 'SALARY',
+        status: 'SUCCESS',
+        uploadedBy: hrSeedUser.id,
+        periodMonth: 2,
+        periodYear: 2026,
+        rowCount: 10,
+      },
+    });
+
+    await prisma.uploadEvent.create({
+      data: {
+        type: 'SALARY',
+        status: 'PARTIAL',
+        uploadedBy: hrSeedUser.id,
+        periodMonth: 1,
+        periodYear: 2026,
+        rowCount: 8,
+        errorSummary: [{ row: 3, employeeCode: 'EMP999', error: 'Department not found' }],
+      },
+    });
+  }
+
+  if (financeSeedUser) {
+    await prisma.uploadEvent.create({
+      data: {
+        type: 'TIMESHEET',
+        status: 'SUCCESS',
+        uploadedBy: financeSeedUser.id,
+        periodMonth: 2,
+        periodYear: 2026,
+        rowCount: 50,
+      },
+    });
+  }
+
+  // DM2 project for dashboard scoping tests (Story 6.1)
+  const dm2Project = await prisma.project.create({
+    data: {
+      name: 'Seeded DM2 Project',
+      client: 'Omega Corp',
+      vertical: 'IT Services',
+      engagementModel: 'TIME_AND_MATERIALS',
+      status: 'ACTIVE',
+      deliveryManagerId: dm2User.id,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+    },
+  });
+
+  // Seed calculation snapshots for Project Dashboard tests (Story 6.1)
+  const dashUploadEvent = await prisma.uploadEvent.create({
+    data: {
+      type: 'BILLING',
+      status: 'SUCCESS',
+      uploadedBy: financeSeedUser!.id,
+      periodMonth: 2,
+      periodYear: 2026,
+      rowCount: 100,
+    },
+  });
+
+  const dashRun = await prisma.recalculationRun.create({
+    data: {
+      uploadEventId: dashUploadEvent.id,
+      projectsProcessed: 3,
+      completedAt: new Date(),
+    },
+  });
+
+  // activeTmProject: margin 30% (healthy), revenue 5M, cost 3.5M, profit 1.5M
+  await prisma.calculationSnapshot.create({
+    data: {
+      recalculationRunId: dashRun.id,
+      entityType: 'PROJECT',
+      entityId: activeTmProject.id,
+      figureType: 'MARGIN_PERCENT',
+      periodMonth: 2,
+      periodYear: 2026,
+      valuePaise: BigInt(3000),
+      breakdownJson: {
+        engagementModel: 'TIME_AND_MATERIALS',
+        revenue: 5000000,
+        cost: 3500000,
+        profit: 1500000,
+        employees: [],
+      },
+      engineVersion: '1.0.0',
+      calculatedAt: new Date(),
+    },
+  });
+
+  // activeFcProject: margin 15% (at-risk), revenue 8M, cost 6.8M, profit 1.2M
+  await prisma.calculationSnapshot.create({
+    data: {
+      recalculationRunId: dashRun.id,
+      entityType: 'PROJECT',
+      entityId: activeFcProject.id,
+      figureType: 'MARGIN_PERCENT',
+      periodMonth: 2,
+      periodYear: 2026,
+      valuePaise: BigInt(1500),
+      breakdownJson: {
+        engagementModel: 'FIXED_COST',
+        revenue: 8000000,
+        cost: 6800000,
+        profit: 1200000,
+        employees: [],
+      },
+      engineVersion: '1.0.0',
+      calculatedAt: new Date(),
+    },
+  });
+
+  // dm2Project: margin -5% (loss), revenue 2M, cost 2.1M, profit -100K
+  await prisma.calculationSnapshot.create({
+    data: {
+      recalculationRunId: dashRun.id,
+      entityType: 'PROJECT',
+      entityId: dm2Project.id,
+      figureType: 'MARGIN_PERCENT',
+      periodMonth: 2,
+      periodYear: 2026,
+      valuePaise: BigInt(-500),
+      breakdownJson: {
+        engagementModel: 'TIME_AND_MATERIALS',
+        revenue: 2000000,
+        cost: 2100000,
+        profit: -100000,
+        employees: [],
+      },
+      engineVersion: '1.0.0',
+      calculatedAt: new Date(),
+    },
+  });
 
   console.log('E2E seed complete');
 }

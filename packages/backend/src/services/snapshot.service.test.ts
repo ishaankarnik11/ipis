@@ -612,4 +612,73 @@ describe('snapshot.service', () => {
       expect(allRows).toHaveLength(9);
     });
   });
+
+  // Review fix: breakdown_json for Fixed Cost (AC 10)
+  describe('breakdown_json — Fixed Cost (AC 10)', () => {
+    it('should produce FC breakdown with employees array (same shape as T&M)', async () => {
+      const run = await createTestRun();
+      await persistSnapshots(
+        makeInput(run.id, [fixedCostProjectResult()]),
+      );
+
+      const marginRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'PROJECT',
+          figureType: 'MARGIN_PERCENT',
+        },
+      });
+
+      const breakdown = marginRow!.breakdownJson as Record<string, unknown>;
+      expect(breakdown.engagementModel).toBe('FIXED_COST');
+      expect(breakdown).not.toHaveProperty('infraCostMode');
+      expect(breakdown).toHaveProperty('revenue');
+      expect(breakdown).toHaveProperty('cost');
+      expect(breakdown).toHaveProperty('profit');
+      expect(Array.isArray(breakdown.employees)).toBe(true);
+      expect(
+        (breakdown.employees as Record<string, unknown>[]).length,
+      ).toBe(2);
+    });
+  });
+
+  // Review fix: empty projectResults
+  describe('empty projectResults', () => {
+    it('should not throw for empty input and write only COMPANY rows', async () => {
+      const run = await createTestRun();
+      await expect(
+        persistSnapshots(makeInput(run.id, [])),
+      ).resolves.toBeUndefined();
+
+      const allSnapshots = await prisma.calculationSnapshot.findMany({
+        where: { recalculationRunId: run.id },
+      });
+      // buildCompanyRows always produces 3 rows (zero-valued) even with no projects
+      expect(allSnapshots).toHaveLength(3);
+      expect(allSnapshots.every((s) => s.entityType === 'COMPANY')).toBe(true);
+      expect(allSnapshots.every((s) => Number(s.valuePaise) === 0)).toBe(true);
+    });
+  });
+
+  // Review fix: EMPLOYEE_COST breakdown includes availableHours
+  describe('EMPLOYEE_COST breakdown includes availableHours', () => {
+    it('should include availableHours in EMPLOYEE_COST breakdown', async () => {
+      const run = await createTestRun();
+      await persistSnapshots(makeInput(run.id, [tmProjectResult()]));
+
+      const empCostRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'EMPLOYEE',
+          figureType: 'EMPLOYEE_COST',
+        },
+      });
+
+      const breakdown = empCostRow!.breakdownJson as Record<string, unknown>;
+      expect(breakdown).toHaveProperty('totalHours');
+      expect(breakdown).toHaveProperty('billableHours');
+      expect(breakdown).toHaveProperty('availableHours');
+      expect(breakdown.availableHours).toBe(176);
+    });
+  });
 });

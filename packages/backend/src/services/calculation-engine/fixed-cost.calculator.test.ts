@@ -84,17 +84,17 @@ describe('calculateFixedCost', () => {
     });
   });
 
-  describe('null completion percent — treated as 0 (AC4)', () => {
-    it('should treat null completionPercent as 0 and isAtRisk as false', () => {
+  describe('null completion percent — unknown, isAtRisk defaults to false (AC4)', () => {
+    it('should treat null completionPercent as unknown and isAtRisk as false', () => {
       // Contract: ₹5,00,000 = 50_000_000 paise
       // 1 employee: 80 hours @ ₹531.25/hr = 4_250_000 paise
       // burn = 4_250_000 / 50_000_000 = 0.085
-      // completion = null → 0
+      // completion = null → unknown
       // isAtRisk = false (unknown completion → not flagged)
       const result = calculateFixedCost({
         contractValuePaise: 50_000_000,
         employeeCosts: [{ hours: 80, costPerHourPaise: 53_125 }],
-        completionPercent: null as unknown as number,
+        completionPercent: null,
       });
 
       expect(result.revenuePaise).toBe(50_000_000);
@@ -104,19 +104,26 @@ describe('calculateFixedCost', () => {
       expect(result.burnPercent).toBeCloseTo(0.085, 10);
       expect(result.isAtRisk).toBe(false);
     });
+  });
 
-    it('should treat undefined completionPercent as 0 and isAtRisk as false', () => {
+  describe('zero completion percent — 0% done with costs incurred (AC3)', () => {
+    it('should flag isAtRisk when burn > 0 and completion is explicitly 0', () => {
+      // Contract: ₹5,00,000 = 50_000_000 paise
+      // 1 employee: 80 hours @ ₹531.25/hr = 4_250_000 paise
+      // burn = 4_250_000 / 50_000_000 = 0.085
+      // completion = 0 (literally 0% — project just started)
+      // isAtRisk = 0.085 > 0 → true (burning budget with no progress)
       const result = calculateFixedCost({
         contractValuePaise: 50_000_000,
         employeeCosts: [{ hours: 80, costPerHourPaise: 53_125 }],
-        completionPercent: undefined as unknown as number,
+        completionPercent: 0,
       });
 
       expect(result.revenuePaise).toBe(50_000_000);
       expect(result.costPaise).toBe(4_250_000);
       expect(result.profitPaise).toBe(45_750_000);
       expect(result.burnPercent).toBeCloseTo(0.085, 10);
-      expect(result.isAtRisk).toBe(false);
+      expect(result.isAtRisk).toBe(true);
     });
   });
 

@@ -2,6 +2,7 @@
 
 - [ ] Story file loaded from `{{story_path}}`
 - [ ] Story Status verified as reviewable (review)
+- [ ] **Sprint Status Gate:** Verified that `_bmad-output/implementation-artifacts/sprint-status.yaml` shows this story as `review`. If sprint-status still shows `ready-for-dev` or `in-progress`, the review CANNOT proceed — update sprint-status first. This catches implementations done outside the dev-story workflow.
 - [ ] Epic and Story IDs resolved ({{epic_num}}.{{story_num}})
 - [ ] Story Context located or warning recorded
 - [ ] Epic Tech Spec located or warning recorded
@@ -17,6 +18,7 @@
 - [ ] Code quality review performed on changed files
 - [ ] Security review performed on changed files and dependencies
 - [ ] **HIGH Findings Gate:** All HIGH findings are FIXED (not "Noted"). No unresolved HIGHs permitted.
+- [ ] **Master Test Plan Audit:** All FRs touched by this story have corresponding rows in `docs/master-test-plan.md` with status PASS or TEST_WRITTEN. No DEVELOPED_UNTESTED gaps introduced. New scenarios added if gaps discovered during review.
 - [ ] Outcome decided (Approve/Changes Requested/Blocked)
 - [ ] Review notes appended under "Senior Developer Review (AI)"
 - [ ] Change Log updated with review entry

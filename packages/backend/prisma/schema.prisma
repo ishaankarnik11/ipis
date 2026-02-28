@@ -47,6 +47,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   managedProjects     Project[]
   auditEvents         AuditEvent[]
+  uploadEvents        UploadEvent[]
 
   @@map("users")
 }
@@ -91,6 +92,7 @@ model Employee {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   employeeProjects EmployeeProject[]
+  timesheetEntries TimesheetEntry[]
 
   @@map("employees")
 }
@@ -118,6 +120,8 @@ model Project {
   updatedAt          DateTime        @updatedAt @map("updated_at")
 
   employeeProjects EmployeeProject[]
+  timesheetEntries TimesheetEntry[]
+  billingRecords   BillingRecord[]
 
   @@map("projects")
 }
@@ -192,4 +196,75 @@ model CalculationSnapshot {
   @@index([entityType, entityId, periodMonth, periodYear], name: "snapshots_entity_period_idx")
   @@index([recalculationRunId], name: "snapshots_run_id_idx")
   @@map("calculation_snapshots")
+}
+
+enum UploadType {
+  TIMESHEET
+  BILLING
+  SALARY
+}
+
+enum UploadStatus {
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+model UploadEvent {
+  id                String       @id @default(uuid())
+  type              UploadType
+  status            UploadStatus
+  uploadedBy        String       @map("uploaded_by")
+  periodMonth       Int          @map("period_month")
+  periodYear        Int          @map("period_year")
+  rowCount          Int          @map("row_count")
+  replacedRowsCount Int?         @map("replaced_rows_count")
+  errorSummary      Json?        @map("error_summary")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  uploader          User         @relation(fields: [uploadedBy], references: [id])
+  timesheetEntries  TimesheetEntry[]
+  billingRecords    BillingRecord[]
+
+  @@map("upload_events")
+}
+
+model TimesheetEntry {
+  id            String   @id @default(uuid())
+  employeeId    String   @map("employee_id")
+  projectId     String   @map("project_id")
+  hours         Float
+  periodMonth   Int      @map("period_month")
+  periodYear    Int      @map("period_year")
+  uploadEventId String   @map("upload_event_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+  project       Project     @relation(fields: [projectId], references: [id])
+  uploadEvent   UploadEvent @relation(fields: [uploadEventId], references: [id])
+
+  @@index([periodMonth, periodYear], name: "timesheets_period_idx")
+  @@index([projectId], name: "timesheets_project_id_idx")
+  @@map("timesheet_entries")
+}
+
+model BillingRecord {
+  id                 String   @id @default(uuid())
+  projectId          String   @map("project_id")
+  clientName         String   @map("client_name")
+  invoiceAmountPaise BigInt   @map("invoice_amount_paise")
+  invoiceDate        DateTime @map("invoice_date")
+  projectType        String   @map("project_type")
+  vertical           String
+  periodMonth        Int      @map("period_month")
+  periodYear         Int      @map("period_year")
+  uploadEventId      String   @map("upload_event_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  project     Project     @relation(fields: [projectId], references: [id])
+  uploadEvent UploadEvent @relation(fields: [uploadEventId], references: [id])
+
+  @@index([periodMonth, periodYear], name: "billing_records_period_idx")
+  @@index([projectId], name: "billing_records_project_id_idx")
+  @@map("billing_records")
 }

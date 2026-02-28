@@ -30,3 +30,16 @@ export function generateSampleTemplate(): Buffer {
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Employees');
   return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
 }
+
+/**
+ * Generate an XLSX error report from failed upload rows.
+ * Used by salary upload to provide downloadable error reports.
+ */
+export function generateErrorReport(
+  failedRows: Array<{ row: number; employeeCode: string; error: string }>,
+): Buffer {
+  const ws = XLSX.utils.json_to_sheet(failedRows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Errors');
+  return Buffer.from(XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+}

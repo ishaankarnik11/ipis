@@ -2,10 +2,12 @@ import { Card, Descriptions, Button, Upload, message, Typography } from 'antd';
 import { DownloadOutlined, UploadOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
 import type { BulkUploadResult } from '../services/uploads.api';
+import { downloadErrorReport } from '../services/uploads.api';
 
 interface Props {
   filename: string;
   result: BulkUploadResult;
+  uploadEventId?: string;
   onReUpload: (file: File) => void;
 }
 
@@ -34,7 +36,7 @@ function getErrorSummary(failedRows: BulkUploadResult['failedRows']): string {
     .join(', ');
 }
 
-export default function UploadConfirmationCard({ filename, result, onReUpload }: Props) {
+export default function UploadConfirmationCard({ filename, result, uploadEventId, onReUpload }: Props) {
   const total = result.imported + result.failed;
   const hasFailures = result.failed > 0;
 
@@ -74,9 +76,13 @@ export default function UploadConfirmationCard({ filename, result, onReUpload }:
         {hasFailures && (
           <Button
             icon={<DownloadOutlined />}
-            onClick={() => downloadFailedRows(result.failedRows)}
+            onClick={() =>
+              uploadEventId
+                ? downloadErrorReport(uploadEventId)
+                : downloadFailedRows(result.failedRows)
+            }
           >
-            Download Failed Rows
+            Download Error Report
           </Button>
         )}
         <Upload accept=".xlsx" beforeUpload={beforeUpload} showUploadList={false}>

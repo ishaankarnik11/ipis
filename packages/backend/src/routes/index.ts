@@ -6,6 +6,9 @@ import departmentsRoutes from './departments.routes.js';
 import employeesRoutes from './employees.routes.js';
 import projectsRoutes from './projects.routes.js';
 import auditRoutes from './audit.routes.js';
+import uploadsRoutes from './uploads.routes.js';
+import ledgerRoutes from './ledger.routes.js';
+import dashboardRoutes from './dashboards.routes.js';
 
 const router: RouterType = Router();
 
@@ -34,5 +37,14 @@ router.use('/api/v1/projects', projectsRoutes);
 
 // Audit log routes (Admin only)
 router.use('/api/v1/audit-log', auditRoutes);
+
+// Upload routes (Finance, Admin)
+router.use('/api/v1/uploads', uploadsRoutes);
+
+// Reports/Ledger routes (Finance, Admin, DM)
+router.use('/api/v1/reports', ledgerRoutes);
+
+// Dashboard routes (Finance, Admin, DM, Dept Head)
+router.use('/api/v1/reports', dashboardRoutes);
 
 export default router;

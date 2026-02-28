@@ -47,6 +47,7 @@ validation-rules:
 - [ ] **Regression Prevention (ABSOLUTE):** ALL existing tests pass — unit, integration, AND full E2E suite. Zero failures required. Story CANNOT move to review with ANY test failure. No inherited reds, no deferrals, no exceptions.
 - [ ] **Code Quality:** Linting and static checks pass when configured in project
 - [ ] **Test Framework Compliance:** Tests use project's testing frameworks and patterns from Dev Notes
+- [ ] **Master Test Plan Updated:** All test scenarios for this story's FRs have been updated in `docs/master-test-plan.md` with current status (TEST_WRITTEN or PASS). New scenarios added if coverage gaps found during implementation.
 
 ## 📝 Documentation & Tracking
 

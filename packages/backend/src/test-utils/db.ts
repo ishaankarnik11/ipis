@@ -13,6 +13,9 @@ export async function cleanDb() {
     TRUNCATE TABLE
       calculation_snapshots,
       recalculation_runs,
+      billing_records,
+      timesheet_entries,
+      upload_events,
       employee_projects,
       employees,
       password_reset_tokens,

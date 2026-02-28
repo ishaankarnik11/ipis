@@ -16,6 +16,7 @@ import UploadCenter from '../pages/upload/UploadCenter';
 import CreateEditProject from '../pages/projects/CreateEditProject';
 import ProjectList from '../pages/projects/ProjectList';
 import ProjectDetail from '../pages/projects/ProjectDetail';
+import ProjectDashboard from '../pages/dashboards/ProjectDashboard';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 function PlaceholderPage({ title }: { title: string }) {
@@ -82,9 +83,9 @@ export const router = createBrowserRouter([
             ],
           },
 
-          // Upload Center (HR only)
+          // Upload Center (HR, Finance, Admin)
           {
-            element: <RoleGuard allowedRoles={['HR']} />,
+            element: <RoleGuard allowedRoles={['HR', 'FINANCE', 'ADMIN']} />,
             children: [
               { path: '/uploads', element: <UploadCenter /> },
             ],
@@ -102,6 +103,12 @@ export const router = createBrowserRouter([
             children: [
               { path: '/projects', element: <ProjectList /> },
               { path: '/projects/:id', element: <ProjectDetail /> },
+            ],
+          },
+          {
+            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DELIVERY_MANAGER', 'DEPT_HEAD']} />,
+            children: [
+              { path: '/dashboards/projects', element: <ProjectDashboard /> },
             ],
           },
           { path: '/dashboards/executive', element: <PlaceholderPage title="Executive Dashboard" /> },

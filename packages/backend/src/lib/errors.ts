@@ -38,6 +38,13 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class UploadRejectedError extends AppError {
+  constructor(message: string, details?: Array<{ field?: string; message: string }>) {
+    super('UPLOAD_REJECTED', message, 422, details);
+    this.name = 'UploadRejectedError';
+  }
+}
+
 export class ConflictError extends AppError {
   constructor(message: string) {
     super('CONFLICT', message, 409);

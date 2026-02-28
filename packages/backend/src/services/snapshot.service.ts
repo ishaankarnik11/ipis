@@ -45,18 +45,57 @@ export interface PersistSnapshotsInput {
 // Internal types
 // ---------------------------------------------------------------------------
 
-/**
- * Breakdown JSON shapes by entity/figure:
- *
- * PROJECT + MARGIN_PERCENT (model-aware):
- *   T&M/FC/AMC:         { engagementModel, revenue, cost, profit, employees: [{...}] }
- *   Infra DETAILED:      { engagementModel, infraCostMode:'DETAILED', revenue, cost, profit, vendorCostPaise, employees: [{...}] }
- *   Infra SIMPLE:        { engagementModel, infraCostMode:'SIMPLE', revenue, cost, profit, vendorCostPaise, manpowerCostPaise }
- *
- * EMPLOYEE + EMPLOYEE_COST: { totalHours, billableHours }
- * All others:               {}
- */
-type BreakdownJson = Record<string, unknown>;
+interface BreakdownEmployee {
+  employeeId: string;
+  name: string;
+  designation: string;
+  hours: number;
+  costPerHourPaise: number;
+  contributionPaise: number;
+}
+
+interface TmFcAmcBreakdown {
+  engagementModel: 'TIME_AND_MATERIALS' | 'FIXED_COST' | 'AMC';
+  revenue: number;
+  cost: number;
+  profit: number;
+  employees: BreakdownEmployee[];
+}
+
+interface InfraDetailedBreakdown {
+  engagementModel: 'INFRASTRUCTURE';
+  infraCostMode: 'DETAILED';
+  revenue: number;
+  cost: number;
+  profit: number;
+  vendorCostPaise: number;
+  employees: BreakdownEmployee[];
+}
+
+interface InfraSimpleBreakdown {
+  engagementModel: 'INFRASTRUCTURE';
+  infraCostMode: 'SIMPLE';
+  revenue: number;
+  cost: number;
+  profit: number;
+  vendorCostPaise: number;
+  manpowerCostPaise: number;
+}
+
+interface EmployeeCostBreakdown {
+  totalHours: number;
+  billableHours: number;
+  availableHours: number;
+}
+
+type EmptyBreakdown = Record<string, never>;
+
+type BreakdownJson =
+  | TmFcAmcBreakdown
+  | InfraDetailedBreakdown
+  | InfraSimpleBreakdown
+  | EmployeeCostBreakdown
+  | EmptyBreakdown;
 
 interface SnapshotRow {
   recalculationRunId: string;
@@ -76,12 +115,8 @@ interface SnapshotRow {
 // ---------------------------------------------------------------------------
 
 function buildProjectBreakdownJson(pr: ProjectResult): BreakdownJson {
-  const isInfraSimple =
-    pr.engagementModel === 'INFRASTRUCTURE' && pr.infraCostMode === 'SIMPLE';
-  const isInfraDetailed =
-    pr.engagementModel === 'INFRASTRUCTURE' && pr.infraCostMode === 'DETAILED';
-
-  if (isInfraSimple) {
+  // Inline conditions for TypeScript narrowing of engagementModel
+  if (pr.engagementModel === 'INFRASTRUCTURE' && pr.infraCostMode === 'SIMPLE') {
     return {
       engagementModel: pr.engagementModel,
       infraCostMode: 'SIMPLE',
@@ -93,7 +128,7 @@ function buildProjectBreakdownJson(pr: ProjectResult): BreakdownJson {
     };
   }
 
-  const employees = pr.employees.map((emp) => ({
+  const employees: BreakdownEmployee[] = pr.employees.map((emp) => ({
     employeeId: emp.employeeId,
     name: emp.name,
     designation: emp.designation,
@@ -102,7 +137,7 @@ function buildProjectBreakdownJson(pr: ProjectResult): BreakdownJson {
     contributionPaise: emp.contributionPaise,
   }));
 
-  if (isInfraDetailed) {
+  if (pr.engagementModel === 'INFRASTRUCTURE' && pr.infraCostMode === 'DETAILED') {
     return {
       engagementModel: pr.engagementModel,
       infraCostMode: 'DETAILED',
@@ -116,7 +151,7 @@ function buildProjectBreakdownJson(pr: ProjectResult): BreakdownJson {
 
   // T&M, Fixed Cost, AMC
   return {
-    engagementModel: pr.engagementModel,
+    engagementModel: pr.engagementModel as TmFcAmcBreakdown['engagementModel'],
     revenue: pr.revenuePaise,
     cost: pr.costPaise,
     profit: pr.profitPaise,
@@ -186,6 +221,8 @@ function buildPracticeRows(input: PersistSnapshotsInput, now: Date): SnapshotRow
         revenuePaise: 0,
       };
       existing.costPaise += emp.contributionPaise;
+      // Proportional revenue allocation — Math.round may cause the sum of all
+      // practice-level revenues to differ from the company total by a few paise.
       const revenueShare =
         pr.costPaise > 0
           ? Math.round((emp.contributionPaise / pr.costPaise) * pr.revenuePaise)
@@ -251,6 +288,7 @@ function buildDepartmentRows(input: PersistSnapshotsInput, now: Date): SnapshotR
           revenuePaise: 0,
         };
         existing.costPaise += emp.contributionPaise;
+        // Proportional revenue allocation — same rounding tolerance as practice level.
         const revenueShare =
           pr.costPaise > 0
             ? Math.round((emp.contributionPaise / pr.costPaise) * pr.revenuePaise)
@@ -417,6 +455,7 @@ function buildEmployeeRows(input: PersistSnapshotsInput, now: Date): SnapshotRow
       breakdownJson: {
         totalHours: agg.totalHours,
         billableHours: agg.billableHours,
+        availableHours: agg.availableHours,
       },
     });
     rows.push({
@@ -491,7 +530,9 @@ export async function persistSnapshots(input: PersistSnapshotsInput): Promise<vo
           periodMonth: row.periodMonth,
           periodYear: row.periodYear,
           valuePaise: row.valuePaise,
-          breakdownJson: row.breakdownJson as object, // Prisma InputJsonValue requires explicit cast from Record<string, unknown>
+          // Prisma's InputJsonValue requires `object` — the BreakdownJson union is
+          // structurally compatible but TypeScript can't prove it without a cast.
+          breakdownJson: row.breakdownJson as object,
           engineVersion: row.engineVersion,
           calculatedAt: row.calculatedAt,
         })),

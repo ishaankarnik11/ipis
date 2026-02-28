@@ -3,7 +3,7 @@ export const E2E_DB_URL = 'postgresql://ipis:ipis_dev@localhost:5432/ipis_test_e
 export const DEFAULT_PASSWORD = 'Test1234!';
 export const TEMP_PASSWORD = 'Temp1234!';
 
-export type Role = 'ADMIN' | 'HR' | 'FINANCE' | 'DELIVERY_MANAGER' | 'DEPT_HEAD';
+export type Role = 'ADMIN' | 'HR' | 'FINANCE' | 'DELIVERY_MANAGER' | 'DEPT_HEAD' | 'DM2';
 
 export const credentials: Record<Role, { email: string; password: string }> = {
   ADMIN: { email: 'admin@e2e.test', password: DEFAULT_PASSWORD },
@@ -11,15 +11,17 @@ export const credentials: Record<Role, { email: string; password: string }> = {
   FINANCE: { email: 'finance@e2e.test', password: DEFAULT_PASSWORD },
   DELIVERY_MANAGER: { email: 'dm@e2e.test', password: DEFAULT_PASSWORD },
   DEPT_HEAD: { email: 'depthead@e2e.test', password: DEFAULT_PASSWORD },
+  DM2: { email: 'dm2@e2e.test', password: DEFAULT_PASSWORD },
 };
 
 /** Expected sidebar labels per role */
 export const roleSidebarItems: Record<Role, string[]> = {
-  ADMIN: ['User Management', 'Pending Approvals', 'System Config', 'Employees', 'Projects', 'Executive Dashboard', 'Department Dashboard'],
+  ADMIN: ['User Management', 'Pending Approvals', 'System Config', 'Employees', 'Upload Center', 'Projects', 'Project Dashboard', 'Executive Dashboard', 'Department Dashboard'],
   HR: ['Employees', 'Upload Center'],
-  FINANCE: ['Employees', 'Projects', 'Executive Dashboard', 'Department Dashboard'],
-  DELIVERY_MANAGER: ['Projects', 'Department Dashboard'],
-  DEPT_HEAD: ['Projects', 'Department Dashboard'],
+  FINANCE: ['Employees', 'Upload Center', 'Projects', 'Project Dashboard', 'Executive Dashboard', 'Department Dashboard'],
+  DELIVERY_MANAGER: ['Projects', 'Project Dashboard', 'Department Dashboard'],
+  DEPT_HEAD: ['Projects', 'Project Dashboard', 'Department Dashboard'],
+  DM2: ['Projects', 'Project Dashboard', 'Department Dashboard'],
 };
 
 /** Expected landing page per role */
@@ -29,4 +31,5 @@ export const roleLandingPage: Record<Role, string> = {
   FINANCE: '/dashboards/executive',
   DELIVERY_MANAGER: '/projects',
   DEPT_HEAD: '/dashboards/department',
+  DM2: '/projects',
 };

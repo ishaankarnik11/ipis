@@ -1,34 +1,71 @@
-import { Table, Empty } from 'antd';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Table, Tag, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { uploadKeys, getUploadHistory } from '../services/uploads.api';
+import type { UploadHistoryEntry } from '../services/uploads.api';
 
-export interface UploadHistoryEntry {
-  id: string;
-  fileType: string;
-  uploadDate: string;
-  uploadedBy: string;
-  recordsImported: number;
-}
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-interface Props {
-  recentUploads?: UploadHistoryEntry[];
-}
+const STATUS_COLORS: Record<string, string> = {
+  SUCCESS: 'green',
+  PARTIAL: 'orange',
+  FAILED: 'red',
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  TIMESHEET: 'Timesheet',
+  BILLING: 'Billing',
+  SALARY: 'Salary',
+};
 
 const columns: ColumnsType<UploadHistoryEntry> = [
-  { title: 'File Type', dataIndex: 'fileType', key: 'fileType' },
-  { title: 'Upload Date', dataIndex: 'uploadDate', key: 'uploadDate' },
-  { title: 'Uploaded By', dataIndex: 'uploadedBy', key: 'uploadedBy' },
   {
-    title: 'Records Imported',
-    dataIndex: 'recordsImported',
-    key: 'recordsImported',
+    title: 'Type',
+    dataIndex: 'type',
+    key: 'type',
+    render: (type: string) => TYPE_LABELS[type] ?? type,
+  },
+  {
+    title: 'Period',
+    key: 'period',
+    render: (_: unknown, record: UploadHistoryEntry) =>
+      `${MONTH_NAMES[record.periodMonth - 1]} ${record.periodYear}`,
+  },
+  {
+    title: 'Rows Imported',
+    dataIndex: 'rowCount',
+    key: 'rowCount',
     align: 'right',
+  },
+  {
+    title: 'Status',
+    dataIndex: 'status',
+    key: 'status',
+    render: (status: string) => (
+      <Tag color={STATUS_COLORS[status] ?? 'default'}>{status}</Tag>
+    ),
+  },
+  {
+    title: 'Uploaded By',
+    dataIndex: 'uploaderName',
+    key: 'uploaderName',
+  },
+  {
+    title: 'Uploaded At',
+    dataIndex: 'createdAt',
+    key: 'createdAt',
+    render: (date: string) => new Date(date).toLocaleString(),
   },
 ];
 
-export default function UploadHistoryLog({ recentUploads = [] }: Props) {
-  // Upload history API will be built in Epic 5 (Story 5.1).
-  // For now, show recent session uploads; full history comes from the API later.
-  const data: UploadHistoryEntry[] = recentUploads;
+export default function UploadHistoryLog() {
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading } = useQuery({
+    queryKey: [...uploadKeys.history, page],
+    queryFn: () => getUploadHistory(page, 20),
+  });
 
   return (
     <div>
@@ -36,10 +73,17 @@ export default function UploadHistoryLog({ recentUploads = [] }: Props) {
       <Table<UploadHistoryEntry>
         size="small"
         columns={columns}
-        dataSource={data}
+        dataSource={data?.data ?? []}
         rowKey="id"
+        loading={isLoading}
         locale={{ emptyText: <Empty description="No upload history yet" /> }}
-        pagination={false}
+        pagination={{
+          current: page,
+          pageSize: 20,
+          total: data?.meta?.total ?? 0,
+          onChange: (p) => setPage(p),
+          showSizeChanger: false,
+        }}
       />
     </div>
   );

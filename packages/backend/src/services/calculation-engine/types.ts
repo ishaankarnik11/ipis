@@ -30,7 +30,7 @@ export interface TmResult {
 export interface FixedCostInput {
   contractValuePaise: number;
   employeeCosts: EmployeeCostEntry[];
-  completionPercent: number;
+  completionPercent: number | null;
 }
 
 export interface FixedCostResult {

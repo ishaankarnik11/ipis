@@ -37,13 +37,13 @@ test.describe('Bulk Upload (HR)', () => {
     await expect(failedRow).toBeVisible();
 
     // Download Failed Rows button should be visible
-    await expect(card.getByRole('button', { name: 'Download Failed Rows' })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Download Error Report' })).toBeVisible();
   });
 
   test('downloads sample template', async ({ page }) => {
     // Listen for the download event
     const downloadPromise = page.waitForEvent('download');
-    await page.getByText('Download Sample Template').click();
+    await page.getByText('Download Template').click();
     const download = await downloadPromise;
 
     // Verify the download started (file should have xlsx-like name)

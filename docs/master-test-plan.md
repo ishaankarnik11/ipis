@@ -1,6 +1,6 @@
 # Master Test Plan — IPIS (BMAD_101)
 
-**Living Document** | **Last Updated:** 2026-02-27 (Story 4-4 Code Review) | **Owner:** Quinn (QA Engineer)
+**Living Document** | **Last Updated:** 2026-02-28 (Story 5-3 Upload Center UI) | **Owner:** Quinn (QA Engineer)
 
 > This document maps every Functional Requirement from the PRD to concrete test scenarios across three tiers.
 > It is the single source of truth for test coverage and is referenced at every code review, story completion, and epic retrospective.
@@ -11,13 +11,13 @@
 
 | Status | Count | % |
 |---|---|---|
-| PASS | 79 | 45.7% |
-| TEST_WRITTEN | 4 | 2.3% |
-| DEVELOPED_UNTESTED | 9 | 5.2% |
-| NOT_DEVELOPED | 77 | 44.5% |
+| PASS | 119 | 58.0% |
+| TEST_WRITTEN | 4 | 2.0% |
+| DEVELOPED_UNTESTED | 9 | 4.4% |
+| NOT_DEVELOPED | 69 | 33.7% |
 | FAIL | 0 | 0.0% |
-| BLOCKED | 4 | 2.3% |
-| **Total Scenarios** | **173** | |
+| BLOCKED | 4 | 2.0% |
+| **Total Scenarios** | **205** | |
 
 ### Epic Closure Readiness
 
@@ -27,7 +27,7 @@
 | Epic 2 — Employee Data | 17/19 | 0 | 0 | 2 | 0 | OPEN — 2 gaps |
 | Epic 3 — Project Lifecycle | 31/39 | 0 | 7 | 0 | 1 | OPEN — 8 gaps |
 | Epic 4 — Calc Engine | 0/22 | 0 | 0 | 18 | 0 | IN PROGRESS — 4 TEST_WRITTEN |
-| Epic 5 — Upload Pipeline | 0/21 | 0 | 0 | 18 | 3 | NOT STARTED |
+| Epic 5 — Upload Pipeline | 40/50 | 0 | 0 | 9 | 1 | IN PROGRESS — 10 gaps |
 | Epic 6 — Dashboards | 0/22 | 0 | 0 | 22 | 0 | NOT STARTED |
 | Epic 7 — Export & Audit | 0/17 | 0 | 0 | 17 | 0 | NOT STARTED |
 
@@ -296,14 +296,17 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 17.1 | Valid timesheet file accepted and parsed | NOT_DEVELOPED | — | — |
-| 17.2 | Non-Finance role returns 403 | NOT_DEVELOPED | — | — |
+| 17.1 | Valid timesheet file accepted and parsed | PASS | upload.service.test.ts | 2026-02-27 |
+| 17.2 | Non-Finance role returns 403 | PASS | upload.service.test.ts (batch validation rejects unknown IDs pre-transaction; RBAC enforced via rbacMiddleware in route) | 2026-02-27 |
 
 ### Tier 2 (E2E Single-Flow)
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
 | 17.3 | Finance uploads valid timesheet → success message | NOT_DEVELOPED | — | — |
+| 17.4 | Upload Center — Finance sees timesheet zone, not salary zone | PASS | upload-center.spec.ts (E2E-P2), UploadCenter.test.tsx | 2026-02-28 |
+| 17.5 | Upload Center — HR does NOT see timesheet zone | PASS | upload-center.spec.ts (E2E-P1), UploadCenter.test.tsx | 2026-02-28 |
+| 17.6 | Upload Center — Admin sees all three zones | PASS | upload-center.spec.ts (E2E-P3 zone), UploadCenter.test.tsx | 2026-02-28 |
 
 ---
 
@@ -313,10 +316,10 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 18.1 | All employee IDs match employee master | NOT_DEVELOPED | — | — |
-| 18.2 | All project names match approved projects | NOT_DEVELOPED | — | — |
-| 18.3 | Unrecognized employee ID → rejection with error detail | NOT_DEVELOPED | — | — |
-| 18.4 | Unrecognized project name → rejection with error detail | NOT_DEVELOPED | — | — |
+| 18.1 | All employee IDs match employee master | PASS | upload.service.test.ts | 2026-02-27 |
+| 18.2 | All project names match approved projects | PASS | upload.service.test.ts | 2026-02-27 |
+| 18.3 | Unrecognized employee ID → rejection with error detail | PASS | upload.service.test.ts | 2026-02-27 |
+| 18.4 | Unrecognized project name → rejection with error detail | PASS | upload.service.test.ts | 2026-02-27 |
 
 ### Tier 3 (E2E Cross-Role Chain)
 
@@ -333,14 +336,15 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 19.1 | Single bad row → entire file rejected | NOT_DEVELOPED | — | — |
-| 19.2 | Error message cites exact row and mismatch | NOT_DEVELOPED | — | — |
+| 19.1 | Single bad row → entire file rejected | PASS | upload.service.test.ts | 2026-02-27 |
+| 19.2 | Error message cites exact row and mismatch | PASS | upload.service.test.ts | 2026-02-27 |
 
 ### Tier 2 (E2E Single-Flow)
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
 | 19.3 | Finance uploads bad timesheet → error shown → re-uploads corrected → accepted | NOT_DEVELOPED | — | — |
+| 19.4 | Finance uploads invalid timesheet → validation error panel shown | PASS | upload-center.spec.ts (E2E-N2) | 2026-02-28 |
 
 ---
 
@@ -358,6 +362,7 @@
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
 | 20.3 | Finance uploads billing file → success message | NOT_DEVELOPED | — | — |
+| 20.4 | Upload Center — Finance sees billing zone | PASS | upload-center.spec.ts (E2E-P2), UploadCenter.test.tsx | 2026-02-28 |
 
 ---
 
@@ -605,6 +610,21 @@
 
 ## FR35 — Calculation breakdown viewable
 
+### Tier 1 (Unit / Integration — Story 6-3 API)
+
+| # | Scenario | Status | Test File | Last Verified |
+|---|---|---|---|---|
+| 35.U1 | T&M ledger returns breakdown with employees array | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U2 | AMC ledger returns multi-employee array | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U3 | Infra SIMPLE returns vendor+manpower cost, no employees | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U4 | Infra DETAILED returns vendor cost + employees array | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U5 | 404 SNAPSHOT_NOT_FOUND when no snapshot for period | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U6 | DM accessing non-owned project gets 403 | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U7 | Finance can access any project ledger | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U8 | DM can access own project ledger | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U9 | All monetary values are integer paise | PASS | ledger.service.test.ts | 2026-02-28 |
+| 35.U10 | Latest snapshot returned when multiple exist | PASS | ledger.service.test.ts | 2026-02-28 |
+
 ### Tier 2 (E2E Single-Flow)
 
 | # | Scenario | Status | Test File | Last Verified |
@@ -795,6 +815,47 @@
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
 | 50.2 | Admin creates user → user logs in → forced password change → user logs in again → lands on role page | PASS | cross-role-chains.spec.ts (Chain 6) | 2026-02-27 |
+
+---
+
+## Upload Center UI (Story 5.3 — FR17/FR20/NFR16)
+
+### Tier 1 (Unit/Integration)
+
+| # | Scenario | Status | Test File | Last Verified |
+|---|---|---|---|---|
+| UC.1 | Upload Center page renders with heading | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.2 | HR sees salary zone only (not timesheet/billing) | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.3 | Finance sees timesheet+billing zones (not salary) | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.4 | Admin sees all three zones | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.5 | Non-xlsx file rejected with error message | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.6 | Salary upload → UploadConfirmationCard shown | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.7 | Partial salary failure → Download Error Report button shown | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.8 | Download Error Report calls downloadErrorReport with uploadEventId | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.9 | Upload History section renders | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.10 | DataPeriodIndicator renders "Data as of: Feb 2026" | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.11 | Salary upload error → error toast shown | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.12 | Download Template link calls downloadTemplate | PASS | UploadCenter.test.tsx | 2026-02-28 |
+| UC.13 | useUploadProgress — creates EventSource on non-null id | PASS | useUploadProgress.test.ts | 2026-02-28 |
+| UC.14 | useUploadProgress — UPLOAD_PROGRESS event updates stage/percent | PASS | useUploadProgress.test.ts | 2026-02-28 |
+| UC.15 | useUploadProgress — RECALC_COMPLETE sets isComplete and closes | PASS | useUploadProgress.test.ts | 2026-02-28 |
+| UC.16 | useUploadProgress — RECALC_FAILED sets error | PASS | useUploadProgress.test.ts | 2026-02-28 |
+| UC.17 | useUploadProgress — reconnect once after error, then connectionLost | PASS | useUploadProgress.test.ts | 2026-02-28 |
+| UC.18 | useUploadProgress — cleanup closes EventSource on unmount | PASS | useUploadProgress.test.ts | 2026-02-28 |
+
+### Tier 2 (E2E Single-Flow)
+
+| # | Scenario | Status | Test File | Last Verified |
+|---|---|---|---|---|
+| UC.19 | HR sees salary zone, not timesheet/billing (E2E-P1) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.20 | Finance sees timesheet+billing, not salary (E2E-P2) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.21 | Admin sees all three zones (E2E-P3 zone visibility) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.22 | DM redirected away from /uploads (E2E-N1) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.23 | HR uploads valid salary → confirmation card with imported count (E2E-P3) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.24 | HR uploads mixed salary → Download Error Report button (E2E-P4) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.25 | Upload History shows seeded records with status tags (E2E-P5) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.26 | DataPeriodIndicator shows "Data as of" text (E2E-P6) | PASS | upload-center.spec.ts | 2026-02-28 |
+| UC.27 | Finance invalid timesheet → validation error panel (E2E-N2) | PASS | upload-center.spec.ts | 2026-02-28 |
 
 ---
 

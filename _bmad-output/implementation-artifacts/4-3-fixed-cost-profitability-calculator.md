@@ -1,6 +1,6 @@
 # Story 4.3: Fixed Cost Profitability Calculator
 
-Status: review
+Status: done
 
 ## Story
 
@@ -110,5 +110,39 @@ No debug issues encountered. Clean TDD cycle: RED → GREEN → REFACTOR.
 - packages/backend/src/services/calculation-engine/types.ts (MODIFIED — added FixedCostInput, FixedCostResult)
 - packages/backend/src/services/calculation-engine/index.ts (MODIFIED — added calculateFixedCost export + types)
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.6 (adversarial code review)
+**Date:** 2026-02-27
+
+### Findings
+
+| # | Severity | Issue | Resolution |
+|---|---|---|---|
+| H1 | HIGH | `FixedCostInput.completionPercent` typed as `number` (non-nullable) — contradicts AC4 which requires null handling. Tests used `as unknown as number` casts to bypass TypeScript. | FIXED — changed type to `number \| null`; removed type casts from tests. |
+| H2 | HIGH | `isAtRisk` logic conflated "unknown completion" (null) with "0% completion" (literal 0). A project at 0% done with 40% budget burned was NOT flagged as at-risk. AC3 says `burn > completion` = at-risk; AC4 says default false only when completion is *unknown*. | FIXED — `isAtRisk = completionPercent == null ? false : burnPercent > completionPercent` |
+| H3 | HIGH | No test for `completionPercent = 0` with positive burn — the H2 bug was undetectable. | FIXED — added test: explicit 0% completion with costs expects `isAtRisk = true`. |
+| M1 | MEDIUM | Master test plan (`docs/master-test-plan.md`) referenced wrong file name `fc.calculator.test.ts` and had stale DEVELOPED_UNTESTED status for FR31. | FIXED — corrected to `fixed-cost.calculator.test.ts`, status → PASS. |
+| M2 | MEDIUM | Missing JSDoc comment (TM calculator has one, this one didn't). | FIXED — added JSDoc block. |
+| L1 | LOW | Missing inline comment on division-by-zero guard. | FIXED — added comment. |
+
+### AC Verification (Post-Fix)
+
+| AC | Status |
+|---|---|
+| AC1 | PASS — function signature and return shape match spec |
+| AC2 | PASS — fixture values match manual Excel calculations |
+| AC3 | PASS — `burnPercent = cost / contract`; `isAtRisk = burn > completion` (including literal 0) |
+| AC4 | PASS — `null` completionPercent → `isAtRisk = false`; type now allows null |
+| AC5 | PASS — 7 tests: on-track, at-risk, completed, null completion, zero completion, output shape, empty array |
+
+### Test Results (Post-Fix)
+- All 7 fixed-cost calculator tests pass
+- All 45 calculation engine tests pass (5 test files, 0 failures)
+
+### Data Contract Audit
+Not applicable — pure calculation engine with no UI, DB, or API endpoint.
+
 ### Change Log
 - 2026-02-25: Story 4.3 implementation — Fixed Cost profitability calculator with burn rate and at-risk detection
+- 2026-02-27: Code review — fixed type safety (H1), isAtRisk logic bug (H2), added missing test (H3), updated master test plan (M1), added JSDoc (M2, L1)

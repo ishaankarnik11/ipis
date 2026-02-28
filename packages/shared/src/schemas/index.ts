@@ -36,3 +36,7 @@ export {
   type UpdateProjectInput,
   type AddTeamMemberInput,
 } from './project.schema.js';
+export {
+  ledgerResponseSchema,
+  type LedgerResponseData,
+} from './dashboard.schema.js';
