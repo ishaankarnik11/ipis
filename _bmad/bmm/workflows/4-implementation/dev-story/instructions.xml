@@ -200,13 +200,33 @@
     <check if="baseline has failures">
       <action>Document each inherited failure: test file, line number, brief description</action>
       <action>Store as {{inherited_red_tests}} for comparison at story completion</action>
-      <output>⚠️ **Inherited Red Tests Detected**
+      <output>🛑 **HALT: Inherited Red Tests Detected**
         Baseline: {{baseline_e2e_pass}}/{{baseline_e2e_total}}
         The following tests were already failing before this story:
         {{inherited_red_tests}}
 
-        These will be tracked — they must NOT increase and should be addressed in a follow-up story.
+        **Inherited failures are still failures — they MUST be resolved, not carried forward.**
+
+        OPTIONS:
+        1. Fix inherited failures as Task 0 in this story (add subtasks)
+        2. Create a separate bug-fix story first, then resume this story
+        3. Escalate to {user_name} for decision
+
+        Story CANNOT proceed to implementation until inherited reds are addressed.
       </output>
+      <ask>Choose option [1], [2], or [3]:</ask>
+      <check if="user chooses '1'">
+        <action>Add "Task 0: Fix inherited test failures" to story Tasks/Subtasks with subtasks for each failing test</action>
+        <action>Continue to implementation — Task 0 will be the first task executed</action>
+      </check>
+      <check if="user chooses '2'">
+        <action>HALT — Create bug-fix story in {implementation_artifacts} with status ready-for-dev</action>
+        <action>Add bug-fix story to sprint-status.yaml under current epic</action>
+      </check>
+      <check if="user chooses '3'">
+        <action>Present inherited failures to {user_name} with full context</action>
+        <ask>How should we handle these inherited failures?</ask>
+      </check>
     </check>
     <check if="baseline is fully green">
       <output>✅ **E2E Baseline: All Green** ({{baseline_e2e_total}}/{{baseline_e2e_total}})
@@ -308,6 +328,23 @@
     <action if="new tests fail">STOP and fix before continuing - ensure implementation correctness</action>
     <action if="E2E tests fail">STOP and fix before continuing - E2E failures indicate real user-facing breakage</action>
     <critical>NEVER defer, skip, or rationalize away any test suite. If tests exist, they run. "Requires running servers" is NOT a valid deferral — check the config for auto-start capabilities before assuming blockers.</critical>
+  </step>
+
+  <step n="7b" goal="Sync Master Test Plan for completed task">
+    <critical>Every task that adds or modifies tests MUST be reflected in the Master Test Plan.</critical>
+    <action>Check if this task introduced or updated any tests</action>
+    <check if="task introduced or updated tests">
+      <action>Open docs/master-test-plan.md</action>
+      <action>For each FR scenario touched by the current task:
+        - If tests pass → update status to PASS, set Last Verified to {{date}}
+        - If tests exist but not verified → update status to TEST_WRITTEN
+        - Verify test file path is correct
+      </action>
+      <action>Save master-test-plan.md</action>
+    </check>
+    <check if="task did NOT introduce or update tests">
+      <action>Skip Master Test Plan sync for this task</action>
+    </check>
   </step>
 
   <step n="8" goal="Validate and mark task complete ONLY when fully done">

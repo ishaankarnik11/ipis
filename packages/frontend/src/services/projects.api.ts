@@ -27,7 +27,7 @@ export interface Project {
   vendorCostPaise: number | null;
   manpowerCostPaise: number | null;
   budgetPaise: number | null;
-  infraCostMode: string | null;
+  infraCostMode: 'SIMPLE' | 'DETAILED' | null;
   startDate: string;
   endDate: string;
   createdAt: string;

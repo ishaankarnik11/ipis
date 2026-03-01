@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
+import type { InfraCostMode } from '@prisma/client';
 
 export const ENGINE_VERSION = '1.0.0';
 
@@ -23,7 +24,7 @@ export interface EmployeeSnapshotData {
 export interface ProjectResult {
   projectId: string;
   engagementModel: 'TIME_AND_MATERIALS' | 'FIXED_COST' | 'AMC' | 'INFRASTRUCTURE';
-  infraCostMode: 'SIMPLE' | 'DETAILED' | null;
+  infraCostMode: InfraCostMode | null;
   revenuePaise: number;
   costPaise: number;
   profitPaise: number;
@@ -511,14 +512,6 @@ export async function persistSnapshots(input: PersistSnapshotsInput): Promise<vo
       ...buildCompanyRows(input, now),
       ...buildEmployeeRows(input, now),
     ];
-
-    if (allRows.length === 0) {
-      logger.info(
-        { recalculationRunId: input.recalculationRunId },
-        'No snapshot rows to persist',
-      );
-      return;
-    }
 
     await prisma.$transaction(async (tx) => {
       await tx.calculationSnapshot.createMany({

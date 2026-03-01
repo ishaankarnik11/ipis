@@ -3,7 +3,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { rbacMiddleware } from '../middleware/rbac.middleware.js';
 import { uploadSingle } from '../middleware/upload.middleware.js';
 import { asyncHandler } from '../middleware/async-handler.js';
-import { NotFoundError, ValidationError } from '../lib/errors.js';
+import { ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js';
 import { prisma } from '../lib/prisma.js';
 import { generateErrorReport } from '../lib/excel.js';
 import { uploadEvents, type UploadSSEEvent } from '../lib/sse.js';
@@ -132,7 +132,7 @@ router.post(
 router.get(
   '/:uploadEventId/error-report',
   authMiddleware,
-  rbacMiddleware(['HR', 'ADMIN']),
+  rbacMiddleware(['FINANCE', 'HR', 'ADMIN']),
   asyncHandler(async (req, res) => {
     const eventId = req.params.uploadEventId as string;
     const uploadEvent = await prisma.uploadEvent.findUnique({
@@ -141,6 +141,10 @@ router.get(
 
     if (!uploadEvent) {
       throw new NotFoundError('Upload event not found');
+    }
+
+    if (uploadEvent.uploadedBy !== req.user!.id && req.user!.role !== 'ADMIN') {
+      throw new ForbiddenError('You can only download error reports for your own uploads');
     }
 
     if (!uploadEvent.errorSummary) {
@@ -171,7 +175,18 @@ router.get(
   '/progress/:uploadEventId',
   authMiddleware,
   rbacMiddleware(['FINANCE', 'ADMIN']),
-  (req, res) => {
+  asyncHandler(async (req, res) => {
+    const eventId = req.params.uploadEventId as string;
+
+    // Validate that the upload event exists before subscribing
+    const uploadEvent = await prisma.uploadEvent.findUnique({
+      where: { id: eventId },
+      select: { id: true },
+    });
+    if (!uploadEvent) {
+      throw new NotFoundError('Upload event not found');
+    }
+
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -179,16 +194,19 @@ router.get(
     });
 
     const handler = (event: UploadSSEEvent) => {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+      try {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch {
+        // Client disconnected — cleanup handled by 'close' event
+      }
     };
 
-    const eventId = req.params.uploadEventId as string;
     uploadEvents.on(eventId, handler);
 
     req.on('close', () => {
       uploadEvents.off(eventId, handler);
     });
-  },
+  }),
 );
 
 export default router;

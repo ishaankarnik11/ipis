@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { prisma } from '../lib/prisma.js';
-import { cleanDb, disconnectTestDb } from '../test-utils/db.js';
+import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
 import {
   persistSnapshots,
   ENGINE_VERSION,
@@ -12,12 +12,24 @@ import {
 // Test data factories
 // ---------------------------------------------------------------------------
 
-async function createTestRun(
-  uploadEventId = 'test-upload-1',
-  projectsProcessed = 1,
-) {
+async function createTestRun(projectsProcessed = 1) {
+
+  await seedTestDepartments();
+  const user = await createTestUser('ADMIN', { email: `snapshot-admin-${Date.now()}@test.com` });
+
+  const uploadEvent = await prisma.uploadEvent.create({
+    data: {
+      type: 'TIMESHEET',
+      status: 'SUCCESS',
+      uploadedBy: user.id,
+      periodMonth: 3,
+      periodYear: 2026,
+      rowCount: 10,
+    },
+  });
+
   return prisma.recalculationRun.create({
-    data: { uploadEventId, projectsProcessed, completedAt: new Date() },
+    data: { uploadEventId: uploadEvent.id, projectsProcessed, completedAt: new Date() },
   });
 }
 
@@ -242,7 +254,7 @@ describe('snapshot.service', () => {
   // 4.3 — PRACTICE aggregation by designation (AC 4)
   describe('PRACTICE aggregation (AC 4)', () => {
     it('should aggregate costs by designation across projects', async () => {
-      const run = await createTestRun('upload-2', 2);
+      const run = await createTestRun(2);
       // Both projects have "Senior Developer" employees
       await persistSnapshots(
         makeInput(run.id, [
@@ -325,7 +337,7 @@ describe('snapshot.service', () => {
     });
 
     it('should aggregate revenue across all projects', async () => {
-      const run = await createTestRun('upload-multi', 2);
+      const run = await createTestRun(2);
       await persistSnapshots(
         makeInput(run.id, [
           tmProjectResult(),

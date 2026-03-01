@@ -16,6 +16,9 @@ describe('audit.service', () => {
     await seedTestDepartments();
     const admin = await createTestUser('ADMIN', { email: 'admin@test.com', name: 'Admin' });
 
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 1000);
+
     const evt1 = await prisma.auditEvent.create({
       data: {
         actorId: admin.id,
@@ -24,6 +27,7 @@ describe('audit.service', () => {
         entityId: 'user-new',
         metadata: { name: 'Alice' },
         ipAddress: '127.0.0.1',
+        createdAt: earlier,
       },
     });
 
@@ -33,8 +37,9 @@ describe('audit.service', () => {
         action: 'PROJECT_APPROVED',
         entityType: 'Project',
         entityId: 'proj-1',
-        metadata: null,
+        metadata: undefined,
         ipAddress: null,
+        createdAt: now,
       },
     });
 

@@ -59,14 +59,18 @@ test.describe('User Management (Admin)', () => {
   });
 
   test('deactivates a user', async ({ page }) => {
-    // Find the E2E Delivery Manager row
-    const dmRow = page.getByRole('row').filter({ hasText: 'E2E Delivery Manager' });
+    // Wait for table data to be fully loaded before searching
+    await expect(page.getByRole('cell', { name: 'dm@e2e.test', exact: true })).toBeVisible({ timeout: 10000 });
+
+    // Find the E2E Delivery Manager row — use exact email match via cell locator (avoids matching "chain6-newdm@e2e.test")
+    const dmCell = page.getByRole('cell', { name: 'dm@e2e.test', exact: true });
+    const dmRow = page.getByRole('row').filter({ has: dmCell });
     await dmRow.hover();
 
     // Click Deactivate
     await dmRow.getByRole('button', { name: 'Deactivate' }).click();
 
-    // Confirm in the modal
+    // Confirm in the popconfirm
     await page.getByRole('button', { name: 'Yes' }).click();
 
     // Verify status changed to Inactive

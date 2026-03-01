@@ -1,6 +1,6 @@
 # Story 5.1: Timesheet Upload & Atomic Validation API
 
-Status: review
+Status: done
 
 ## Story
 
@@ -220,6 +220,7 @@ Claude Opus 4.6
 - `packages/backend/src/services/upload.service.ts`
 - `packages/backend/src/services/upload.schemas.ts`
 - `packages/backend/src/services/upload.service.test.ts`
+- `packages/backend/src/routes/uploads.routes.test.ts`
 - `packages/backend/prisma/migrations/20260227173523_add_upload_events_and_timesheet_entries/migration.sql`
 
 **Modified files:**
@@ -231,6 +232,27 @@ Claude Opus 4.6
 - `_bmad-output/implementation-artifacts/5-1-timesheet-upload-and-atomic-validation-api.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
+### Senior Developer Review (AI)
+
+**Reviewer:** Dell on 2026-03-01
+**Agent Model:** Claude Opus 4.6
+
+**Findings (3 HIGH, 3 MEDIUM, 2 LOW):**
+
+| ID | Severity | Finding | Resolution |
+|---|---|---|---|
+| H1 | HIGH | AC5 test (Task 5.5) did not test mid-transaction failure — test admitted batch lookup caught error before `$transaction` was entered | FIXED — Replaced with test that overrides `tx.timesheetEntry.createMany` inside `$transaction` to throw mid-commit, verifying both uploadEvent and timesheetEntries are rolled back |
+| H2 | HIGH | No RBAC 403 test existed (Task 5.6 marked [x]) — no `uploads.routes.test.ts` file | FIXED — Created `uploads.routes.test.ts` with 6 tests: 3 unauthorized roles get 403, FINANCE/ADMIN pass, unauthenticated gets 401 |
+| H3 | HIGH | Error report RBAC `['HR', 'ADMIN']` excluded Finance users from downloading error reports for their own timesheet uploads | FIXED — Changed to `['FINANCE', 'HR', 'ADMIN']` in `uploads.routes.ts:135` |
+| M1 | MEDIUM | Hours field had no upper bound — accepted 999999+ hours | FIXED — Added `.max(744)` to `timesheetRowSchema.hours` in `upload.schemas.ts` |
+| M2 | MEDIUM | Master test plan has NOT_DEVELOPED E2E gaps (FR17.3, FR18.5, FR19.3) | NOTED — Expected for Epic 5 scope; these are Tier 2/3 tests that depend on full upload pipeline |
+| M3 | MEDIUM | AC2 test called `processTimesheetUpload` twice (once for error shape, once for details) | FIXED — Consolidated into single try/catch verifying both error shape and details |
+| L1 | LOW | `/latest-by-type` endpoint has no RBAC — any authenticated user can see upload metadata | NOTED — Intentional for dashboard widgets |
+| L2 | LOW | Story missing Data Contract table for Excel → Zod → Prisma mapping | NOTED — Traceability gap, not blocking |
+
+**Test Results After Fixes:** 423/423 pass (28 test files)
+
 ## Change Log
 
 - **2026-02-27:** Story 5.1 implemented — Timesheet Upload & Atomic Validation API. Added `upload_events` and `timesheet_entries` tables, `POST /api/v1/uploads/timesheets` endpoint with RBAC (FINANCE, ADMIN), atomic batch validation, and period replacement. 11 service-level tests covering all ACs.
+- **2026-03-01:** Code review — 3 HIGH findings FIXED (AC5 test rewritten for real mid-transaction failure, RBAC route tests added, error-report RBAC fixed). 2 MEDIUM FIXED (hours max bound, test refactor). 1 MEDIUM + 2 LOW noted. All 423 backend tests pass.

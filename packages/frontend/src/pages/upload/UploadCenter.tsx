@@ -96,6 +96,7 @@ export default function UploadCenter() {
   const [tsState, setTsState] = useState<TimesheetState>({});
   const [billState, setBillState] = useState<BillingState>({});
   const [salState, setSalState] = useState<SalaryState>({});
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // SSE progress for billing uploads
   const billingProgress = useUploadProgress(billState.sseTrackingId ?? null);
@@ -259,7 +260,17 @@ export default function UploadCenter() {
             </ul>
           }
           style={{ marginTop: 16 }}
-          data-testid="validation-error-panel"
+          data-testid="validation-error-panel-timesheet"
+          closable
+          onClose={() => setTsState({})}
+        />
+      )}
+      {tsState.error && tsState.error.status !== 422 && (
+        <Alert
+          type="error"
+          message="Timesheet Upload Failed"
+          description={tsState.error.error.message || `Server error (${tsState.error.status})`}
+          style={{ marginTop: 16 }}
           closable
           onClose={() => setTsState({})}
         />
@@ -287,7 +298,17 @@ export default function UploadCenter() {
             </ul>
           }
           style={{ marginTop: 16 }}
-          data-testid="validation-error-panel"
+          data-testid="validation-error-panel-billing"
+          closable
+          onClose={() => setBillState({})}
+        />
+      )}
+      {billState.error && billState.error.status !== 422 && (
+        <Alert
+          type="error"
+          message="Billing Upload Failed"
+          description={billState.error.error.message || `Server error (${billState.error.status})`}
+          style={{ marginTop: 16 }}
           closable
           onClose={() => setBillState({})}
         />
@@ -341,7 +362,17 @@ export default function UploadCenter() {
             </ul>
           }
           style={{ marginTop: 16 }}
-          data-testid="validation-error-panel"
+          data-testid="validation-error-panel-salary"
+          closable
+          onClose={() => setSalState({})}
+        />
+      )}
+      {salState.error && salState.error.status !== 422 && (
+        <Alert
+          type="error"
+          message="Salary Upload Failed"
+          description={salState.error.error.message || `Server error (${salState.error.status})`}
+          style={{ marginTop: 16 }}
           closable
           onClose={() => setSalState({})}
         />
@@ -357,7 +388,17 @@ export default function UploadCenter() {
           {salState.result.failed > 0 && (
             <Button
               icon={<DownloadOutlined />}
-              onClick={() => downloadErrorReport(salState.result!.uploadEventId)}
+              loading={isDownloading}
+              onClick={async () => {
+                try {
+                  setIsDownloading(true);
+                  await downloadErrorReport(salState.result!.uploadEventId);
+                } catch {
+                  message.error('Failed to download error report');
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
               style={{ marginTop: 8 }}
               data-testid="download-error-report-btn"
             >

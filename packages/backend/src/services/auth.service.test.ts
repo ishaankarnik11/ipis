@@ -61,7 +61,7 @@ describe('auth.service', () => {
     });
 
     it('should return same error message for both wrong email and wrong password (no enumeration)', async () => {
-      const user = await createTestUser('ADMIN', { email: 'test@test.com' });
+      await createTestUser('ADMIN', { email: 'test@test.com' });
 
       // Wrong email
       try {

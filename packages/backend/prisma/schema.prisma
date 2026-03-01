@@ -31,6 +31,11 @@ enum UserRole {
   DEPT_HEAD
 }
 
+enum InfraCostMode {
+  SIMPLE
+  DETAILED
+}
+
 model User {
   id                 String      @id @default(uuid())
   email              String      @unique
@@ -113,7 +118,7 @@ model Project {
   vendorCostPaise    BigInt?         @map("vendor_cost_paise")
   manpowerCostPaise  BigInt?         @map("manpower_cost_paise")
   budgetPaise        BigInt?         @map("budget_paise")
-  infraCostMode      String?         @map("infra_cost_mode")
+  infraCostMode      InfraCostMode?  @map("infra_cost_mode")
   startDate          DateTime        @map("start_date")
   endDate            DateTime        @map("end_date")
   createdAt          DateTime        @default(now()) @map("created_at")

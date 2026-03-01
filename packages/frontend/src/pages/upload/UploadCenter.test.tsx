@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider } from 'antd';
 import { MemoryRouter } from 'react-router';
+import { ApiError } from '../../services/api';
 import UploadCenter from './UploadCenter';
 
 // antd v6 Select uses ResizeObserver — mock for jsdom
@@ -66,9 +67,10 @@ vi.mock('../../hooks/useAuth', () => ({
   useAuth: (...args: unknown[]) => mockUseAuth(...args),
 }));
 
-// Mock antd message
+// Mock antd message and Modal.confirm
 const mockMessageSuccess = vi.fn();
 const mockMessageError = vi.fn();
+const mockModalConfirm = vi.fn();
 vi.mock('antd', async () => {
   const actual = await vi.importActual('antd');
   return {
@@ -76,6 +78,10 @@ vi.mock('antd', async () => {
     message: {
       success: (...args: unknown[]) => mockMessageSuccess(...args),
       error: (...args: unknown[]) => mockMessageError(...args),
+    },
+    Modal: {
+      ...(actual as Record<string, unknown>).Modal,
+      confirm: (...args: unknown[]) => mockModalConfirm(...args),
     },
   };
 });
@@ -309,5 +315,174 @@ describe('UploadCenter', () => {
       expect(screen.getByTestId('data-period-indicator')).toBeInTheDocument();
     });
     expect(screen.getByText(/Data as of.*Feb 2026/)).toBeInTheDocument();
+  });
+
+  // AC 3: Timesheet upload shows Modal.confirm before uploading
+  it('should show Modal.confirm for timesheet upload', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', name: 'Finance User', role: 'FINANCE', email: 'fin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    renderUploadCenter();
+    const tsZone = screen.getByTestId('upload-zone-timesheet');
+    const input = tsZone.querySelector('input[type="file"]') as HTMLInputElement;
+    const validFile = new File(['content'], 'timesheets.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(input, { target: { files: [validFile] } });
+
+    await waitFor(() => {
+      expect(mockModalConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Replace Existing Data?',
+          okText: 'Upload & Replace',
+        }),
+      );
+    });
+  });
+
+  // AC 3: Modal.confirm onOk triggers timesheet mutation
+  it('should trigger timesheet mutation when Modal.confirm is accepted', async () => {
+    mockModalConfirm.mockImplementation((config: { onOk?: () => void }) => {
+      config.onOk?.();
+    });
+    mockUploadTimesheetFile.mockResolvedValue({
+      data: { status: 'SUCCESS', rowCount: 50, periodMonth: 3, periodYear: 2026, replacedRowsCount: 10, uploadEventId: 'ts-evt-1' },
+    });
+
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', name: 'Finance User', role: 'FINANCE', email: 'fin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    renderUploadCenter();
+    const tsZone = screen.getByTestId('upload-zone-timesheet');
+    const input = tsZone.querySelector('input[type="file"]') as HTMLInputElement;
+    const validFile = new File(['content'], 'timesheets.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(input, { target: { files: [validFile] } });
+
+    await waitFor(() => {
+      expect(mockUploadTimesheetFile).toHaveBeenCalled();
+    });
+  });
+
+  // AC 3: Billing upload shows Modal.confirm
+  it('should show Modal.confirm for billing upload', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', name: 'Finance User', role: 'FINANCE', email: 'fin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    renderUploadCenter();
+    const billZone = screen.getByTestId('upload-zone-billing');
+    const input = billZone.querySelector('input[type="file"]') as HTMLInputElement;
+    const validFile = new File(['content'], 'billing.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(input, { target: { files: [validFile] } });
+
+    await waitFor(() => {
+      expect(mockModalConfirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Replace Existing Data?',
+          okText: 'Upload & Replace',
+        }),
+      );
+    });
+  });
+
+  // AC 4: Billing progress bar renders during SSE tracking
+  it('should show billing progress bar during SSE tracking', async () => {
+    mockModalConfirm.mockImplementation((config: { onOk?: () => void }) => {
+      config.onOk?.();
+    });
+    mockUploadBillingFile.mockResolvedValue({
+      data: { status: 'SUCCESS', rowCount: 25, periodMonth: 3, periodYear: 2026, replacedRowsCount: 5, uploadEventId: 'bill-evt-1', recalculation: { status: 'RUNNING', runId: 'run-1', projectsProcessed: 0, error: null } },
+    });
+
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', name: 'Finance User', role: 'FINANCE', email: 'fin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    renderUploadCenter();
+    const billZone = screen.getByTestId('upload-zone-billing');
+    const input = billZone.querySelector('input[type="file"]') as HTMLInputElement;
+    const validFile = new File(['content'], 'billing.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(input, { target: { files: [validFile] } });
+
+    // Wait for mutation to complete and SSE to connect
+    await waitFor(() => {
+      expect(screen.getByTestId('billing-progress')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Recalculating profitability...')).toBeInTheDocument();
+  });
+
+  // AC 6: Timesheet 422 validation error panel
+  it('should show validation error panel for timesheet 422 rejection', async () => {
+    mockModalConfirm.mockImplementation((config: { onOk?: () => void }) => {
+      config.onOk?.();
+    });
+
+    const apiError = new ApiError(422, {
+      code: 'VALIDATION_ERROR',
+      message: 'Validation failed',
+      details: [
+        { field: 'employee_id', message: 'Employee NONEXIST001 not found' },
+        { field: 'project_name', message: 'Project FakeProject not found' },
+      ],
+    });
+
+    mockUploadTimesheetFile.mockRejectedValue(apiError);
+
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', name: 'Finance User', role: 'FINANCE', email: 'fin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+
+    renderUploadCenter();
+    const tsZone = screen.getByTestId('upload-zone-timesheet');
+    const input = tsZone.querySelector('input[type="file"]') as HTMLInputElement;
+    const validFile = new File(['content'], 'timesheets.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(input, { target: { files: [validFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('validation-error-panel-timesheet')).toBeInTheDocument();
+    });
+  });
+
+  // AC 10: Tablet viewport warning
+  it('should show tablet warning when viewport is tablet-sized', () => {
+    // Mock matchMedia to return tablet viewport
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(min-width: 768px) and (max-width: 1023px)',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }));
+
+    renderUploadCenter();
+    expect(screen.getByTestId('tablet-warning')).toBeInTheDocument();
+    expect(screen.getByText('Upload not available on tablet — please use a desktop browser')).toBeInTheDocument();
+
+    window.matchMedia = originalMatchMedia;
   });
 });

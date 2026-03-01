@@ -117,6 +117,27 @@
     </check>
   </step>
 
+  <step n="3b" goal="Verify claimed fixes against actual code">
+    <critical>REVIEW FIX VERIFICATION GATE: For every finding or task marked as FIXED in the
+      Dev Agent Record or story file, the reviewer MUST verify the fix exists in actual code.
+      A claim of "FIXED" without corresponding code change is a CRITICAL finding — this
+      catches false completion claims (e.g., Story 4-5 where BreakdownJson replacement was
+      claimed but not done).</critical>
+
+    <action>For each finding or task marked FIXED or [x]:
+      1. Read the original finding/task description
+      2. Check the actual code in the referenced file(s)
+      3. Verify the code change matches what was claimed
+      4. If no evidence of fix exists → mark as CRITICAL: FALSE FIX CLAIM
+    </action>
+
+    <action>Second-pass verification for ALL HIGH severity findings:
+      1. Re-read the affected code file one more time
+      2. Verify the fix is complete (not partial)
+      3. Check for side effects or regressions introduced by the fix
+    </action>
+  </step>
+
   <step n="4" goal="Present findings and fix them">
     <action>Categorize findings: HIGH (must fix), MEDIUM (should fix), LOW (nice to fix)</action>
     <action>Set {{fixed_count}} = 0</action>

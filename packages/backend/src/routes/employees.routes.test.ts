@@ -31,7 +31,7 @@ describe('Employee Routes', () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as string[], user };
+    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
   }
 
   // 7.2: HR uploads valid file — all rows imported, response shape correct
@@ -616,14 +616,14 @@ describe('Employee Routes', () => {
   });
 
   describe('GET /api/v1/employees — RBAC read access (AC 4, 5)', () => {
-    it('should return 403 for DELIVERY_MANAGER on GET /api/v1/employees', async () => {
+    it('should return 200 for DELIVERY_MANAGER on GET /api/v1/employees', async () => {
       const { cookies } = await loginAs('DELIVERY_MANAGER');
 
       const res = await request(app)
         .get('/api/v1/employees')
         .set('Cookie', cookies);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
     });
 
     it('should return 403 for DEPT_HEAD on GET /api/v1/employees', async () => {

@@ -116,32 +116,23 @@ describe('upload.service — processTimesheetUpload', () => {
 
   // Test 5.3: Employee ID mismatch — 422 with error list (AC2)
   it('should reject entire file when employee ID not found', async () => {
+    const badId = '00000000-0000-4000-8000-000000000099';
     const buffer = createTimesheetBuffer([
       { employee_id: employeeId1, project_name: projectName, hours: 160, period_month: 1, period_year: 2026 },
-      { employee_id: '00000000-0000-4000-8000-000000000099', project_name: projectName, hours: 80, period_month: 1, period_year: 2026 },
+      { employee_id: badId, project_name: projectName, hours: 80, period_month: 1, period_year: 2026 },
     ]);
 
-    await expect(
-      uploadService.processTimesheetUpload(buffer, financeUser),
-    ).rejects.toMatchObject({
-      name: 'UploadRejectedError',
-      code: 'UPLOAD_REJECTED',
-      statusCode: 422,
-    });
-
-    // Verify error details list the mismatched employee ID
     try {
-      await uploadService.processTimesheetUpload(
-        createTimesheetBuffer([
-          { employee_id: '00000000-0000-4000-8000-000000000099', project_name: projectName, hours: 80, period_month: 2, period_year: 2026 },
-        ]),
-        financeUser,
-      );
+      await uploadService.processTimesheetUpload(buffer, financeUser);
+      expect.fail('Should have thrown UploadRejectedError');
     } catch (err: unknown) {
-      const error = err as { details: Array<{ field?: string; message: string }> };
+      const error = err as { name: string; code: string; statusCode: number; details: Array<{ field?: string; message: string }> };
+      expect(error.name).toBe('UploadRejectedError');
+      expect(error.code).toBe('UPLOAD_REJECTED');
+      expect(error.statusCode).toBe(422);
       expect(error.details).toHaveLength(1);
       expect(error.details[0]!.field).toBe('employee_id');
-      expect(error.details[0]!.message).toContain('00000000-0000-4000-8000-000000000099');
+      expect(error.details[0]!.message).toContain(badId);
     }
 
     // Verify NOTHING persisted (AC2: full rejection)
@@ -208,38 +199,41 @@ describe('upload.service — processTimesheetUpload', () => {
   });
 
   // Test 5.5: Atomic rollback on DB error (AC5)
+  // AC5: "Given a prisma.$transaction failure, When an exception is thrown mid-commit,
+  //        Then no timesheet_entries rows are persisted, no upload_events row is written"
   it('should not persist anything if transaction fails mid-commit', async () => {
-    // First create a valid upload to have an upload event
-    const buffer1 = createTimesheetBuffer([
+    // Override prisma.$transaction to wrap the callback and inject a failure
+    // into tx.timesheetEntry.createMany AFTER tx.uploadEvent.create succeeds.
+    // This simulates a real mid-transaction DB failure and tests rollback.
+    const original = prisma.$transaction;
+    (prisma as any).$transaction = async function (fn: any, ...args: any[]) {
+      return original.call(this, async (tx: any) => {
+        // Patch createMany on the transaction client to throw mid-commit
+        tx.timesheetEntry.createMany = async () => {
+          throw new Error('Simulated mid-transaction DB failure');
+        };
+        return fn(tx);
+      }, ...args);
+    };
+
+    const buffer = createTimesheetBuffer([
       { employee_id: employeeId1, project_name: projectName, hours: 160, period_month: 1, period_year: 2026 },
     ]);
-    await uploadService.processTimesheetUpload(buffer1, financeUser);
 
-    // Now delete the employee to cause FK violation inside the transaction
-    // when trying to re-upload for a different period (employee_id FK will fail)
-    await prisma.timesheetEntry.deleteMany(); // clear entries so we can delete employee
-    await prisma.employee.delete({ where: { id: employeeId2 } });
+    try {
+      await expect(
+        uploadService.processTimesheetUpload(buffer, financeUser),
+      ).rejects.toThrow('Simulated mid-transaction DB failure');
+    } finally {
+      // Restore original — critical to not break subsequent tests
+      (prisma as any).$transaction = original;
+    }
 
-    const buffer2 = createTimesheetBuffer([
-      { employee_id: employeeId2, project_name: projectName, hours: 80, period_month: 3, period_year: 2026 },
-    ]);
-
-    // This should fail because employeeId2 no longer exists in DB, but it
-    // passed batch lookup validation (employee was deleted after validation).
-    // Actually, the batch lookup itself will not find it, so it will throw
-    // UploadRejectedError before the transaction. Let's use a different approach:
-    // We'll verify that the batch validation catches it.
-    await expect(
-      uploadService.processTimesheetUpload(buffer2, financeUser),
-    ).rejects.toMatchObject({
-      code: 'UPLOAD_REJECTED',
-    });
-
-    // Verify the original upload event still exists but no new entries for period 3
-    const entriesP3 = await prisma.timesheetEntry.findMany({
-      where: { periodMonth: 3, periodYear: 2026 },
-    });
-    expect(entriesP3).toHaveLength(0);
+    // Verify NOTHING persisted — transaction rolled back both uploadEvent and timesheetEntries
+    const entries = await prisma.timesheetEntry.findMany();
+    expect(entries).toHaveLength(0);
+    const events = await prisma.uploadEvent.findMany();
+    expect(events).toHaveLength(0);
   });
 
   // Test 5.7: Atomic replacement of existing period data (AC6)

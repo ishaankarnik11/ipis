@@ -1,5 +1,6 @@
 /**
  * Story 4.0b — Tier 3 Cross-Role E2E Test Chains (Epics 1–3)
+ * Chain 8 added for Epic 5 (FR18.5 — Timesheet Upload Validation)
  *
  * These tests exercise multi-role user journeys that span role boundaries.
  * Each chain uses role switching via switchRole() (clear cookies + login)
@@ -7,6 +8,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import bcrypt from 'bcrypt';
+import * as XLSX from 'xlsx';
 import { login, getDb, closeDb, credentials, roleSidebarItems, roleLandingPage, DEFAULT_PASSWORD, TEMP_PASSWORD } from '../helpers/index.js';
 import type { Role } from '../helpers/index.js';
 
@@ -616,4 +618,117 @@ test.describe('Chain 7 — RBAC Full Traverse', () => {
       }
     });
   }
+});
+
+// ── Chain 8: Timesheet Upload Validation (FR18.5) ─────────────────
+test.describe('Chain 8 — Timesheet Upload Validation', () => {
+  const projectName = 'Chain8 Upload Validation Project';
+
+  test('DM creates T&M → Admin approves → Finance uploads valid timesheet referencing employee + project → accepted → DB verified', async ({ page }) => {
+    test.setTimeout(180_000);
+    const db = getDb();
+
+    // Get seeded employee UUID (EMP001 — known to exist in employee master)
+    const emp1 = await db.employee.findFirst({ where: { employeeCode: 'EMP001' } });
+    expect(emp1).toBeTruthy();
+
+    // ── Step 1: DM creates T&M project ──
+    await login(page, 'DELIVERY_MANAGER');
+    await page.goto('/projects/new');
+    await expect(page.getByRole('heading', { name: /create new project/i })).toBeVisible();
+
+    await page.getByLabel('Project Name').fill(projectName);
+    await page.getByLabel('Client').fill('Chain8 Client');
+    await page.getByLabel('Vertical').fill('Technology');
+
+    await page.getByLabel('Start Date').click();
+    await page.getByLabel('Start Date').fill('2026-07-01');
+    await page.keyboard.press('Enter');
+
+    await page.getByLabel('End Date').click();
+    await page.getByLabel('End Date').fill('2027-06-30');
+    await page.keyboard.press('Enter');
+
+    await page.locator('input[id="teamMembers.0.role"]').fill('Developer');
+    await page.locator('input[id="teamMembers.0.billingRatePaise"]').fill('5000');
+
+    await page.getByRole('button', { name: /create project/i }).click();
+    await expect(page).toHaveURL(/\/projects\/[a-f0-9-]+$/, { timeout: 15000 });
+
+    const projectId = page.url().split('/projects/')[1];
+
+    // DB verify: PENDING_APPROVAL
+    const created = await db.project.findUnique({ where: { id: projectId } });
+    expect(created!.status).toBe('PENDING_APPROVAL');
+
+    // ── Step 2: Admin approves ──
+    await switchRole(page, 'ADMIN');
+    await page.goto('/admin/pending-approvals');
+    await expect(page.getByRole('cell', { name: projectName })).toBeVisible({ timeout: 10000 });
+
+    const row = page.getByRole('row').filter({ hasText: projectName });
+    await row.getByRole('button', { name: /approve/i }).click();
+    await expect(page.getByRole('cell', { name: projectName })).not.toBeVisible({ timeout: 10000 });
+
+    // DB verify: ACTIVE
+    const approved = await db.project.findUnique({ where: { id: projectId } });
+    expect(approved!.status).toBe('ACTIVE');
+
+    // ── Step 3: Finance uploads valid timesheet ──
+    await switchRole(page, 'FINANCE');
+    await page.goto('/uploads');
+    await expect(page.getByRole('heading', { name: 'Upload Center' })).toBeVisible();
+
+    // Create dynamic XLSX referencing the seeded employee UUID and the new project name
+    const timesheetData = [
+      { employee_id: emp1!.id, project_name: projectName, hours: 40, period_month: 7, period_year: 2026 },
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(timesheetData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Timesheets');
+    const xlsxBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+
+    // Upload via the timesheet zone
+    const timesheetZone = page.getByTestId('upload-zone-timesheet');
+    const fileInput = timesheetZone.locator('input[type="file"]');
+    await fileInput.setInputFiles({
+      name: 'chain8-valid-timesheets.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: xlsxBuffer,
+    });
+
+    // Confirmation modal appears (replacement warning)
+    const confirmButton = page.getByRole('button', { name: 'Upload & Replace' });
+    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await confirmButton.click();
+
+    // Wait for success alert
+    await expect(page.getByText(/timesheet upload successful/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/1 rows imported/i)).toBeVisible();
+
+    // ── DB verify: timesheet entries created ──
+    const entries = await db.timesheetEntry.findMany({
+      where: {
+        employeeId: emp1!.id,
+        projectId,
+        periodMonth: 7,
+        periodYear: 2026,
+      },
+    });
+    expect(entries.length).toBe(1);
+    expect(entries[0]!.hours).toBe(40);
+
+    // Verify upload event recorded
+    const uploadEvent = await db.uploadEvent.findFirst({
+      where: {
+        type: 'TIMESHEET',
+        status: 'SUCCESS',
+        periodMonth: 7,
+        periodYear: 2026,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(uploadEvent).toBeTruthy();
+    expect(uploadEvent!.rowCount).toBe(1);
+  });
 });

@@ -6,7 +6,6 @@ import { timesheetRowSchema, type TimesheetRowInput, billingRowSchema, type Bill
 import { employeeRowSchema } from '@ipis/shared';
 import {
   calculateCostPerHour,
-  calculateTm,
   calculateFixedCost,
   calculateAmc,
   calculateInfrastructure,
@@ -492,7 +491,7 @@ export async function triggerRecalculation(
           break;
         }
         case 'INFRASTRUCTURE': {
-          const mode = (project.infraCostMode as 'SIMPLE' | 'DETAILED') ?? 'SIMPLE';
+          const mode = project.infraCostMode ?? 'SIMPLE';
           if (mode === 'SIMPLE') {
             const infraResult = calculateInfrastructure({
               mode: 'SIMPLE',
@@ -523,7 +522,7 @@ export async function triggerRecalculation(
       projectResults.push({
         projectId: project.id,
         engagementModel: project.engagementModel,
-        infraCostMode: (project.infraCostMode as 'SIMPLE' | 'DETAILED' | null) ?? null,
+        infraCostMode: project.infraCostMode ?? null,
         revenuePaise,
         costPaise,
         profitPaise,
@@ -559,7 +558,7 @@ export async function triggerRecalculation(
       type: 'RECALC_COMPLETE',
       runId: recalcRun.id,
       projectsProcessed: projectResults.length,
-      snapshotsWritten: projectResults.length > 0 ? projectResults.length * 3 : 0, // approximate
+      snapshotsWritten: projectResults.length, // one snapshot set per project
     });
 
     logger.info(
@@ -719,56 +718,68 @@ export async function processSalaryUpload(
     });
   }
 
-  // 4. Insert or upsert valid rows
-  let importedCount = 0;
+  // 4. Insert or upsert valid rows + create upload event in a single transaction
+  const now = new Date();
+  const { importedCount, uploadEvent } = await prisma.$transaction(async (tx) => {
+    let imported = 0;
 
-  if (validRows.length > 0) {
-    if (mode === 'full') {
-      const { count } = await prisma.employee.createMany({
-        data: validRows,
-        skipDuplicates: true,
-      });
-      importedCount = count;
-    } else {
-      // correction mode: upsert by employee code
-      for (const row of validRows) {
-        await prisma.employee.update({
-          where: { employeeCode: row.employeeCode },
-          data: {
-            name: row.name,
-            departmentId: row.departmentId,
-            designation: row.designation,
-            annualCtcPaise: row.annualCtcPaise,
-            joiningDate: row.joiningDate,
-            isBillable: row.isBillable,
-          },
+    if (validRows.length > 0) {
+      if (mode === 'full') {
+        const { count } = await tx.employee.createMany({
+          data: validRows,
+          skipDuplicates: true,
         });
-        importedCount++;
+        imported = count;
+      } else {
+        // correction mode: upsert by employee code
+        for (const row of validRows) {
+          await tx.employee.update({
+            where: { employeeCode: row.employeeCode },
+            data: {
+              name: row.name,
+              departmentId: row.departmentId,
+              designation: row.designation,
+              annualCtcPaise: row.annualCtcPaise,
+              joiningDate: row.joiningDate,
+              isBillable: row.isBillable,
+            },
+          });
+          imported++;
+        }
       }
     }
-  }
 
-  // 5. Determine upload status
+    // 5. Determine upload status
+    const uploadStatus =
+      failedRows.length === 0
+        ? ('SUCCESS' as const)
+        : imported > 0
+          ? ('PARTIAL' as const)
+          : ('FAILED' as const);
+
+    // 6. Create upload event within the same transaction
+    const event = await tx.uploadEvent.create({
+      data: {
+        type: 'SALARY',
+        status: uploadStatus,
+        uploadedBy: user.id,
+        periodMonth: now.getMonth() + 1,
+        periodYear: now.getFullYear(),
+        rowCount: imported,
+        errorSummary: failedRows.length > 0 ? failedRows : undefined,
+      },
+    });
+
+    return { importedCount: imported, uploadEvent: event };
+  });
+
+  // Determine upload status for return value
   const uploadStatus =
     failedRows.length === 0
       ? ('SUCCESS' as const)
       : importedCount > 0
         ? ('PARTIAL' as const)
         : ('FAILED' as const);
-
-  // 6. Create upload event
-  const now = new Date();
-  const uploadEvent = await prisma.uploadEvent.create({
-    data: {
-      type: 'SALARY',
-      status: uploadStatus,
-      uploadedBy: user.id,
-      periodMonth: now.getMonth() + 1,
-      periodYear: now.getFullYear(),
-      rowCount: importedCount,
-      errorSummary: failedRows.length > 0 ? failedRows : undefined,
-    },
-  });
 
   logger.info(
     { uploadEventId: uploadEvent.id, imported: importedCount, failed: failedRows.length, mode },

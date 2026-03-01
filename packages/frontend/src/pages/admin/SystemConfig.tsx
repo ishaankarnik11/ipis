@@ -1,4 +1,4 @@
-import { Form, InputNumber, Button, Spin, Alert, message } from 'antd';
+import { Form, InputNumber, Button, Spin, message } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { configKeys, getConfig, updateConfig } from '../../services/config.api';
 import type { SystemConfigInput } from '@ipis/shared';

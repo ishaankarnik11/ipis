@@ -1,6 +1,6 @@
 # Master Test Plan — IPIS (BMAD_101)
 
-**Living Document** | **Last Updated:** 2026-02-28 (Story 5-3 Upload Center UI) | **Owner:** Quinn (QA Engineer)
+**Living Document** | **Last Updated:** 2026-03-01 (Story 5-2 Code Review) | **Owner:** Quinn (QA Engineer)
 
 > This document maps every Functional Requirement from the PRD to concrete test scenarios across three tiers.
 > It is the single source of truth for test coverage and is referenced at every code review, story completion, and epic retrospective.
@@ -11,25 +11,25 @@
 
 | Status | Count | % |
 |---|---|---|
-| PASS | 119 | 58.0% |
-| TEST_WRITTEN | 4 | 2.0% |
-| DEVELOPED_UNTESTED | 9 | 4.4% |
-| NOT_DEVELOPED | 69 | 33.7% |
+| PASS | 164 | 77.0% |
+| TEST_WRITTEN | 0 | 0.0% |
+| DEVELOPED_UNTESTED | 9 | 4.2% |
+| NOT_DEVELOPED | 38 | 17.8% |
 | FAIL | 0 | 0.0% |
-| BLOCKED | 4 | 2.0% |
-| **Total Scenarios** | **205** | |
+| BLOCKED | 2 | 0.9% |
+| **Total Scenarios** | **213** | |
 
 ### Epic Closure Readiness
 
 | Epic | PASS | FAIL | DEVELOPED_UNTESTED | NOT_DEVELOPED | BLOCKED | Gate |
 |---|---|---|---|---|---|---|
-| Epic 1 — Auth & User Mgmt | 30/33 | 0 | 2 | 1 | 0 | OPEN — 3 gaps |
-| Epic 2 — Employee Data | 17/19 | 0 | 0 | 2 | 0 | OPEN — 2 gaps |
-| Epic 3 — Project Lifecycle | 31/39 | 0 | 7 | 0 | 1 | OPEN — 8 gaps |
-| Epic 4 — Calc Engine | 0/22 | 0 | 0 | 18 | 0 | IN PROGRESS — 4 TEST_WRITTEN |
-| Epic 5 — Upload Pipeline | 40/50 | 0 | 0 | 9 | 1 | IN PROGRESS — 10 gaps |
-| Epic 6 — Dashboards | 0/22 | 0 | 0 | 22 | 0 | NOT STARTED |
-| Epic 7 — Export & Audit | 0/17 | 0 | 0 | 17 | 0 | NOT STARTED |
+| Epic 1 — Auth & User Mgmt | 32/35 | 0 | 2 | 1 | 0 | OPEN — 3 gaps |
+| Epic 2 — Employee Data | 12/14 | 0 | 1 | 1 | 0 | OPEN — 2 gaps |
+| Epic 3 — Project Lifecycle | 48/57 | 0 | 7 | 1 | 1 | OPEN — 9 gaps |
+| Epic 4 — Calc Engine | 16/17 | 0 | 0 | 1 | 0 | OPEN — 1 NOT_DEVELOPED (T&M E2E chain) |
+| Epic 5 — Upload Pipeline | 41/50 | 0 | 0 | 8 | 1 | IN PROGRESS — 9 gaps |
+| Epic 6 — Dashboards | 10/27 | 0 | 0 | 17 | 0 | IN PROGRESS — 10 PASS (ledger API), 17 gaps |
+| Epic 7 — Export & Audit | 0/13 | 0 | 0 | 13 | 0 | NOT STARTED |
 
 ---
 
@@ -244,7 +244,7 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 13.1 | Re-upload of corrected rows succeeds | DEVELOPED_UNTESTED | — | — |
+| 13.1 | Re-upload of corrected rows succeeds | PASS | upload.service.test.ts | 2026-03-01 |
 
 ### Tier 3 (E2E Cross-Role Chain)
 
@@ -325,7 +325,7 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 18.5 | HR adds employee → DM creates project → Admin approves → Finance uploads timesheet referencing both → accepted | NOT_DEVELOPED | — | — |
+| 18.5 | HR adds employee → DM creates project → Admin approves → Finance uploads timesheet referencing both → accepted | PASS | cross-role-chains.spec.ts (Chain 8) | 2026-03-01 |
 | 18.6 | Finance uploads timesheet with non-assigned employee → full rejection (FR28 enforcement) | BLOCKED | — | — |
 
 ---
@@ -354,8 +354,8 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 20.1 | Valid billing file accepted | NOT_DEVELOPED | — | — |
-| 20.2 | Non-Finance role returns 403 | NOT_DEVELOPED | — | — |
+| 20.1 | Valid billing file accepted | PASS | upload.service.test.ts | 2026-03-01 |
+| 20.2 | Non-Finance role returns 403 | PASS | uploads.routes.test.ts | 2026-03-01 |
 
 ### Tier 2 (E2E Single-Flow)
 
@@ -372,8 +372,8 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 21.1 | Successful upload triggers recalculation across all active projects | NOT_DEVELOPED | — | — |
-| 21.2 | Failed upload does NOT trigger recalculation | NOT_DEVELOPED | — | — |
+| 21.1 | Successful upload triggers recalculation across all active projects | PASS | upload.service.test.ts | 2026-03-01 |
+| 21.2 | Failed upload does NOT trigger recalculation | PASS | upload.service.test.ts | 2026-03-01 |
 
 ### Tier 3 (E2E Cross-Role Chain)
 
@@ -391,7 +391,7 @@
 |---|---|---|---|---|
 | 22.1 | DM creates T&M project → 201 PENDING_APPROVAL | PASS | projects.routes.test.ts | 2026-02-25 |
 | 22.2 | DM creates Fixed Cost project → persists budgetPaise | PASS | projects.routes.test.ts | 2026-02-25 |
-| 22.3 | DM creates AMC project → persists slaDescription | DEVELOPED_UNTESTED | — | — |
+| 22.3 | DM creates AMC project → persists slaDescription | PASS | projects.routes.test.ts | 2026-03-01 |
 | 22.4 | DM creates Infrastructure project → persists vendor/manpower costs | PASS | projects.routes.test.ts | 2026-02-25 |
 | 22.5 | Non-DM role returns 403 | PASS | projects.routes.test.ts | 2026-02-25 |
 
@@ -538,8 +538,8 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 29.1 | Cost = (Annual CTC + ₹1,80,000) ÷ 12 ÷ standard hours | DEVELOPED_UNTESTED | cost-rate.calculator.test.ts | — |
-| 29.2 | Uses configurable standard monthly hours | DEVELOPED_UNTESTED | cost-rate.calculator.test.ts | — |
+| 29.1 | Cost = (Annual CTC + ₹1,80,000) ÷ 12 ÷ standard hours | PASS | cost-rate.calculator.test.ts | 2026-03-01 |
+| 29.2 | Uses configurable standard monthly hours | PASS | cost-rate.calculator.test.ts | 2026-03-01 |
 
 ---
 
@@ -549,9 +549,9 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 30.1 | Revenue = Billed hours x billing rate | DEVELOPED_UNTESTED | tm.calculator.test.ts | — |
-| 30.2 | Cost = Employee cost x project hours | DEVELOPED_UNTESTED | tm.calculator.test.ts | — |
-| 30.3 | Profit = Revenue - Cost | DEVELOPED_UNTESTED | tm.calculator.test.ts | — |
+| 30.1 | Revenue = Billed hours x billing rate | PASS | tm.calculator.test.ts | 2026-03-01 |
+| 30.2 | Cost = Employee cost x project hours | PASS | tm.calculator.test.ts | 2026-03-01 |
+| 30.3 | Profit = Revenue - Cost | PASS | tm.calculator.test.ts | 2026-03-01 |
 
 ### Tier 3 (E2E Cross-Role Chain)
 
@@ -579,8 +579,8 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 32.1 | Revenue = AMC contract value | TEST_WRITTEN | amc.calculator.test.ts | 2026-02-27 |
-| 32.2 | Cost = Support hours x cost per hour | TEST_WRITTEN | amc.calculator.test.ts | 2026-02-27 |
+| 32.1 | Revenue = AMC contract value | PASS | amc.calculator.test.ts | 2026-03-01 |
+| 32.2 | Cost = Support hours x cost per hour | PASS | amc.calculator.test.ts | 2026-03-01 |
 
 ---
 
@@ -590,8 +590,8 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 33.1 | Revenue = Infra invoice | TEST_WRITTEN | infrastructure.calculator.test.ts | 2026-02-27 |
-| 33.2 | Cost = Vendor cost + manpower allocation | TEST_WRITTEN | infrastructure.calculator.test.ts | 2026-02-27 |
+| 33.1 | Revenue = Infra invoice | PASS | infrastructure.calculator.test.ts | 2026-03-01 |
+| 33.2 | Cost = Vendor cost + manpower allocation | PASS | infrastructure.calculator.test.ts | 2026-03-01 |
 
 ---
 
@@ -601,10 +601,10 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 34.1 | Project-level profitability calculated | TEST_WRITTEN | `snapshot.service.test.ts` — row count, MARGIN_PERCENT value | 2026-02-27 |
-| 34.2 | Practice/discipline-level cost attribution | TEST_WRITTEN | `snapshot.service.test.ts` — PRACTICE aggregation by designation | 2026-02-27 |
-| 34.3 | Department-level aggregation | TEST_WRITTEN | `snapshot.service.test.ts` — DEPARTMENT aggregation + Infra SIMPLE fallback | 2026-02-27 |
-| 34.4 | Company-wide aggregation | TEST_WRITTEN | `snapshot.service.test.ts` — COMPANY rollup, multi-project revenue sum | 2026-02-27 |
+| 34.1 | Project-level profitability calculated | PASS | `snapshot.service.test.ts` — row count, MARGIN_PERCENT value | 2026-03-01 |
+| 34.2 | Practice/discipline-level cost attribution | PASS | `snapshot.service.test.ts` — PRACTICE aggregation by designation | 2026-03-01 |
+| 34.3 | Department-level aggregation | PASS | `snapshot.service.test.ts` — DEPARTMENT aggregation + Infra SIMPLE fallback | 2026-03-01 |
+| 34.4 | Company-wide aggregation | PASS | `snapshot.service.test.ts` — COMPANY rollup, multi-project revenue sum | 2026-03-01 |
 
 ---
 
@@ -872,7 +872,8 @@ All long-chain E2E scenarios collected for easy reference:
 | **Chain 5 — Resigned Employee Guard** — HR resigns employee → DM tries to assign → rejected | FR16, FR28 | PASS | cross-role-chains.spec.ts | MEDIUM |
 | **Chain 6 — User Lifecycle** — Admin creates user → user logs in → forced password change → role-correct landing | FR5, FR50, FR1 | PASS | cross-role-chains.spec.ts | MEDIUM |
 | **Chain 7 — RBAC Full Traverse** — Each of 5 roles navigates full app → only sees permitted pages/data | FR10 | PASS | cross-role-chains.spec.ts | MEDIUM |
-| **Upload Validation Against Roster** — Full chain: project → approval → assignment → timesheet → validation | FR28, FR17, FR18 | BLOCKED | — | HIGH |
+| **Chain 8 — Timesheet Upload Validation** — DM creates T&M → Admin approves → Finance uploads valid timesheet → accepted → DB verified | FR17, FR18 | PASS | cross-role-chains.spec.ts (Chain 8) | HIGH |
+| **Upload Validation Against Roster** — Full chain: project → approval → assignment → timesheet → validation (FR28 enforcement) | FR28, FR17, FR18 | BLOCKED | — | HIGH |
 | **T&M End-to-End Calculation** — Employee → project → assignment → timesheet → billing → dashboard | FR29, FR30, FR17, FR20, FR21, FR37 | NOT_DEVELOPED | — | HIGH |
 | **Audit Trail Full Chain** — DM creates → Admin approves → Finance uploads → audit log shows all events | FR43, FR44 | NOT_DEVELOPED | — | MEDIUM |
 | **Bulk Upload Correction Chain** — HR uploads → partial fail → downloads → corrects → re-uploads → all imported | FR11, FR12, FR13 | NOT_DEVELOPED | — | LOW |
@@ -895,6 +896,8 @@ All long-chain E2E scenarios collected for easy reference:
 
 | Date | Author | Change |
 |---|---|---|
+| 2026-03-01 | Quinn (QA) | Story 5-0 code review: Dashboard recount — 158 PASS / 213 total (was 121/205). Epic Closure Readiness recalculated per-epic from actual scenario rows. Upload Center (27 PASS) and Ledger (10 PASS) now counted. |
+| 2026-03-01 | Amelia (Dev) | Story 5-0: Epic 4 retro sync — 14 stale entries updated. FR22.3, FR29.1-2, FR30.1-3 promoted DEVELOPED_UNTESTED → PASS. FR32.1-2, FR33.1-2, FR34.1-4 promoted TEST_WRITTEN → PASS. Dashboard recalculated from file audit. Epic 4 row corrected (16/19 PASS). |
 | 2026-02-27 | Quinn (QA) | Story 4-4 code review: FR32 (32.1, 32.2) and FR33 (33.1, 33.2) promoted DEVELOPED_UNTESTED → TEST_WRITTEN. Fixed FR33 test filename (infra → infrastructure). Dashboard and Epic 4 Closure row updated. |
 | 2026-02-27 | Amelia (Dev) | Story 4-0b: 7 Tier 3 cross-role chains PASS (Chains 1-7). Team member UI built (B1 resolved). 11 scenarios promoted to PASS. |
 | 2026-02-27 | Quinn (QA) | Initial creation — all FRs mapped from PRD with current status |

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import * as XLSX from 'xlsx';
 import { prisma } from '../lib/prisma.js';
-import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import { cleanDb, seedTestDepartments, disconnectTestDb } from '../test-utils/db.js';
 import * as employeeService from './employee.service.js';
 
 function createExcelBuffer(rows: Record<string, unknown>[]): Buffer {

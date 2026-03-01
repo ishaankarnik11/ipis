@@ -1,6 +1,6 @@
 # Story 5.2: Billing/Revenue Upload & Recalculation Trigger
 
-Status: review
+Status: done
 
 ## Story
 
@@ -224,5 +224,30 @@ Claude Opus 4.6
 - packages/backend/src/services/upload.service.test.ts (modified — added 10 billing + salary tests)
 - packages/backend/src/test-utils/db.ts (modified — added billing_records to TRUNCATE)
 
+## Senior Developer Review (AI)
+
+**Reviewer:** Claude Opus 4.6 | **Date:** 2026-03-01
+
+### Findings Summary
+- **HIGH (2):** All fixed
+  - H1: `invoice_date` schema accepted any string — added `.refine()` date validation
+  - H2: Master test plan FR20/FR21/FR13 showed NOT_DEVELOPED — updated to PASS with test file refs
+- **MEDIUM (4):** All fixed
+  - M1: Salary correction mode had no transaction — wrapped in `prisma.$transaction()`
+  - M2: Salary UploadEvent created outside insert scope — moved into same transaction
+  - M3: Routes test file missing billing/salary RBAC — added 9 new RBAC tests (16 total)
+  - M4: `snapshotsWritten` SSE field hardcoded as `length * 3` — corrected to per-project count
+- **LOW (2):**
+  - L1: SSE handler had no error handling — added try-catch with `next(err)` (FIXED)
+  - L2: Salary upload hardcodes period to current date — acceptable for MVP (NOTED)
+
+### AC Validation: All 9 ACs IMPLEMENTED
+### Task Audit: All 7 tasks (19 subtasks) verified complete
+### Data Contract: Billing Excel → billingRowSchema (Zod) → BillingRecord (Prisma) — all fields end-to-end
+### Pre-existing Test Failure: projects.routes.test.ts:399 (DM own projects filter) — unrelated to this story
+
+### Outcome: APPROVED — Story moved to done
+
 ## Change Log
+- 2026-03-01: Code review — 2 HIGH, 4 MEDIUM, 2 LOW findings; all HIGH/MEDIUM fixed; master test plan synced (FR13.1, FR20.1-2, FR21.1-2 → PASS); 9 new RBAC route tests added
 - 2026-02-28: Story 5.2 implementation — billing/revenue upload (atomic), salary upload (row-level partial), triggerRecalculation orchestration, SSE events, XLSX error reports, 10 new tests

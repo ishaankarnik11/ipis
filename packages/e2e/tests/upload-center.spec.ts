@@ -124,7 +124,7 @@ test.describe('Upload Center — Validation Errors (Finance)', () => {
     await confirmButton.click();
 
     // Validation error panel should appear
-    const errorPanel = page.getByTestId('validation-error-panel');
+    const errorPanel = page.getByTestId('validation-error-panel-timesheet');
     await expect(errorPanel).toBeVisible({ timeout: 15000 });
   });
 });

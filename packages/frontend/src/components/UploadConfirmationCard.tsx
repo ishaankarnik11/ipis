@@ -1,17 +1,17 @@
 import { Card, Descriptions, Button, Upload, message, Typography } from 'antd';
 import { DownloadOutlined, UploadOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd';
-import type { BulkUploadResult } from '../services/uploads.api';
+import type { SalaryUploadResult } from '../services/uploads.api';
 import { downloadErrorReport } from '../services/uploads.api';
 
 interface Props {
   filename: string;
-  result: BulkUploadResult;
+  result: SalaryUploadResult;
   uploadEventId?: string;
   onReUpload: (file: File) => void;
 }
 
-async function downloadFailedRows(failedRows: BulkUploadResult['failedRows']) {
+async function downloadFailedRows(failedRows: SalaryUploadResult['failedRows']) {
   const XLSX = await import('xlsx');
   const ws = XLSX.utils.json_to_sheet(
     failedRows.map((r) => ({
@@ -25,7 +25,7 @@ async function downloadFailedRows(failedRows: BulkUploadResult['failedRows']) {
   XLSX.writeFile(wb, 'failed-rows-report.xlsx');
 }
 
-function getErrorSummary(failedRows: BulkUploadResult['failedRows']): string {
+function getErrorSummary(failedRows: SalaryUploadResult['failedRows']): string {
   const counts = new Map<string, number>();
   for (const row of failedRows) {
     const key = row.error;
@@ -41,11 +41,11 @@ export default function UploadConfirmationCard({ filename, result, uploadEventId
   const hasFailures = result.failed > 0;
 
   const beforeUpload = (file: UploadFile) => {
-    const isXlsx = file.name?.endsWith('.xlsx');
-    if (!isXlsx) {
+    if (!file.name?.endsWith('.xlsx')) {
       message.error('Please upload an .xlsx file only');
       return false;
     }
+    // UploadFile from antd's beforeUpload is actually a File instance at runtime
     onReUpload(file as unknown as File);
     return false;
   };

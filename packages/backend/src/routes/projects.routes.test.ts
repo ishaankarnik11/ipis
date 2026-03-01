@@ -23,7 +23,7 @@ describe('Project Routes', () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as string[], user };
+    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
   }
 
   const validCreateBody = {

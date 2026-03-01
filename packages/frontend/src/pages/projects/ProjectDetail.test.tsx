@@ -32,6 +32,8 @@ vi.mock('react-router', async () => {
 const mockGetProject = vi.fn();
 const mockGetTeamMembers = vi.fn();
 const mockUpdateProject = vi.fn();
+const mockAddTeamMember = vi.fn();
+const mockRemoveTeamMember = vi.fn();
 
 vi.mock('../../services/projects.api', () => ({
   projectKeys: {
@@ -42,12 +44,21 @@ vi.mock('../../services/projects.api', () => ({
   getProject: (...args: unknown[]) => mockGetProject(...args),
   getTeamMembers: (...args: unknown[]) => mockGetTeamMembers(...args),
   updateProject: (...args: unknown[]) => mockUpdateProject(...args),
+  addTeamMember: (...args: unknown[]) => mockAddTeamMember(...args),
+  removeTeamMember: (...args: unknown[]) => mockRemoveTeamMember(...args),
   engagementModelLabels: {
     TIME_AND_MATERIALS: 'Time & Materials',
     FIXED_COST: 'Fixed Cost',
     AMC: 'AMC',
     INFRASTRUCTURE: 'Infrastructure',
   },
+}));
+
+const mockGetEmployees = vi.fn();
+
+vi.mock('../../services/employees.api', () => ({
+  employeeKeys: { all: ['employees'] as const },
+  getEmployees: (...args: unknown[]) => mockGetEmployees(...args),
 }));
 
 let mockUser: { role: string; name: string; id: string } | null = {
@@ -336,6 +347,110 @@ describe('ProjectDetail', () => {
       });
 
       expect(screen.queryByRole('button', { name: /edit & resubmit/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('canManageTeam gating (AC: team management)', () => {
+    it('shows Add Team Member button for ADMIN on ACTIVE project', async () => {
+      mockUser = { role: 'ADMIN', name: 'Admin User', id: 'admin-1' };
+      mockGetProject.mockResolvedValue({ data: tmProject });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add team member/i })).toBeInTheDocument();
+      });
+    });
+
+    it('hides Add Team Member button for ADMIN on PENDING_APPROVAL project', async () => {
+      mockUser = { role: 'ADMIN', name: 'Admin User', id: 'admin-1' };
+      mockGetProject.mockResolvedValue({
+        data: { ...tmProject, status: 'PENDING_APPROVAL' },
+      });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /add team member/i })).not.toBeInTheDocument();
+    });
+
+    it('shows Add Team Member button for DM who owns the ACTIVE project', async () => {
+      mockUser = { role: 'DELIVERY_MANAGER', name: 'DM User', id: 'dm-1' };
+      mockGetProject.mockResolvedValue({
+        data: { ...tmProject, deliveryManagerId: 'dm-1' },
+      });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add team member/i })).toBeInTheDocument();
+      });
+    });
+
+    it('hides Add Team Member button for DM who does NOT own the ACTIVE project', async () => {
+      mockUser = { role: 'DELIVERY_MANAGER', name: 'DM User', id: 'dm-1' };
+      mockGetProject.mockResolvedValue({
+        data: { ...tmProject, deliveryManagerId: 'other-dm' },
+      });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /add team member/i })).not.toBeInTheDocument();
+    });
+
+    it('hides Add Team Member button for FINANCE on ACTIVE project', async () => {
+      mockUser = { role: 'FINANCE', name: 'Finance User', id: 'fin-1' };
+      mockGetProject.mockResolvedValue({ data: tmProject });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /add team member/i })).not.toBeInTheDocument();
+    });
+
+    it('hides Add Team Member button for DM who owns a REJECTED project', async () => {
+      mockUser = { role: 'DELIVERY_MANAGER', name: 'DM User', id: 'dm-1' };
+      mockGetProject.mockResolvedValue({
+        data: { ...tmProject, status: 'REJECTED', deliveryManagerId: 'dm-1', rejectionComment: 'No' },
+      });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /add team member/i })).not.toBeInTheDocument();
+    });
+
+    it('shows Action column with Remove button when canManageTeam is true', async () => {
+      mockUser = { role: 'ADMIN', name: 'Admin User', id: 'admin-1' };
+      mockGetProject.mockResolvedValue({ data: tmProject });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Alice Dev')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Action')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /remove/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('hides Action column when canManageTeam is false', async () => {
+      mockUser = { role: 'FINANCE', name: 'Finance User', id: 'fin-1' };
+      mockGetProject.mockResolvedValue({ data: tmProject });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Alice Dev')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('Action')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
     });
   });
 });

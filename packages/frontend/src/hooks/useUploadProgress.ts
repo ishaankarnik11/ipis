@@ -40,7 +40,14 @@ export function useUploadProgress(uploadEventId: string | null): UploadProgressS
       es = new EventSource(`/api/v1/uploads/progress/${uploadEventId}`);
 
       es.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+        let data: { type: string; stage?: string; percent?: number; error?: string; runId?: string; projectsProcessed?: number; snapshotsWritten?: number };
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          console.error('Failed to parse SSE event:', event.data);
+          setState((prev) => ({ ...prev, error: 'Invalid server response' }));
+          return;
+        }
         retryCountRef.current = 0;
 
         switch (data.type) {
