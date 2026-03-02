@@ -152,13 +152,19 @@ export async function getProjectDashboard(
   }
 
   // Step 7: Sort (default marginPercent DESC)
-  const sortBy = filters.sortBy ?? 'marginPercent';
+  const validSortFields: (keyof ProjectDashboardRow)[] = [
+    'projectName', 'engagementModel', 'department', 'vertical', 'status',
+    'revenuePaise', 'costPaise', 'profitPaise', 'marginPercent',
+  ];
+  const sortBy = (validSortFields.includes(filters.sortBy as keyof ProjectDashboardRow)
+    ? filters.sortBy
+    : 'marginPercent') as keyof ProjectDashboardRow;
   const sortOrder = filters.sortOrder ?? 'desc';
   const sortMultiplier = sortOrder === 'asc' ? 1 : -1;
 
   rows.sort((a, b) => {
-    const aVal = a[sortBy as keyof ProjectDashboardRow] ?? 0;
-    const bVal = b[sortBy as keyof ProjectDashboardRow] ?? 0;
+    const aVal = a[sortBy] ?? 0;
+    const bVal = b[sortBy] ?? 0;
     if (typeof aVal === 'number' && typeof bVal === 'number') {
       return (aVal - bVal) * sortMultiplier;
     }

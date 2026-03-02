@@ -653,11 +653,11 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 37.1 | Revenue vs cost, margin %, budget vs actual for FC | NOT_DEVELOPED | — | — |
+| 37.1 | Revenue vs cost, margin %, budget vs actual for FC | PASS | `e2e/tests/project-dashboard.spec.ts` (E2E-P1, E2E-P3) + `dashboard.service.test.ts` | 2026-03-02 |
 | 37.2 | Burn rate visible | NOT_DEVELOPED | — | — |
 | 37.3 | Practice-level cost breakdown | NOT_DEVELOPED | — | — |
-| 37.4 | DM sees only own projects | NOT_DEVELOPED | — | — |
-| 37.5 | DeptHead sees department projects | NOT_DEVELOPED | — | — |
+| 37.4 | DM sees only own projects | PASS | `e2e/tests/project-dashboard.spec.ts` (E2E-P1) + `dashboard.service.test.ts` (DM scoping) | 2026-03-02 |
+| 37.5 | DeptHead sees department projects | PASS | `e2e/tests/project-dashboard.spec.ts` (E2E-N2) + `dashboard.service.test.ts` (DEPT_HEAD scoping) | 2026-03-02 |
 
 ---
 

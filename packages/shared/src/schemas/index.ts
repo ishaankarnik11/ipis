@@ -39,4 +39,4 @@ export {
 export {
   ledgerResponseSchema,
   type LedgerResponseData,
-} from './dashboard.schema.js';
+} from './ledger.schema.js';

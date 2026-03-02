@@ -94,7 +94,7 @@ development_status:
 
   # Epic 6: Dashboards, Reporting & Calculation Traceability
   epic-6: in-progress
-  6-1-project-dashboard-and-kpi-tiles: review
+  6-1-project-dashboard-and-kpi-tiles: done
   6-2-executive-practice-department-and-company-wide-dashboards: ready-for-dev
   6-3-ledger-drawer-api-and-data-contract: review
   6-4-ledger-drawer-ui-component: ready-for-dev

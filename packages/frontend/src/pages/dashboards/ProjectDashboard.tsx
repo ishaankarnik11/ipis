@@ -73,24 +73,6 @@ export default function ProjectDashboard() {
     });
   }
 
-  // Client-side filtering from full dataset
-  const filteredRows = useMemo(() => {
-    let result = rows;
-    if (filters.department) {
-      result = result.filter((r) => r.department === filters.department);
-    }
-    if (filters.vertical) {
-      result = result.filter((r) => r.vertical === filters.vertical);
-    }
-    if (filters.engagement_model) {
-      result = result.filter((r) => r.engagementModel === filters.engagement_model);
-    }
-    if (filters.status) {
-      result = result.filter((r) => r.status === filters.status);
-    }
-    return result;
-  }, [rows, filters.department, filters.vertical, filters.engagement_model, filters.status]);
-
   const columns: ColumnsType<ProjectDashboardItem> = [
     {
       title: 'Project Name',
@@ -216,7 +198,7 @@ export default function ProjectDashboard() {
         data-testid="dashboard-table"
         rowKey="projectId"
         columns={columns}
-        dataSource={filteredRows}
+        dataSource={rows}
         loading={isLoading}
         pagination={false}
         rowClassName={(record) => (record.profitPaise < 0 ? 'loss-row' : '')}

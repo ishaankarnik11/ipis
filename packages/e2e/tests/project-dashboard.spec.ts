@@ -1,20 +1,8 @@
 /**
  * Story 6.1 — Project Dashboard & KPI Tiles E2E Tests
  */
-import { test, expect, type Page } from '@playwright/test';
-import { login, credentials } from '../helpers/index.js';
-import type { Role } from '../helpers/index.js';
-
-/** Clear session and log in as a different role within the same test. */
-async function switchRole(page: Page, role: Role): Promise<void> {
-  await page.getByRole('button', { name: /log out/i }).click();
-  await page.waitForURL(/\/login/, { timeout: 10000 });
-  const { email, password } = credentials[role];
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Log In' }).click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'));
-}
+import { test, expect } from '@playwright/test';
+import { login } from '../helpers/index.js';
 
 // ── E2E-P1: DM sees own projects only with currency formatting ──
 test.describe('E2E-P1 — DM dashboard scoping', () => {
@@ -143,14 +131,12 @@ test.describe('E2E-N1 — HR access denied', () => {
   });
 });
 
-// ── E2E-N2: DEPT_HEAD sees empty when no department projects ──
-test.describe('E2E-N2 — Empty state for DEPT_HEAD', () => {
-  test('DEPT_HEAD with no department project snapshots sees empty state', async ({ page }) => {
-    // DEPT_HEAD is in Engineering department; dm2 is also in Engineering
-    // but if we filter for dept_head, they should see dm2's project (in Engineering)
-    // For a true empty state, we'd need a dept_head in a department with no projects
-    // Since our seed has dm2 in Engineering (same as dept_head), dept_head WILL see dm2's project
-    // To test empty state, we navigate as DEPT_HEAD and verify the dashboard renders
+// ── E2E-N2: DEPT_HEAD department scoping — sees only own department projects ──
+test.describe('E2E-N2 — DEPT_HEAD department scoping', () => {
+  test('DEPT_HEAD sees only own department projects, not other departments', async ({ page }) => {
+    // DEPT_HEAD is in Engineering department; dm2 is also in Engineering.
+    // True empty-state test would require a dept_head in a department with no projects,
+    // which is not feasible with current seed data. This test validates department scoping instead.
     await login(page, 'DEPT_HEAD');
     await page.goto('/dashboards/projects');
     await expect(page.getByTestId('project-dashboard')).toBeVisible({ timeout: 10000 });
