@@ -173,3 +173,350 @@ export async function getProjectDashboard(
 
   return rows;
 }
+
+// ---------------------------------------------------------------------------
+// Helper: find latest period for a given entity type
+// ---------------------------------------------------------------------------
+
+async function findLatestPeriod(entityType: string): Promise<{ periodMonth: number; periodYear: number } | null> {
+  const snap = await prisma.calculationSnapshot.findFirst({
+    where: { entityType, figureType: 'MARGIN_PERCENT' },
+    orderBy: [{ periodYear: 'desc' }, { periodMonth: 'desc' }],
+    select: { periodMonth: true, periodYear: true },
+  });
+  return snap;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: collect snapshots by entityId for a given entityType + period
+// Returns a map: entityId → { revenuePaise, costPaise, marginPercent }
+// ---------------------------------------------------------------------------
+
+interface EntityFinancials {
+  revenuePaise: number;
+  costPaise: number;
+  profitPaise: number;
+  marginPercent: number;
+}
+
+async function collectEntityFinancials(
+  entityType: string,
+  periodMonth: number,
+  periodYear: number,
+): Promise<Map<string, EntityFinancials>> {
+  const snapshots = await prisma.calculationSnapshot.findMany({
+    where: { entityType, periodMonth, periodYear },
+    orderBy: { calculatedAt: 'desc' },
+    select: { entityId: true, figureType: true, valuePaise: true, calculatedAt: true },
+  });
+
+  // Deduplicate: keep latest calculatedAt per (entityId, figureType)
+  const seen = new Set<string>();
+  const deduped: typeof snapshots = [];
+  for (const snap of snapshots) {
+    const key = `${snap.entityId}::${snap.figureType}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(snap);
+    }
+  }
+
+  // Group by entityId, collect figureType values
+  const result = new Map<string, EntityFinancials>();
+  const partial = new Map<string, { revenue?: number; cost?: number; margin?: number }>();
+
+  for (const snap of deduped) {
+    const existing = partial.get(snap.entityId) ?? {};
+    if (snap.figureType === 'REVENUE_CONTRIBUTION') {
+      existing.revenue = Number(snap.valuePaise);
+    } else if (snap.figureType === 'EMPLOYEE_COST') {
+      existing.cost = Number(snap.valuePaise);
+    } else if (snap.figureType === 'MARGIN_PERCENT') {
+      existing.margin = Number(snap.valuePaise) / 10000;
+    }
+    partial.set(snap.entityId, existing);
+  }
+
+  for (const [entityId, vals] of partial) {
+    const revenue = vals.revenue ?? 0;
+    const cost = vals.cost ?? 0;
+    result.set(entityId, {
+      revenuePaise: revenue,
+      costPaise: cost,
+      profitPaise: revenue - cost,
+      marginPercent: vals.margin ?? 0,
+    });
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Executive Dashboard (AC: 1)
+// ---------------------------------------------------------------------------
+
+export interface ExecutiveDashboardResult {
+  revenuePaise: number;
+  costPaise: number;
+  marginPercent: number;
+  billableUtilisationPercent: number;
+  top5Projects: ProjectDashboardRow[];
+  bottom5Projects: ProjectDashboardRow[];
+}
+
+export async function getExecutiveDashboard(): Promise<ExecutiveDashboardResult | null> {
+  const period = await findLatestPeriod('COMPANY');
+  if (!period) return null;
+
+  const { periodMonth, periodYear } = period;
+
+  // Company-level totals
+  const companyFinancials = await collectEntityFinancials('COMPANY', periodMonth, periodYear);
+  const company = companyFinancials.get('COMPANY') ?? { revenuePaise: 0, costPaise: 0, profitPaise: 0, marginPercent: 0 };
+
+  // Top-5 / Bottom-5 projects by margin
+  const projectSnapshots = await prisma.calculationSnapshot.findMany({
+    where: { entityType: 'PROJECT', figureType: 'MARGIN_PERCENT', periodMonth, periodYear },
+    orderBy: { calculatedAt: 'desc' },
+    select: { entityId: true, valuePaise: true, breakdownJson: true, calculatedAt: true },
+  });
+
+  const latestByProject = new Map<string, (typeof projectSnapshots)[0]>();
+  for (const snap of projectSnapshots) {
+    if (!latestByProject.has(snap.entityId)) {
+      latestByProject.set(snap.entityId, snap);
+    }
+  }
+
+  const projectIds = [...latestByProject.keys()];
+  const projects = await prisma.project.findMany({
+    where: { id: { in: projectIds } },
+    select: {
+      id: true, name: true, vertical: true, engagementModel: true, status: true,
+      deliveryManagerId: true,
+      deliveryManager: { select: { departmentId: true, department: { select: { name: true } } } },
+    },
+  });
+
+  const projectRows: ProjectDashboardRow[] = projects.map((project) => {
+    const snap = latestByProject.get(project.id)!;
+    const breakdown = snap.breakdownJson as Record<string, unknown>;
+    return {
+      projectId: project.id,
+      projectName: project.name,
+      engagementModel: project.engagementModel,
+      department: project.deliveryManager?.department?.name ?? null,
+      vertical: project.vertical,
+      status: project.status,
+      revenuePaise: (breakdown.revenue as number) ?? 0,
+      costPaise: (breakdown.cost as number) ?? 0,
+      profitPaise: (breakdown.profit as number) ?? 0,
+      marginPercent: Number(snap.valuePaise) / 10000,
+    };
+  });
+
+  // Sort by margin DESC for top-5
+  const sorted = [...projectRows].sort((a, b) => b.marginPercent - a.marginPercent);
+  const top5 = sorted.slice(0, 5);
+  const bottom5 = sorted.slice(-5).reverse(); // worst margin first
+
+  // Billable utilisation from EMPLOYEE snapshots
+  const empSnapshots = await prisma.calculationSnapshot.findMany({
+    where: { entityType: 'EMPLOYEE', figureType: 'EMPLOYEE_COST', periodMonth, periodYear },
+    orderBy: { calculatedAt: 'desc' },
+    select: { entityId: true, breakdownJson: true, calculatedAt: true },
+  });
+
+  const seenEmp = new Set<string>();
+  let totalBillable = 0;
+  let totalAvailable = 0;
+  for (const snap of empSnapshots) {
+    if (seenEmp.has(snap.entityId)) continue;
+    seenEmp.add(snap.entityId);
+    const bd = snap.breakdownJson as Record<string, number>;
+    totalBillable += bd.billableHours ?? 0;
+    totalAvailable += bd.availableHours ?? 0;
+  }
+
+  const billableUtilisationPercent = totalAvailable === 0 ? 0 : totalBillable / totalAvailable;
+
+  return {
+    revenuePaise: company.revenuePaise,
+    costPaise: company.costPaise,
+    marginPercent: company.marginPercent,
+    billableUtilisationPercent,
+    top5Projects: top5,
+    bottom5Projects: bottom5,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Practice Dashboard (AC: 3)
+// ---------------------------------------------------------------------------
+
+export interface PracticeDashboardRow {
+  designation: string;
+  revenuePaise: number;
+  costPaise: number;
+  profitPaise: number;
+  marginPercent: number;
+  employeeCount: number;
+}
+
+export async function getPracticeDashboard(): Promise<PracticeDashboardRow[]> {
+  const period = await findLatestPeriod('PRACTICE');
+  if (!period) return [];
+
+  const { periodMonth, periodYear } = period;
+
+  const financials = await collectEntityFinancials('PRACTICE', periodMonth, periodYear);
+
+  // Count employees per designation from EMPLOYEE snapshots
+  const empSnapshots = await prisma.calculationSnapshot.findMany({
+    where: { entityType: 'EMPLOYEE', figureType: 'EMPLOYEE_COST', periodMonth, periodYear },
+    orderBy: { calculatedAt: 'desc' },
+    select: { entityId: true, calculatedAt: true },
+  });
+
+  const uniqueEmpIds = new Set<string>();
+  for (const snap of empSnapshots) {
+    if (!uniqueEmpIds.has(snap.entityId)) uniqueEmpIds.add(snap.entityId);
+  }
+
+  const employees = uniqueEmpIds.size > 0
+    ? await prisma.employee.findMany({
+        where: { id: { in: [...uniqueEmpIds] } },
+        select: { id: true, designation: true },
+      })
+    : [];
+
+  const countByDesignation = new Map<string, number>();
+  for (const emp of employees) {
+    countByDesignation.set(emp.designation, (countByDesignation.get(emp.designation) ?? 0) + 1);
+  }
+
+  const rows: PracticeDashboardRow[] = [];
+  for (const [designation, fin] of financials) {
+    rows.push({
+      designation,
+      ...fin,
+      employeeCount: countByDesignation.get(designation) ?? 0,
+    });
+  }
+
+  // Sort by cost descending
+  rows.sort((a, b) => b.costPaise - a.costPaise);
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Department Dashboard (AC: 4)
+// ---------------------------------------------------------------------------
+
+export interface DepartmentDashboardRow {
+  departmentId: string;
+  departmentName: string;
+  revenuePaise: number;
+  costPaise: number;
+  profitPaise: number;
+  marginPercent: number;
+}
+
+export async function getDepartmentDashboard(user: RequestUser): Promise<DepartmentDashboardRow[]> {
+  const period = await findLatestPeriod('DEPARTMENT');
+  if (!period) return [];
+
+  const { periodMonth, periodYear } = period;
+
+  const financials = await collectEntityFinancials('DEPARTMENT', periodMonth, periodYear);
+
+  // Resolve department names
+  const deptIds = [...financials.keys()];
+  const departments = await prisma.department.findMany({
+    where: { id: { in: deptIds } },
+    select: { id: true, name: true },
+  });
+
+  const deptNameMap = new Map<string, string>();
+  for (const dept of departments) {
+    deptNameMap.set(dept.id, dept.name);
+  }
+
+  let rows: DepartmentDashboardRow[] = [];
+  for (const [deptId, fin] of financials) {
+    rows.push({
+      departmentId: deptId,
+      departmentName: deptNameMap.get(deptId) ?? deptId,
+      ...fin,
+    });
+  }
+
+  // RBAC: DH sees own department only
+  if (user.role !== 'ADMIN' && user.role !== 'FINANCE') {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { departmentId: true },
+    });
+    if (currentUser?.departmentId) {
+      rows = rows.filter((r) => r.departmentId === currentUser.departmentId);
+    } else {
+      rows = [];
+    }
+  }
+
+  // Sort by revenue descending
+  rows.sort((a, b) => b.revenuePaise - a.revenuePaise);
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Company Dashboard (AC: 5)
+// ---------------------------------------------------------------------------
+
+export interface CompanyDashboardResult {
+  revenuePaise: number;
+  costPaise: number;
+  profitPaise: number;
+  marginPercent: number;
+  departments: DepartmentDashboardRow[];
+}
+
+export async function getCompanyDashboard(): Promise<CompanyDashboardResult | null> {
+  const period = await findLatestPeriod('COMPANY');
+  if (!period) return null;
+
+  const { periodMonth, periodYear } = period;
+
+  // Company totals
+  const companyFinancials = await collectEntityFinancials('COMPANY', periodMonth, periodYear);
+  const company = companyFinancials.get('COMPANY') ?? { revenuePaise: 0, costPaise: 0, profitPaise: 0, marginPercent: 0 };
+
+  // Department breakdown (unscoped — all departments)
+  const deptFinancials = await collectEntityFinancials('DEPARTMENT', periodMonth, periodYear);
+  const deptIds = [...deptFinancials.keys()];
+  const departments = await prisma.department.findMany({
+    where: { id: { in: deptIds } },
+    select: { id: true, name: true },
+  });
+
+  const deptNameMap = new Map<string, string>();
+  for (const dept of departments) {
+    deptNameMap.set(dept.id, dept.name);
+  }
+
+  const deptRows: DepartmentDashboardRow[] = [];
+  for (const [deptId, fin] of deptFinancials) {
+    deptRows.push({
+      departmentId: deptId,
+      departmentName: deptNameMap.get(deptId) ?? deptId,
+      ...fin,
+    });
+  }
+
+  deptRows.sort((a, b) => b.revenuePaise - a.revenuePaise);
+
+  return {
+    ...company,
+    departments: deptRows,
+  };
+}

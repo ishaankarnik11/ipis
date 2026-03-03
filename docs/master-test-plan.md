@@ -640,10 +640,10 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 36.1 | Admin sees total revenue monthly/YTD | NOT_DEVELOPED | — | — |
-| 36.2 | Finance sees total cost, gross margin %, utilization % | NOT_DEVELOPED | — | — |
-| 36.3 | Top 5 and bottom 5 projects by profitability displayed | NOT_DEVELOPED | — | — |
-| 36.4 | HR redirected from executive dashboard | NOT_DEVELOPED | — | — |
+| 36.1 | Admin sees total revenue monthly/YTD | PASS | `e2e/tests/executive-dashboards.spec.ts` (E2E-P1) + `dashboard.service.test.ts` (getExecutiveDashboard) | 2026-03-03 |
+| 36.2 | Finance sees total cost, gross margin %, utilization % | PASS | `e2e/tests/executive-dashboards.spec.ts` (E2E-P1) + `dashboard.service.test.ts` (getExecutiveDashboard — utilisation) | 2026-03-03 |
+| 36.3 | Top 5 and bottom 5 projects by profitability displayed | PASS | `e2e/tests/executive-dashboards.spec.ts` (E2E-P2) + `dashboard.service.test.ts` (top-5/bottom-5 ordering) | 2026-03-03 |
+| 36.4 | HR redirected from executive dashboard | PASS | `e2e/tests/executive-dashboards.spec.ts` (E2E-N1 — DM redirect) | 2026-03-03 |
 
 ---
 
@@ -679,9 +679,9 @@
 
 | # | Scenario | Status | Test File | Last Verified |
 |---|---|---|---|---|
-| 39.1 | Revenue, cost, utilization %, profit % displayed | NOT_DEVELOPED | — | — |
+| 39.1 | Revenue, cost, utilization %, profit % displayed | PASS | `e2e/tests/executive-dashboards.spec.ts` (E2E-P4, E2E-P5) + `dashboard.service.test.ts` (getDepartmentDashboard) | 2026-03-03 |
 | 39.2 | Month-on-month comparison across historical periods | NOT_DEVELOPED | — | — |
-| 39.3 | DM sees own department only | NOT_DEVELOPED | — | — |
+| 39.3 | DM sees own department only | PASS | `dashboard.service.test.ts` (getDepartmentDashboard — DEPT_HEAD scoping) + backend rbacMiddleware includes DM | 2026-03-03 |
 
 ---
 

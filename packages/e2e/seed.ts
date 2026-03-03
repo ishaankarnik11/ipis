@@ -456,6 +456,42 @@ async function main() {
     },
   });
 
+  // ── Story 6.2: Executive/Practice/Department/Company dashboard snapshots ──
+
+  // Helper to seed entity-level snapshots (3 rows per entity: MARGIN_PERCENT, EMPLOYEE_COST, REVENUE_CONTRIBUTION)
+  async function seedEntitySnaps(entityType: string, entityId: string, revenue: number, cost: number, marginBp: number, breakdown: object = {}) {
+    const base = { recalculationRunId: dashRun.id, entityType, entityId, periodMonth: 2, periodYear: 2026, engineVersion: '1.0.0', calculatedAt: new Date() };
+    await prisma.calculationSnapshot.createMany({
+      data: [
+        { ...base, figureType: 'MARGIN_PERCENT', valuePaise: BigInt(marginBp), breakdownJson: {} },
+        { ...base, figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(revenue), breakdownJson: {} },
+        { ...base, figureType: 'EMPLOYEE_COST', valuePaise: BigInt(cost), breakdownJson: breakdown },
+      ],
+    });
+  }
+
+  // COMPANY snapshot — total: revenue 15M, cost 12.4M, margin 17.3%
+  await seedEntitySnaps('COMPANY', 'COMPANY', 15000000, 12400000, 1733);
+
+  // DEPARTMENT snapshots — Delivery and Engineering
+  await seedEntitySnaps('DEPARTMENT', delivery.id, 13000000, 10300000, 2077);
+  await seedEntitySnaps('DEPARTMENT', engineering.id, 2000000, 2100000, -500);
+
+  // PRACTICE snapshots — Senior Developer and QA Engineer designations
+  await seedEntitySnaps('PRACTICE', 'Senior Developer', 8000000, 5000000, 3750);
+  await seedEntitySnaps('PRACTICE', 'QA Engineer', 4000000, 3000000, 2500);
+  await seedEntitySnaps('PRACTICE', 'Financial Analyst', 3000000, 4400000, -4667);
+
+  // EMPLOYEE snapshots (with breakdownJson containing hours for utilisation calc)
+  const seededEmployees = await prisma.employee.findMany({ where: { isResigned: false } });
+  for (const emp of seededEmployees) {
+    await seedEntitySnaps('EMPLOYEE', emp.id, 3000000, 2000000, 0, {
+      totalHours: 160,
+      billableHours: 120,
+      availableHours: 176,
+    });
+  }
+
   console.log('E2E seed complete');
 }
 

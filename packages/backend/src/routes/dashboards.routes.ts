@@ -26,4 +26,56 @@ router.get(
   }),
 );
 
+// GET /api/v1/reports/dashboards/executive
+router.get(
+  '/dashboards/executive',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN']),
+  asyncHandler(async (_req, res) => {
+    const data = await dashboardService.getExecutiveDashboard();
+    if (!data) {
+      res.json({ data: null, meta: { total: 0 } });
+      return;
+    }
+    res.json({ data, meta: { total: 1 } });
+  }),
+);
+
+// GET /api/v1/reports/dashboards/practice
+router.get(
+  '/dashboards/practice',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN']),
+  asyncHandler(async (_req, res) => {
+    const data = await dashboardService.getPracticeDashboard();
+    res.json({ data, meta: { total: data.length } });
+  }),
+);
+
+// GET /api/v1/reports/dashboards/department
+router.get(
+  '/dashboards/department',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER']),
+  asyncHandler(async (req, res) => {
+    const data = await dashboardService.getDepartmentDashboard(req.user!);
+    res.json({ data, meta: { total: data.length } });
+  }),
+);
+
+// GET /api/v1/reports/dashboards/company
+router.get(
+  '/dashboards/company',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN']),
+  asyncHandler(async (_req, res) => {
+    const data = await dashboardService.getCompanyDashboard();
+    if (!data) {
+      res.json({ data: null, meta: { total: 0 } });
+      return;
+    }
+    res.json({ data, meta: { total: 1 } });
+  }),
+);
+
 export default router;

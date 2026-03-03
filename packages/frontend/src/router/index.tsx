@@ -1,5 +1,4 @@
 import { createBrowserRouter, Navigate } from 'react-router';
-import { Typography } from 'antd';
 import type { UserRole } from '@ipis/shared';
 import { AuthGuard, LoginGuard, RoleGuard, ChangePasswordGuard } from './guards';
 import AppLayout from '../layouts/AppLayout';
@@ -17,16 +16,10 @@ import CreateEditProject from '../pages/projects/CreateEditProject';
 import ProjectList from '../pages/projects/ProjectList';
 import ProjectDetail from '../pages/projects/ProjectDetail';
 import ProjectDashboard from '../pages/dashboards/ProjectDashboard';
+import ExecutiveDashboard from '../pages/dashboards/ExecutiveDashboard';
+import DepartmentDashboard from '../pages/dashboards/DepartmentDashboard';
+import CompanyDashboard from '../pages/dashboards/CompanyDashboard';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div>
-      <Typography.Title level={3}>{title}</Typography.Title>
-      <Typography.Text type="secondary">This page will be implemented in a future story.</Typography.Text>
-    </div>
-  );
-}
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -111,8 +104,19 @@ export const router = createBrowserRouter([
               { path: '/dashboards/projects', element: <ProjectDashboard /> },
             ],
           },
-          { path: '/dashboards/executive', element: <PlaceholderPage title="Executive Dashboard" /> },
-          { path: '/dashboards/department', element: <PlaceholderPage title="Department Dashboard" /> },
+          {
+            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN']} />,
+            children: [
+              { path: '/dashboards/executive', element: <ExecutiveDashboard /> },
+              { path: '/dashboards/company', element: <CompanyDashboard /> },
+            ],
+          },
+          {
+            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER']} />,
+            children: [
+              { path: '/dashboards/department', element: <DepartmentDashboard /> },
+            ],
+          },
         ],
       },
     ],
