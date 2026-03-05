@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { UserRole } from '@ipis/shared';
-import { verifyToken, signToken } from '../lib/jwt.js';
+import { verifyToken, verifyInternalToken, signToken } from '../lib/jwt.js';
 import { UnauthorizedError } from '../lib/errors.js';
 import { config } from '../lib/config.js';
 
@@ -21,7 +21,23 @@ export function getCookieOptions(nodeEnv: string) {
   };
 }
 
+const INTERNAL_COOKIE_NAME = 'ipis_internal_token';
+
 export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // Internal service token (used by Puppeteer PDF rendering)
+  const internalToken = req.cookies?.[INTERNAL_COOKIE_NAME];
+  if (internalToken) {
+    const valid = await verifyInternalToken(internalToken);
+    if (valid) {
+      req.user = {
+        id: 'internal-service',
+        role: 'ADMIN' as UserRole,
+        email: 'internal@service',
+      };
+      return next();
+    }
+  }
+
   const token = req.cookies?.[COOKIE_NAME];
 
   if (!token) {

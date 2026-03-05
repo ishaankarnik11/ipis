@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client';
+import type { AuditAction } from '@ipis/shared';
 import { prisma } from '../lib/prisma.js';
+import { logger } from '../lib/logger.js';
 
 export interface AuditLogFilters {
   actions?: string[];
@@ -72,4 +74,30 @@ export async function getAuditLog(
   }));
 
   return { data: rows, meta: { total, page: pagination.page, pageSize: pagination.pageSize } };
+}
+
+export interface LogAuditEventInput {
+  actorId?: string | null;
+  action: AuditAction;
+  entityType: string;
+  entityId?: string | null;
+  ipAddress?: string | null;
+  metadata?: Prisma.InputJsonValue;
+}
+
+export async function logAuditEvent(input: LogAuditEventInput): Promise<void> {
+  try {
+    await prisma.auditEvent.create({
+      data: {
+        actorId: input.actorId ?? null,
+        action: input.action,
+        entityType: input.entityType,
+        entityId: input.entityId ?? null,
+        ipAddress: input.ipAddress ?? null,
+        metadata: input.metadata ?? Prisma.JsonNull,
+      },
+    });
+  } catch (error) {
+    logger.error({ err: error, auditAction: input.action }, 'Audit event write failed');
+  }
 }

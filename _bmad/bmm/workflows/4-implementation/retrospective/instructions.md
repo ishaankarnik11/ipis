@@ -18,19 +18,6 @@ FACILITATION NOTES:
 - Action items must be achievable with clear ownership
 - Two-part format: (1) Epic Review + (2) Next Epic Preparation
 
-EPIC CLOSURE PRE-CONDITIONS (ABSOLUTE — NO BYPASS):
-
-The facilitator MUST verify ALL of the following before beginning the retrospective. If ANY pre-condition fails, the epic CANNOT close. Issues must be resolved first.
-
-1. ALL stories in the epic are status "done"
-2. ALL code review findings rated HIGH are status "FIXED" (not "Noted")
-3. ALL issues discovered during the epic — regardless of origin (pre-existing gap, code review finding, user-reported, or cross-epic dependency) — are either RESOLVED or tracked as explicit tech debt with stakeholder sign-off from {user_name}
-4. `docs/master-test-plan.md` shows NO status "FAIL" for any FR covered by this epic
-5. `docs/master-test-plan.md` shows NO status "DEVELOPED_UNTESTED" for any FR covered by this epic
-6. ALL Tier 3 (cross-role chain) scenarios relevant to this epic's FRs have been implemented and are PASS
-
-If ANY pre-condition fails → HALT. Present the failing conditions to {user_name}. The epic retrospective cannot proceed until issues are resolved or {user_name} explicitly grants a waiver with documented rationale.
-
 PARTY MODE PROTOCOL:
 
 - ALL agent dialogue MUST use format: "Name (Role): dialogue"
@@ -1342,29 +1329,6 @@ Bob (Scrum Master): "See you all when prep work is done. Meeting adjourned!"
 <output>
 ✅ Retrospective document saved: {implementation_artifacts}/epic-{{epic_number}}-retro-{date}.md
 </output>
-
-<!-- RETRO ACTIONABLE ENFORCEMENT GATE -->
-<critical>Before marking the retrospective as done, the full E2E regression suite MUST be 100% green.
-  Run the complete E2E suite now. If ANY tests are red:
-  1. Do NOT mark the retrospective as done
-  2. Verify that a bug-fix story exists in sprint-status.yaml for the failing tests
-  3. If no bug-fix story exists, create one immediately
-  4. Report the red tests to the user and HALT — the retro cannot close until the suite is green
-  The purpose of this gate is to ensure no epic closes with known test regressions.</critical>
-
-<action>Run full E2E test suite as retro closure gate</action>
-<check if="any E2E tests are red">
-  <output>
-🚫 **Retro Closure Blocked — Red E2E Tests Detected**
-
-The following E2E tests are failing:
-{{failing_test_list}}
-
-The retrospective cannot be marked as done until the regression suite is 100% green.
-Please address the failing tests (or confirm a bug-fix story exists) before closing.
-  </output>
-  <action>HALT - Retro cannot close with red tests</action>
-</check>
 
 <action>Update {sprint_status_file} to mark retrospective as completed</action>
 

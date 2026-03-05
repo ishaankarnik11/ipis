@@ -9,6 +9,8 @@ import auditRoutes from './audit.routes.js';
 import uploadsRoutes from './uploads.routes.js';
 import ledgerRoutes from './ledger.routes.js';
 import dashboardRoutes from './dashboards.routes.js';
+import reportsRoutes from './reports.routes.js';
+import projectRolesRoutes from './project-roles.routes.js';
 
 const router: RouterType = Router();
 
@@ -46,5 +48,11 @@ router.use('/api/v1/reports', ledgerRoutes);
 
 // Dashboard routes (Finance, Admin, DM, Dept Head)
 router.use('/api/v1/reports', dashboardRoutes);
+
+// PDF export routes (Finance, Admin, DM)
+router.use('/api/v1/reports', reportsRoutes);
+
+// Project role routes (Admin manages, all authenticated can read)
+router.use('/api/v1/project-roles', projectRolesRoutes);
 
 export default router;

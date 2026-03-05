@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Typography, Card, Row, Col, Statistic, Space, Empty, Spin, Progress } from 'antd';
+import { Typography, Card, Row, Col, Statistic, Space, Empty, Spin, Progress, Button, message } from 'antd';
+import { FilePdfOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { formatCurrency, formatPercent } from '@ipis/shared';
 import {
@@ -12,11 +14,19 @@ import {
 import MarginHealthBadge from '../../components/MarginHealthBadge';
 import AtRiskKPITile from '../../components/AtRiskKPITile';
 import DataPeriodIndicator from '../../components/DataPeriodIndicator';
+import { exportPdf } from '../../services/reports.api';
+import { shareReport } from '../../services/share.api';
+import { useAuth } from '../../hooks/useAuth';
 
 const { Title, Text } = Typography;
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 export default function ExecutiveDashboard() {
   const navigate = useNavigate();
+  const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const { user } = useAuth();
+  const canShare = user?.role === 'FINANCE' || user?.role === 'ADMIN';
 
   const { data: execData, isLoading: execLoading } = useQuery({
     queryKey: reportKeys.executive,
@@ -61,10 +71,52 @@ export default function ExecutiveDashboard() {
 
   return (
     <div data-testid="executive-dashboard">
-      <Space style={{ marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>Executive Dashboard</Title>
-        <DataPeriodIndicator />
-      </Space>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Space>
+          <Title level={3} style={{ margin: 0 }}>Executive Dashboard</Title>
+          <DataPeriodIndicator />
+        </Space>
+        <Space>
+          {canShare && (
+            <Button
+              icon={<ShareAltOutlined />}
+              loading={sharing}
+              disabled={sharing}
+              onClick={async () => {
+                setSharing(true);
+                try {
+                  const now = new Date();
+                  const period = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+                  await shareReport({ reportType: 'executive', entityId: NIL_UUID, period });
+                } catch {
+                  message.error('Failed to create share link');
+                } finally {
+                  setSharing(false);
+                }
+              }}
+            >
+              Share Link
+            </Button>
+          )}
+          <Button
+            icon={<FilePdfOutlined />}
+            loading={exporting}
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const now = new Date();
+                const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                await exportPdf({ reportType: 'executive', entityId: NIL_UUID, period });
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            Export PDF
+          </Button>
+        </Space>
+      </div>
 
       {/* KPI Tiles */}
       <Row gutter={16} style={{ marginBottom: 24 }} data-testid="kpi-tiles">

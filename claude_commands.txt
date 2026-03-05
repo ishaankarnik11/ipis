@@ -1,0 +1,2 @@
+Start in Plan mode first (then you can switch later)
+claude --permission-mode plan --allow-dangerously-skip-permissions

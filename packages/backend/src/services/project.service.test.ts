@@ -511,20 +511,26 @@ describe('project.service', () => {
     });
   }
 
+  async function seedProjectRole(name: string = 'Developer'): Promise<string> {
+    const role = await prisma.projectRole.create({ data: { name } });
+    return role.id;
+  }
+
   describe('addTeamMember', () => {
     it('should add a team member and return the record', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
+      const roleId = await seedProjectRole('Developer');
 
       const result = await projectService.addTeamMember(
         proj.id,
-        { employeeId: emp.id, role: 'Developer' },
+        { employeeId: emp.id, roleId },
         dm,
       );
 
       expect(result.employeeId).toBe(emp.id);
-      expect(result.role).toBe('Developer');
+      expect(result.roleId).toBe(roleId);
       expect(result.billingRatePaise).toBeNull();
     });
 
@@ -532,9 +538,10 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm, 'TIME_AND_MATERIALS');
       const emp = await createTestEmployee('EMP001');
+      const roleId = await seedProjectRole('Developer');
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm),
       ).rejects.toThrow('billingRatePaise is required for T&M projects');
     });
 
@@ -542,10 +549,11 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm, 'TIME_AND_MATERIALS');
       const emp = await createTestEmployee('EMP001');
+      const roleId = await seedProjectRole('Developer');
 
       const result = await projectService.addTeamMember(
         proj.id,
-        { employeeId: emp.id, role: 'Developer', billingRatePaise: 500000 },
+        { employeeId: emp.id, roleId, billingRatePaise: 500000 },
         dm,
       );
 
@@ -556,11 +564,12 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
+      const roleId = await seedProjectRole('Developer');
 
       const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, otherDm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, otherDm),
       ).rejects.toThrow('Access denied');
     });
 
@@ -568,22 +577,25 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
+      const roleId = await seedProjectRole('Developer');
+      const roleId2 = await seedProjectRole('Tester');
 
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Tester' }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId: roleId2 }, dm),
       ).rejects.toThrow('Employee is already assigned to this project');
     });
 
     it('should throw NotFoundError for non-existent project', async () => {
       const dm = await makeDmUser();
       await makeAdminUser();
+      const roleId = await seedProjectRole('Developer');
 
       await expect(
         projectService.addTeamMember(
           '00000000-0000-4000-8000-000000000001',
-          { employeeId: '00000000-0000-4000-8000-000000000002', role: 'Developer' },
+          { employeeId: '00000000-0000-4000-8000-000000000002', roleId },
           dm,
         ),
       ).rejects.toThrow('Project not found');
@@ -592,11 +604,12 @@ describe('project.service', () => {
     it('should throw NotFoundError for non-existent employee', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
+      const roleId = await seedProjectRole('Developer');
 
       await expect(
         projectService.addTeamMember(
           proj.id,
-          { employeeId: '00000000-0000-4000-8000-000000000002', role: 'Developer' },
+          { employeeId: '00000000-0000-4000-8000-000000000002', roleId },
           dm,
         ),
       ).rejects.toThrow('Employee not found');
@@ -607,15 +620,17 @@ describe('project.service', () => {
       await makeAdminUser();
       const proj = await projectService.createProject(validCreateInput, dm);
       const emp = await createTestEmployee('EMP001');
+      const roleId = await seedProjectRole('Developer');
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm),
       ).rejects.toThrow('Project must be in ACTIVE status');
     });
 
     it('should throw ValidationError for resigned employee', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
+      const roleId = await seedProjectRole('Developer');
       const emp = await prisma.employee.create({
         data: {
           employeeCode: 'EMP001',
@@ -628,24 +643,52 @@ describe('project.service', () => {
       });
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm),
       ).rejects.toThrow('Cannot assign a resigned employee to a project');
     });
-  });
 
-  describe('getTeamMembers', () => {
-    it('should return team members with employee details', async () => {
+    it('should throw ValidationError for inactive roleId', async () => {
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
+      const role = await prisma.projectRole.create({ data: { name: 'Inactive Role', isActive: false } });
+
+      await expect(
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId: role.id }, dm),
+      ).rejects.toThrow('Invalid or inactive project role');
+    });
+
+    it('should throw ValidationError for non-existent roleId', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
 
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
+      await expect(
+        projectService.addTeamMember(
+          proj.id,
+          { employeeId: emp.id, roleId: '00000000-0000-0000-0000-000000000000' },
+          dm,
+        ),
+      ).rejects.toThrow('Invalid or inactive project role');
+    });
+  });
+
+  describe('getTeamMembers', () => {
+    it('should return team members with employee details and roleName', async () => {
+      const dm = await makeDmUser();
+      const proj = await createActiveProject(dm);
+      const emp = await createTestEmployee('EMP001');
+      const roleId = await seedProjectRole('Developer');
+
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
 
       const result = await projectService.getTeamMembers(proj.id, dm);
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Employee EMP001');
       expect(result[0].designation).toBe('Developer');
+      expect(result[0].roleId).toBe(roleId);
+      expect(result[0].roleName).toBe('Developer');
     });
 
     it('should throw ForbiddenError for non-owning DM', async () => {
@@ -675,7 +718,8 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
+      const roleId = await seedProjectRole('Developer');
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
 
       await projectService.removeTeamMember(proj.id, emp.id, dm);
 
@@ -687,7 +731,8 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, role: 'Developer' }, dm);
+      const roleId = await seedProjectRole('Developer');
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
 
       const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 

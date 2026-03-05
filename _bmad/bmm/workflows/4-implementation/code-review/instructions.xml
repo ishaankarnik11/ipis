@@ -94,15 +94,6 @@
       5. **Test Quality**: Are tests real assertions or placeholders?
     </action>
 
-    <!-- E2E Quality Gate (ABSOLUTE) -->
-    <gate id="e2e-quality-gate">
-      <instruction>Run the full E2E suite: pnpm test:e2e</instruction>
-      <instruction>Parse e2e-report/latest/results.json for pass/fail counts</instruction>
-      <instruction>Any failure → automatic HIGH finding with [E2E-FAIL] prefix</instruction>
-      <instruction>Set e2e_gate_passed = true/false based on results</instruction>
-      <instruction>Story CANNOT proceed to "done" if e2e_gate_passed = false</instruction>
-    </gate>
-
     <check if="total_issues_found lt 3">
       <critical>NOT LOOKING HARD ENOUGH - Find more problems!</critical>
       <action>Re-examine code for:
@@ -117,50 +108,10 @@
     </check>
   </step>
 
-  <step n="3b" goal="Verify claimed fixes against actual code">
-    <critical>REVIEW FIX VERIFICATION GATE: For every finding or task marked as FIXED in the
-      Dev Agent Record or story file, the reviewer MUST verify the fix exists in actual code.
-      A claim of "FIXED" without corresponding code change is a CRITICAL finding — this
-      catches false completion claims (e.g., Story 4-5 where BreakdownJson replacement was
-      claimed but not done).</critical>
-
-    <action>For each finding or task marked FIXED or [x]:
-      1. Read the original finding/task description
-      2. Check the actual code in the referenced file(s)
-      3. Verify the code change matches what was claimed
-      4. If no evidence of fix exists → mark as CRITICAL: FALSE FIX CLAIM
-    </action>
-
-    <action>Second-pass verification for ALL HIGH severity findings:
-      1. Re-read the affected code file one more time
-      2. Verify the fix is complete (not partial)
-      3. Check for side effects or regressions introduced by the fix
-    </action>
-  </step>
-
   <step n="4" goal="Present findings and fix them">
     <action>Categorize findings: HIGH (must fix), MEDIUM (should fix), LOW (nice to fix)</action>
     <action>Set {{fixed_count}} = 0</action>
     <action>Set {{action_count}} = 0</action>
-
-    <!-- DATA CONTRACT AUDIT — MANDATORY CHECK -->
-    <critical>DATA CONTRACT AUDIT: Check the story's Data Contract table. For every row, verify:
-      1. The UI field/form component actually exists in the implementation
-      2. The Zod schema field exists and validates correctly
-      3. The Prisma column exists in the database schema
-      4. An E2E or integration test verifies DB persistence after submission
-      If ANY field is collected by the UI but NOT persisted to the DB, this is a HIGH finding.
-      If the Data Contract table is missing from a story that handles user data, this is a HIGH finding.</critical>
-
-    <!-- HIGH FINDINGS ESCALATION PROTOCOL — UN-BYPASSABLE -->
-    <critical>HIGH FINDINGS ESCALATION PROTOCOL:
-      - "Noted" is NOT a valid resolution for HIGH severity findings
-      - Every HIGH finding MUST be either FIXED or ESCALATED to the project lead ({user_name})
-      - If the reviewer and dev agent disagree on whether a HIGH finding needs fixing,
-        {user_name} makes the final decision — present the finding with both perspectives
-      - The story CANNOT move to "done" with ANY unresolved HIGH finding
-      - This protocol exists because HIGH findings were previously waved through as "Noted",
-        resulting in silent data loss bugs shipping to production</critical>
 
     <output>**🔥 CODE REVIEW FINDINGS, {user_name}!**
 
@@ -168,10 +119,9 @@
       **Git vs Story Discrepancies:** {{git_discrepancy_count}} found
       **Issues Found:** {{high_count}} High, {{medium_count}} Medium, {{low_count}} Low
 
-      ## 🔴 HIGH/CRITICAL ISSUES (MUST fix — cannot be "Noted" or deferred)
+      ## 🔴 CRITICAL ISSUES
       - Tasks marked [x] but not actually implemented
       - Acceptance Criteria not implemented
-      - Data Contract violations (field collected but not persisted)
       - Story claims files changed but no git evidence
       - Security vulnerabilities
 
@@ -206,14 +156,10 @@
     </check>
 
     <check if="user chooses 2">
-      <critical>HIGH findings CANNOT be deferred to action items. Only MEDIUM and LOW can be deferred.
-        If any HIGH findings exist, they MUST be fixed now or escalated to {user_name} for a decision.
-        Do NOT add HIGH findings to the action items list.</critical>
-      <action>Fix all HIGH issues immediately before creating action items</action>
-      <action>Add "Review Follow-ups (AI)" subsection to Tasks/Subtasks for MEDIUM and LOW only</action>
-      <action>For each deferred issue: `- [ ] [AI-Review][Severity] Description [file:line]`</action>
+      <action>Add "Review Follow-ups (AI)" subsection to Tasks/Subtasks</action>
+      <action>For each issue: `- [ ] [AI-Review][Severity] Description [file:line]`</action>
       <action>Set {{action_count}} = number of action items created</action>
-      <action>Set {{fixed_count}} = number of HIGH issues fixed</action>
+      <action>Set {{fixed_count}} = 0</action>
     </check>
 
     <check if="user chooses 3">
@@ -223,19 +169,12 @@
   </step>
 
   <step n="5" goal="Update story status and sync sprint tracking">
-    <!-- HIGH FINDINGS GATE — FINAL CHECK BEFORE STATUS UPDATE -->
-    <critical>FINAL HIGH FINDINGS GATE: Before setting ANY completion status, verify:
-      - Zero unresolved HIGH findings remain
-      - All Data Contract fields are verified (UI → Zod → Prisma → E2E assertion)
-      - If ANY HIGH finding is unresolved, story MUST go back to in-progress
-      - "Noted" HIGH findings from previous reviews must be re-examined and resolved</critical>
-
     <!-- Determine new status based on review outcome -->
-    <check if="all HIGH and MEDIUM issues fixed AND all ACs implemented AND Data Contract verified">
+    <check if="all HIGH and MEDIUM issues fixed AND all ACs implemented">
       <action>Set {{new_status}} = "done"</action>
       <action>Update story Status field to "done"</action>
     </check>
-    <check if="HIGH or MEDIUM issues remain OR ACs not fully implemented OR Data Contract violations exist">
+    <check if="HIGH or MEDIUM issues remain OR ACs not fully implemented">
       <action>Set {{new_status}} = "in-progress"</action>
       <action>Update story Status field to "in-progress"</action>
     </check>

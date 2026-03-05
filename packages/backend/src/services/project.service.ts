@@ -1,9 +1,12 @@
 import type { CreateProjectInput, UpdateProjectInput, AddTeamMemberInput } from '@ipis/shared';
+import { AUDIT_ACTIONS } from '@ipis/shared';
 import type { EngagementModel, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { sendEmail } from '../lib/email.js';
 import { logger } from '../lib/logger.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js';
+import { logAuditEvent } from './audit.service.js';
+import { validateRoleId } from './project-role.service.js';
 
 interface RequestUser {
   id: string;
@@ -110,7 +113,7 @@ async function atomicStatusTransition(
   }
 }
 
-export async function createProject(data: CreateProjectInput, user: RequestUser) {
+export async function createProject(data: CreateProjectInput, user: RequestUser, ipAddress?: string) {
   // Extract model-specific fields based on engagement model
   const modelFields: Record<string, unknown> = {};
   switch (data.engagementModel) {
@@ -150,6 +153,15 @@ export async function createProject(data: CreateProjectInput, user: RequestUser)
       ...modelFields,
     },
     select: PROJECT_SELECT,
+  });
+
+  void logAuditEvent({
+    actorId: user.id,
+    action: AUDIT_ACTIONS.PROJECT_CREATED,
+    entityType: 'Project',
+    entityId: project.id,
+    ipAddress: ipAddress ?? null,
+    metadata: { name: data.name, client: data.client, engagementModel: data.engagementModel },
   });
 
   // Fire-and-forget email to admins
@@ -219,9 +231,18 @@ export async function getById(id: string, user: RequestUser) {
   return serializeProject(project);
 }
 
-export async function approveProject(id: string) {
+export async function approveProject(id: string, actorId?: string, ipAddress?: string) {
   const project = await atomicStatusTransition(id, 'PENDING_APPROVAL', {
     status: 'ACTIVE',
+  });
+
+  void logAuditEvent({
+    actorId: actorId ?? null,
+    action: AUDIT_ACTIONS.PROJECT_APPROVED,
+    entityType: 'Project',
+    entityId: project.id,
+    ipAddress: ipAddress ?? null,
+    metadata: { projectName: project.name },
   });
 
   // Fire-and-forget email to DM
@@ -238,10 +259,19 @@ export async function approveProject(id: string) {
     .catch((err) => logger.error(err, 'Failed to send project approval email'));
 }
 
-export async function rejectProject(id: string, comment: string) {
+export async function rejectProject(id: string, comment: string, actorId?: string, ipAddress?: string) {
   const project = await atomicStatusTransition(id, 'PENDING_APPROVAL', {
     status: 'REJECTED',
     rejectionComment: comment,
+  });
+
+  void logAuditEvent({
+    actorId: actorId ?? null,
+    action: AUDIT_ACTIONS.PROJECT_REJECTED,
+    entityType: 'Project',
+    entityId: project.id,
+    ipAddress: ipAddress ?? null,
+    metadata: { projectName: project.name, rejectionComment: comment },
   });
 
   // Fire-and-forget email to DM
@@ -339,7 +369,7 @@ export async function updateProject(id: string, data: UpdateProjectInput, user: 
   return serializeProject(updated);
 }
 
-export async function resubmitProject(id: string, user: RequestUser) {
+export async function resubmitProject(id: string, user: RequestUser, ipAddress?: string) {
   // Verify ownership before attempting atomic transition
   const existing = await prisma.project.findUnique({
     where: { id },
@@ -357,6 +387,15 @@ export async function resubmitProject(id: string, user: RequestUser) {
   const project = await atomicStatusTransition(id, 'REJECTED', {
     status: 'PENDING_APPROVAL',
     rejectionComment: null,
+  });
+
+  void logAuditEvent({
+    actorId: user.id,
+    action: AUDIT_ACTIONS.PROJECT_RESUBMITTED,
+    entityType: 'Project',
+    entityId: project.id,
+    ipAddress: ipAddress ?? null,
+    metadata: { projectName: project.name },
   });
 
   // Fire-and-forget email to admins
@@ -427,19 +466,22 @@ export async function addTeamMember(
     throw new ValidationError('Cannot assign a resigned employee to a project');
   }
 
+  // Validate roleId references an active ProjectRole
+  await validateRoleId(data.roleId);
+
   try {
     const record = await prisma.employeeProject.create({
       data: {
         projectId,
         employeeId: data.employeeId,
-        role: data.role,
+        roleId: data.roleId,
         billingRatePaise: data.billingRatePaise ?? null,
       },
     });
 
     return {
       employeeId: record.employeeId,
-      role: record.role,
+      roleId: record.roleId,
       billingRatePaise: record.billingRatePaise != null ? Number(record.billingRatePaise) : null,
       assignedAt: record.assignedAt,
     };
@@ -460,6 +502,9 @@ export async function getTeamMembers(projectId: string, user: RequestUser) {
       employee: {
         select: { name: true, designation: true },
       },
+      projectRole: {
+        select: { name: true },
+      },
     },
     orderBy: { assignedAt: 'asc' },
   });
@@ -468,7 +513,8 @@ export async function getTeamMembers(projectId: string, user: RequestUser) {
     employeeId: m.employeeId,
     name: m.employee.name,
     designation: m.employee.designation,
-    role: m.role,
+    roleId: m.roleId,
+    roleName: m.projectRole.name,
     billingRatePaise: m.billingRatePaise != null ? Number(m.billingRatePaise) : null,
     assignedAt: m.assignedAt,
   }));

@@ -2,8 +2,10 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import type { UserRole } from '@prisma/client';
 import type { CreateUserInput, UpdateUserInput } from '@ipis/shared';
+import { AUDIT_ACTIONS } from '@ipis/shared';
 import { prisma } from '../lib/prisma.js';
 import { ConflictError, NotFoundError } from '../lib/errors.js';
+import { logAuditEvent } from './audit.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -26,7 +28,7 @@ function generateTemporaryPassword(): string {
   return crypto.randomUUID().slice(0, 12);
 }
 
-export async function createUser(data: CreateUserInput) {
+export async function createUser(data: CreateUserInput, actorId?: string, ipAddress?: string) {
   const existing = await prisma.user.findUnique({ where: { email: data.email } });
   if (existing) {
     throw new ConflictError('A user with this email already exists');
@@ -46,6 +48,15 @@ export async function createUser(data: CreateUserInput) {
       mustChangePassword: true,
     },
     select: USER_SELECT,
+  });
+
+  void logAuditEvent({
+    actorId: actorId ?? null,
+    action: AUDIT_ACTIONS.USER_CREATED,
+    entityType: 'User',
+    entityId: user.id,
+    ipAddress: ipAddress ?? null,
+    metadata: { email: data.email, role: data.role },
   });
 
   return { ...flattenUser(user), temporaryPassword };
@@ -68,7 +79,7 @@ export async function getAllDepartments() {
   });
 }
 
-export async function updateUser(id: string, data: UpdateUserInput) {
+export async function updateUser(id: string, data: UpdateUserInput, actorId?: string, ipAddress?: string) {
   try {
     const user = await prisma.user.update({
       where: { id },
@@ -78,6 +89,26 @@ export async function updateUser(id: string, data: UpdateUserInput) {
       },
       select: USER_SELECT,
     });
+
+    void logAuditEvent({
+      actorId: actorId ?? null,
+      action: AUDIT_ACTIONS.USER_UPDATED,
+      entityType: 'User',
+      entityId: id,
+      ipAddress: ipAddress ?? null,
+      metadata: JSON.parse(JSON.stringify(data)),
+    });
+
+    if (data.isActive === false) {
+      void logAuditEvent({
+        actorId: actorId ?? null,
+        action: AUDIT_ACTIONS.USER_DEACTIVATED,
+        entityType: 'User',
+        entityId: id,
+        ipAddress: ipAddress ?? null,
+      });
+    }
+
     return flattenUser(user);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {

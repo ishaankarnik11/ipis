@@ -66,6 +66,54 @@ export interface CompanyDashboardData {
   departments: DepartmentDashboardItem[];
 }
 
+// ── Employee Dashboard ──
+
+export interface EmployeeDashboardItem {
+  employeeId: string;
+  name: string;
+  designation: string;
+  department: string;
+  totalHours: number;
+  billableHours: number;
+  billableUtilisationPercent: number;
+  totalCostPaise: number;
+  revenueContributionPaise: number;
+  profitContributionPaise: number;
+  marginPercent: number;
+  profitabilityRank: number;
+}
+
+export interface EmployeeDashboardFilters {
+  department?: string;
+  designation?: string;
+}
+
+export interface EmployeeMonthlyHistory {
+  periodMonth: number;
+  periodYear: number;
+  totalHours: number;
+  billableHours: number;
+  billableUtilisationPercent: number;
+  totalCostPaise: number;
+  revenueContributionPaise: number;
+  profitContributionPaise: number;
+}
+
+export interface EmployeeProjectAssignment {
+  projectId: string;
+  projectName: string;
+  role: string;
+}
+
+export interface EmployeeDetailData {
+  employeeId: string;
+  name: string;
+  designation: string;
+  department: string;
+  monthlyHistory: EmployeeMonthlyHistory[];
+  projectAssignments: EmployeeProjectAssignment[];
+}
+
 // ── Query Keys ──
 
 export const reportKeys = {
@@ -76,6 +124,10 @@ export const reportKeys = {
   practice: ['reports', 'practice'] as const,
   department: ['reports', 'department'] as const,
   company: ['reports', 'company'] as const,
+  employees: (filters?: EmployeeDashboardFilters) =>
+    ['reports', 'employees', filters ?? {}] as const,
+  employeeDetail: (id: string) =>
+    ['reports', 'employees', id] as const,
 };
 
 export function getProjectDashboard(
@@ -109,4 +161,27 @@ export function getDepartmentDashboard(): Promise<ListResponse<DepartmentDashboa
 
 export function getCompanyDashboard(): Promise<DataResponse<CompanyDashboardData | null>> {
   return get<DataResponse<CompanyDashboardData | null>>('/reports/dashboards/company');
+}
+
+export function getEmployeeDashboard(
+  filters?: EmployeeDashboardFilters,
+): Promise<ListResponse<EmployeeDashboardItem>> {
+  const params = new URLSearchParams();
+  if (filters) {
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined && value !== '') {
+        params.set(key, value);
+      }
+    }
+  }
+  const qs = params.toString();
+  return get<ListResponse<EmployeeDashboardItem>>(
+    `/reports/dashboards/employees${qs ? `?${qs}` : ''}`,
+  );
+}
+
+export function getEmployeeDetail(
+  id: string,
+): Promise<DataResponse<EmployeeDetailData>> {
+  return get<DataResponse<EmployeeDetailData>>(`/reports/dashboards/employees/${id}`);
 }

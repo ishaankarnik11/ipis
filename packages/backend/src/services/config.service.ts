@@ -1,4 +1,6 @@
+import { AUDIT_ACTIONS } from '@ipis/shared';
 import { prisma } from '../lib/prisma.js';
+import { logAuditEvent } from './audit.service.js';
 
 const DEFAULTS = {
   standardMonthlyHours: 160,
@@ -20,11 +22,15 @@ export async function getConfig() {
   };
 }
 
-export async function updateConfig(data: {
-  standardMonthlyHours?: number;
-  healthyMarginThreshold?: number;
-  atRiskMarginThreshold?: number;
-}) {
+export async function updateConfig(
+  data: {
+    standardMonthlyHours?: number;
+    healthyMarginThreshold?: number;
+    atRiskMarginThreshold?: number;
+  },
+  actorId?: string,
+  ipAddress?: string,
+) {
   await prisma.systemConfig.upsert({
     where: { id: 'default' },
     update: data,
@@ -33,5 +39,14 @@ export async function updateConfig(data: {
       ...DEFAULTS,
       ...data,
     },
+  });
+
+  void logAuditEvent({
+    actorId: actorId ?? null,
+    action: AUDIT_ACTIONS.SETTINGS_UPDATED,
+    entityType: 'SystemConfig',
+    entityId: 'default',
+    ipAddress: ipAddress ?? null,
+    metadata: { updatedFields: data },
   });
 }

@@ -11,12 +11,14 @@ const TEST_BCRYPT_ROUNDS = 4;
 export async function cleanDb() {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
+      shared_report_tokens,
       calculation_snapshots,
       recalculation_runs,
       billing_records,
       timesheet_entries,
       upload_events,
       employee_projects,
+      project_roles,
       employees,
       password_reset_tokens,
       audit_events,

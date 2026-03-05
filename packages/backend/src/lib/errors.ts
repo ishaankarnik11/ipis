@@ -51,3 +51,17 @@ export class ConflictError extends AppError {
     this.name = 'ConflictError';
   }
 }
+
+export class GoneError extends AppError {
+  constructor(message: string, code: string = 'GONE') {
+    super(code, message, 410);
+    this.name = 'GoneError';
+  }
+}
+
+export class PdfGenerationError extends AppError {
+  constructor(message: string = 'PDF generation failed') {
+    super('PDF_GENERATION_FAILED', message, 500);
+    this.name = 'PdfGenerationError';
+  }
+}

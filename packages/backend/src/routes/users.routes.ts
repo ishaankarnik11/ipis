@@ -15,7 +15,7 @@ router.post(
   rbacMiddleware(['ADMIN']),
   validate(createUserSchema),
   asyncHandler(async (req, res) => {
-    const user = await userService.createUser(req.body);
+    const user = await userService.createUser(req.body, req.user!.id, req.ip);
     res.status(201).json({ data: user });
   }),
 );
@@ -38,7 +38,7 @@ router.patch(
   rbacMiddleware(['ADMIN']),
   validate(updateUserSchema),
   asyncHandler(async (req, res) => {
-    const user = await userService.updateUser(req.params.id as string, req.body);
+    const user = await userService.updateUser(req.params.id as string, req.body, req.user!.id, req.ip);
     res.json({ data: user });
   }),
 );

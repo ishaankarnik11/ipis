@@ -6,6 +6,10 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(config.jwtSecret);
 }
 
+function getInternalSecret(): Uint8Array {
+  return new TextEncoder().encode(config.internalServiceSecret);
+}
+
 export interface JwtPayload {
   sub: string;
   role: string;
@@ -19,6 +23,24 @@ export async function signToken(payload: JwtPayload): Promise<string> {
     .setIssuedAt()
     .setExpirationTime('2h')
     .sign(getSecret());
+}
+
+export async function signInternalToken(): Promise<string> {
+  return new SignJWT({ purpose: 'pdf-render' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject('internal-service')
+    .setIssuedAt()
+    .setExpirationTime('30s')
+    .sign(getInternalSecret());
+}
+
+export async function verifyInternalToken(token: string): Promise<boolean> {
+  try {
+    const { payload } = await jwtVerify(token, getInternalSecret());
+    return payload['purpose'] === 'pdf-render';
+  } catch {
+    return false;
+  }
 }
 
 export async function verifyToken(token: string): Promise<JwtPayload> {

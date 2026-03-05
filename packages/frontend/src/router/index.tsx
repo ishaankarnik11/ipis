@@ -19,6 +19,9 @@ import ProjectDashboard from '../pages/dashboards/ProjectDashboard';
 import ExecutiveDashboard from '../pages/dashboards/ExecutiveDashboard';
 import DepartmentDashboard from '../pages/dashboards/DepartmentDashboard';
 import CompanyDashboard from '../pages/dashboards/CompanyDashboard';
+import EmployeeDashboard from '../pages/dashboards/EmployeeDashboard';
+import EmployeeDetail from '../pages/dashboards/EmployeeDetail';
+import SharedReport from '../pages/reports/SharedReport';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 function RootRedirect() {
@@ -37,6 +40,9 @@ export const router = createBrowserRouter([
       { path: '/reset-password', element: <ResetPassword /> },
     ],
   },
+
+  // Public shared report page (no auth required)
+  { path: '/reports/shared/:token', element: <SharedReport /> },
 
   // Change password route (protected, but only accessible when mustChangePassword is true)
   {
@@ -115,6 +121,13 @@ export const router = createBrowserRouter([
             element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER']} />,
             children: [
               { path: '/dashboards/department', element: <DepartmentDashboard /> },
+            ],
+          },
+          {
+            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DEPT_HEAD']} />,
+            children: [
+              { path: '/dashboards/employees', element: <EmployeeDashboard /> },
+              { path: '/dashboards/employees/:id', element: <EmployeeDetail /> },
             ],
           },
         ],

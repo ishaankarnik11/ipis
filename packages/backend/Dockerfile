@@ -2,6 +2,16 @@ FROM node:22-slim
 
 WORKDIR /app
 
+# Install Chromium system dependencies for Puppeteer PDF rendering
+RUN apt-get update && apt-get install -y \
+  chromium \
+  fonts-freefont-ttf \
+  --no-install-recommends && \
+  rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 # Install pnpm
 RUN npm install -g pnpm
 

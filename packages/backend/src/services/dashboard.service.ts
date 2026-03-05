@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js';
+import { getConfig } from './config.service.js';
 
 interface RequestUser {
   id: string;
@@ -178,9 +179,12 @@ export async function getProjectDashboard(
 // Helper: find latest period for a given entity type
 // ---------------------------------------------------------------------------
 
-async function findLatestPeriod(entityType: string): Promise<{ periodMonth: number; periodYear: number } | null> {
+async function findLatestPeriod(
+  entityType: string,
+  figureType: string = 'MARGIN_PERCENT',
+): Promise<{ periodMonth: number; periodYear: number } | null> {
   const snap = await prisma.calculationSnapshot.findFirst({
-    where: { entityType, figureType: 'MARGIN_PERCENT' },
+    where: { entityType, figureType },
     orderBy: [{ periodYear: 'desc' }, { periodMonth: 'desc' }],
     select: { periodMonth: true, periodYear: true },
   });
@@ -321,6 +325,8 @@ export async function getExecutiveDashboard(): Promise<ExecutiveDashboardResult 
   const bottom5 = sorted.slice(-5).reverse(); // worst margin first
 
   // Billable utilisation from EMPLOYEE snapshots
+  // Note: Uses simple entityId dedup (not collectEntityFinancials) because we only need
+  // breakdownJson hours from EMPLOYEE_COST — one figureType, so per-figureType dedup is unnecessary.
   const empSnapshots = await prisma.calculationSnapshot.findMany({
     where: { entityType: 'EMPLOYEE', figureType: 'EMPLOYEE_COST', periodMonth, periodYear },
     orderBy: { calculatedAt: 'desc' },
@@ -390,6 +396,8 @@ export async function getPracticeDashboard(): Promise<PracticeDashboardRow[]> {
       })
     : [];
 
+  // Note: PRACTICE snapshot entityIds are designation strings (e.g. "Senior Developer").
+  // Employee count matching relies on Employee.designation exactly matching these strings.
   const countByDesignation = new Map<string, number>();
   for (const emp of employees) {
     countByDesignation.set(emp.designation, (countByDesignation.get(emp.designation) ?? 0) + 1);
@@ -518,5 +526,303 @@ export async function getCompanyDashboard(): Promise<CompanyDashboardResult | nu
   return {
     ...company,
     departments: deptRows,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Employee Dashboard (Story 6.5, AC: 1-3)
+// ---------------------------------------------------------------------------
+
+export interface EmployeeDashboardFilters {
+  department?: string;
+  designation?: string;
+}
+
+export interface EmployeeDashboardRow {
+  employeeId: string;
+  name: string;
+  designation: string;
+  department: string;
+  totalHours: number;
+  billableHours: number;
+  billableUtilisationPercent: number;
+  totalCostPaise: number;
+  revenueContributionPaise: number;
+  profitContributionPaise: number;
+  marginPercent: number;
+  profitabilityRank: number;
+}
+
+export async function getEmployeeDashboard(
+  user: RequestUser,
+  filters: EmployeeDashboardFilters,
+): Promise<EmployeeDashboardRow[]> {
+  // Step 1: Find latest period for EMPLOYEE snapshots (use EMPLOYEE_COST since no MARGIN_PERCENT)
+  const period = await findLatestPeriod('EMPLOYEE', 'EMPLOYEE_COST');
+  if (!period) return [];
+
+  const { periodMonth, periodYear } = period;
+
+  // Step 2: Fetch all EMPLOYEE snapshots for this period
+  const snapshots = await prisma.calculationSnapshot.findMany({
+    where: { entityType: 'EMPLOYEE', periodMonth, periodYear },
+    orderBy: { calculatedAt: 'desc' },
+    select: { entityId: true, figureType: true, valuePaise: true, breakdownJson: true, calculatedAt: true },
+  });
+
+  // Deduplicate: keep latest per (entityId, figureType)
+  const seen = new Set<string>();
+  const deduped: typeof snapshots = [];
+  for (const snap of snapshots) {
+    const key = `${snap.entityId}::${snap.figureType}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(snap);
+    }
+  }
+
+  // Group by entityId
+  const empData = new Map<string, {
+    cost: number;
+    revenue: number;
+    totalHours: number;
+    billableHours: number;
+    availableHours: number;
+  }>();
+
+  for (const snap of deduped) {
+    const existing = empData.get(snap.entityId) ?? { cost: 0, revenue: 0, totalHours: 0, billableHours: 0, availableHours: 0 };
+    if (snap.figureType === 'EMPLOYEE_COST') {
+      existing.cost = Number(snap.valuePaise);
+      const bd = snap.breakdownJson as Record<string, number>;
+      existing.totalHours = bd.totalHours ?? 0;
+      existing.billableHours = bd.billableHours ?? 0;
+      existing.availableHours = bd.availableHours ?? 0;
+    } else if (snap.figureType === 'REVENUE_CONTRIBUTION') {
+      existing.revenue = Number(snap.valuePaise);
+    }
+    empData.set(snap.entityId, existing);
+  }
+
+  if (empData.size === 0) return [];
+
+  const empIds = [...empData.keys()];
+
+  // Step 3: Fetch employee metadata (exclude resigned)
+  const employees = await prisma.employee.findMany({
+    where: { id: { in: empIds }, isResigned: false },
+    select: {
+      id: true,
+      name: true,
+      designation: true,
+      departmentId: true,
+      department: { select: { name: true } },
+    },
+  });
+
+  // Step 4: Get standardMonthlyHours from config
+  const config = await getConfig();
+  const standardMonthlyHours = config.standardMonthlyHours;
+
+  // Step 5: Build rows with computed fields
+  const allRows = employees.map((emp) => {
+    const data = empData.get(emp.id)!;
+    const profitContributionPaise = data.revenue - data.cost;
+    const billableUtilisationPercent = standardMonthlyHours === 0 ? 0 : data.billableHours / standardMonthlyHours;
+    const marginPercent = data.revenue === 0 ? 0 : profitContributionPaise / data.revenue;
+
+    return {
+      employeeId: emp.id,
+      name: emp.name,
+      designation: emp.designation,
+      department: emp.department.name,
+      departmentId: emp.departmentId,
+      totalHours: data.totalHours,
+      billableHours: data.billableHours,
+      billableUtilisationPercent,
+      totalCostPaise: data.cost,
+      revenueContributionPaise: data.revenue,
+      profitContributionPaise,
+      marginPercent,
+      profitabilityRank: 0, // computed below
+    };
+  });
+
+  // Step 6: Compute profitabilityRank over FULL unfiltered dataset.
+  // NOTE: "profitabilityRank" is intentionally ranked by revenueContributionPaise DESC (not profit).
+  // This matches FR38/AC8: "highest revenue contributors appear first". The naming aligns with
+  // the PRD's definition of profitability ranking, which uses revenue as the primary sort key.
+  const sortedForRank = [...allRows].sort((a, b) => b.revenueContributionPaise - a.revenueContributionPaise);
+  const rankMap = new Map<string, number>();
+  sortedForRank.forEach((row, index) => {
+    rankMap.set(row.employeeId, index + 1);
+  });
+  for (const row of allRows) {
+    row.profitabilityRank = rankMap.get(row.employeeId)!;
+  }
+
+  // Step 7: RBAC scoping
+  let filtered = allRows;
+  if (user.role !== 'ADMIN' && user.role !== 'FINANCE') {
+    // DEPT_HEAD — own department only
+    const currentUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { departmentId: true },
+    });
+    if (currentUser?.departmentId) {
+      filtered = allRows.filter((r) => r.departmentId === currentUser.departmentId);
+    } else {
+      filtered = [];
+    }
+  }
+
+  // Step 8: Apply filters
+  if (filters.department) {
+    filtered = filtered.filter((r) => r.department === filters.department);
+  }
+  if (filters.designation) {
+    filtered = filtered.filter((r) => r.designation === filters.designation);
+  }
+
+  // Return without internal departmentId
+  return filtered.map(({ departmentId: _deptId, ...rest }) => rest);
+}
+
+// ---------------------------------------------------------------------------
+// Employee Detail (Story 6.5, AC: 9)
+// ---------------------------------------------------------------------------
+
+export interface EmployeeMonthlyHistory {
+  periodMonth: number;
+  periodYear: number;
+  totalHours: number;
+  billableHours: number;
+  billableUtilisationPercent: number;
+  totalCostPaise: number;
+  revenueContributionPaise: number;
+  profitContributionPaise: number;
+}
+
+export interface EmployeeProjectAssignment {
+  projectId: string;
+  projectName: string;
+  roleId: string;
+  roleName: string;
+}
+
+export interface EmployeeDetailResult {
+  employeeId: string;
+  name: string;
+  designation: string;
+  department: string;
+  monthlyHistory: EmployeeMonthlyHistory[];
+  projectAssignments: EmployeeProjectAssignment[];
+}
+
+export async function getEmployeeDetail(
+  user: RequestUser,
+  employeeId: string,
+): Promise<EmployeeDetailResult | null> {
+  // Fetch employee with department — exclude resigned employees (consistent with dashboard list)
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: {
+      id: true,
+      name: true,
+      designation: true,
+      isResigned: true,
+      departmentId: true,
+      department: { select: { name: true } },
+    },
+  });
+
+  if (!employee || employee.isResigned) return null;
+
+  // RBAC: DEPT_HEAD can only see own-department employees
+  if (user.role !== 'ADMIN' && user.role !== 'FINANCE') {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { departmentId: true },
+    });
+    if (currentUser?.departmentId !== employee.departmentId) {
+      return null;
+    }
+  }
+
+  // Fetch all EMPLOYEE snapshots for this employee across all periods
+  const snapshots = await prisma.calculationSnapshot.findMany({
+    where: { entityType: 'EMPLOYEE', entityId: employeeId },
+    orderBy: [{ periodYear: 'desc' }, { periodMonth: 'desc' }, { calculatedAt: 'desc' }],
+    select: { figureType: true, valuePaise: true, breakdownJson: true, periodMonth: true, periodYear: true, calculatedAt: true },
+  });
+
+  // Deduplicate by (periodMonth, periodYear, figureType) — keep latest
+  const seenPeriodFigure = new Set<string>();
+  const dedupedSnaps: typeof snapshots = [];
+  for (const snap of snapshots) {
+    const key = `${snap.periodYear}-${snap.periodMonth}-${snap.figureType}`;
+    if (!seenPeriodFigure.has(key)) {
+      seenPeriodFigure.add(key);
+      dedupedSnaps.push(snap);
+    }
+  }
+
+  // Group by period
+  const periodData = new Map<string, { cost: number; revenue: number; totalHours: number; billableHours: number; periodMonth: number; periodYear: number }>();
+  for (const snap of dedupedSnaps) {
+    const periodKey = `${snap.periodYear}-${snap.periodMonth}`;
+    const existing = periodData.get(periodKey) ?? { cost: 0, revenue: 0, totalHours: 0, billableHours: 0, periodMonth: snap.periodMonth, periodYear: snap.periodYear };
+    if (snap.figureType === 'EMPLOYEE_COST') {
+      existing.cost = Number(snap.valuePaise);
+      const bd = snap.breakdownJson as Record<string, number>;
+      existing.totalHours = bd.totalHours ?? 0;
+      existing.billableHours = bd.billableHours ?? 0;
+    } else if (snap.figureType === 'REVENUE_CONTRIBUTION') {
+      existing.revenue = Number(snap.valuePaise);
+    }
+    periodData.set(periodKey, existing);
+  }
+
+  const config = await getConfig();
+  const standardMonthlyHours = config.standardMonthlyHours;
+
+  const monthlyHistory: EmployeeMonthlyHistory[] = [...periodData.values()].map((pd) => ({
+    periodMonth: pd.periodMonth,
+    periodYear: pd.periodYear,
+    totalHours: pd.totalHours,
+    billableHours: pd.billableHours,
+    billableUtilisationPercent: standardMonthlyHours === 0 ? 0 : pd.billableHours / standardMonthlyHours,
+    totalCostPaise: pd.cost,
+    revenueContributionPaise: pd.revenue,
+    profitContributionPaise: pd.revenue - pd.cost,
+  }));
+
+  // Sort by period descending
+  monthlyHistory.sort((a, b) => (b.periodYear - a.periodYear) || (b.periodMonth - a.periodMonth));
+
+  // Fetch project assignments
+  const assignments = await prisma.employeeProject.findMany({
+    where: { employeeId },
+    select: {
+      roleId: true,
+      projectRole: { select: { name: true } },
+      project: { select: { id: true, name: true } },
+    },
+  });
+
+  const projectAssignments: EmployeeProjectAssignment[] = assignments.map((a) => ({
+    projectId: a.project.id,
+    projectName: a.project.name,
+    roleId: a.roleId,
+    roleName: a.projectRole.name,
+  }));
+
+  return {
+    employeeId: employee.id,
+    name: employee.name,
+    designation: employee.designation,
+    department: employee.department.name,
+    monthlyHistory,
+    projectAssignments,
   };
 }

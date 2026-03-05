@@ -87,7 +87,7 @@ export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 
 export const addTeamMemberSchema = z.object({
   employeeId: z.string().uuid('employeeId must be a valid UUID'),
-  role: z.string().min(1, 'role is required'),
+  roleId: z.string().uuid('roleId must be a valid UUID'),
   billingRatePaise: z.number().int().positive('billingRatePaise must be positive').optional(),
 });
 

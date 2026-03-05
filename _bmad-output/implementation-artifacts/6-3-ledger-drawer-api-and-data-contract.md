@@ -1,6 +1,6 @@
 # Story 6.3: Ledger Drawer — API & Data Contract
 
-Status: review
+Status: done
 
 ## Story
 
@@ -61,7 +61,7 @@ so that the Ledger Drawer UI can render the detailed input decomposition without
   - [x] 3.4 Register in `routes/index.ts`
 
 - [x] Task 4: Zod schema — ledger response (AC: 2, 6)
-  - [x] 4.1 Add `ledgerResponseSchema` to `shared/schemas/dashboard.schema.ts` — model-aware union shape (z.union, not discriminatedUnion — two INFRASTRUCTURE variants share discriminator)
+  - [x] 4.1 Add `ledgerResponseSchema` to `shared/schemas/ledger.schema.ts` — model-aware union shape (z.union, not discriminatedUnion — two INFRASTRUCTURE variants share discriminator)
   - [x] 4.2 Validate: all monetary fields are integers (paise), `margin_percent` is decimal
   - [x] 4.3 Validate: `engagement_model` always present; `infra_cost_mode` present only for Infrastructure
   - [x] 4.4 Validate: `employees` array present for T&M/FC/AMC/Infra DETAILED; `vendor_cost_paise` + `manpower_cost_paise` for Infra SIMPLE (no employees)
@@ -228,13 +228,33 @@ claude-opus-4-6
 ### File List
 **New files:**
 - `packages/backend/src/services/ledger.service.ts` — Core service: getProjectLedger()
-- `packages/backend/src/services/ledger.service.test.ts` — 10 tests covering all ACs
+- `packages/backend/src/services/ledger.service.test.ts` — 13 tests covering all ACs
 - `packages/backend/src/routes/ledger.routes.ts` — GET /projects/:id/ledger route
-- `packages/shared/src/schemas/dashboard.schema.ts` — Zod ledgerResponseSchema (3 union variants)
+- `packages/shared/src/schemas/ledger.schema.ts` — Zod ledgerResponseSchema (3 union variants)
 
 **Modified files:**
 - `packages/backend/src/routes/index.ts` — Added ledger routes import and mount at /api/v1/reports
 - `packages/shared/src/schemas/index.ts` — Added ledgerResponseSchema + LedgerResponseData exports
 
+### Senior Developer Review (AI)
+
+**Reviewer:** Dell | **Date:** 2026-03-04 | **Outcome:** Approve (with fixes applied)
+
+**Findings (8 total: 1 HIGH, 4 MEDIUM, 3 LOW):**
+
+| # | Severity | Finding | Resolution |
+|---|----------|---------|------------|
+| H1 | HIGH | Story File List referenced non-existent `dashboard.schema.ts` (renamed to `ledger.schema.ts` in 6.1 review) | Fixed — updated story doc |
+| M1 | MEDIUM | No test for invalid/non-existent projectId | Fixed — added test (NotFoundError path) |
+| M2 | MEDIUM | No ADMIN role test (AC 5 only verified Finance) | Fixed — added Admin access test |
+| M3 | MEDIUM | Zod schema exported but unused at runtime | By-design — shared contract for frontend consumers |
+| M4 | MEDIUM | Fixed Cost test used empty employees array | Fixed — added FC test with 2 employees |
+| L1 | LOW | No year validation in route | Accepted — realistically bounded by period data |
+| L2 | LOW | `hours` field not `.int()` in Zod schema | Accepted — hours can be fractional |
+| L3 | LOW | BigInt→Number conversion without overflow guard | Accepted — safe for realistic margin values |
+
+**Test count after review:** 13/13 passing (was 10/10)
+
 ### Change Log
+- **2026-03-04:** Code review — fixed story doc File List (H1), added 3 tests: invalid projectId (M1), Admin role access (M2), Fixed Cost with employees (M4). 3 LOW findings accepted as-is. 13/13 tests pass.
 - **2026-02-28:** Implemented Story 6-3 (Ledger Drawer API & Data Contract). Created ledger service, route, Zod schema, and comprehensive tests. All 5 tasks complete, 10/10 tests passing.

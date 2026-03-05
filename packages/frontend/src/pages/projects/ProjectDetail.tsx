@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { projectKeys, getProject, getTeamMembers, addTeamMember, removeTeamMember, updateProject, engagementModelLabels } from '../../services/projects.api';
 import type { TeamMember } from '../../services/projects.api';
 import { employeeKeys, getEmployees } from '../../services/employees.api';
+import { projectRoleKeys, getActiveProjectRoles } from '../../services/project-roles.api';
 import ProjectStatusBadge from '../../components/ProjectStatusBadge';
 import AddTeamMemberModal from '../../components/AddTeamMemberModal';
 import { useAuth } from '../../hooks/useAuth';
@@ -48,8 +49,14 @@ export default function ProjectDetail() {
     enabled: canManageTeam && addModalOpen,
   });
 
+  const { data: rolesData } = useQuery({
+    queryKey: projectRoleKeys.active,
+    queryFn: getActiveProjectRoles,
+    enabled: canManageTeam && addModalOpen,
+  });
+
   const addMutation = useMutation({
-    mutationFn: (data: { employeeId: string; role: string; billingRatePaise?: number }) =>
+    mutationFn: (data: { employeeId: string; roleId: string; billingRatePaise?: number }) =>
       addTeamMember(id!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: projectKeys.teamMembers(id!) });
@@ -69,7 +76,7 @@ export default function ProjectDetail() {
     },
   });
 
-  const handleAddSubmit = async (data: { employeeId: string; role: string; billingRatePaise?: number }) => {
+  const handleAddSubmit = async (data: { employeeId: string; roleId: string; billingRatePaise?: number }) => {
     try {
       await addMutation.mutateAsync(data);
     } catch (err) {
@@ -115,7 +122,7 @@ export default function ProjectDetail() {
   const teamColumns: ColumnsType<TeamMember> = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Designation', dataIndex: 'designation', key: 'designation' },
-    { title: 'Role', dataIndex: 'role', key: 'role' },
+    { title: 'Role', dataIndex: 'roleName', key: 'roleName' },
     {
       title: 'Billing Rate',
       dataIndex: 'billingRatePaise',
@@ -278,6 +285,7 @@ export default function ProjectDetail() {
           onSubmit={handleAddSubmit}
           employees={employeesData?.data ?? []}
           existingMemberIds={teamMembers.map((m) => m.employeeId)}
+          roles={(rolesData?.data ?? []).map((r) => ({ id: r.id, name: r.name }))}
           isTm={isTm}
           loading={addMutation.isPending}
         />

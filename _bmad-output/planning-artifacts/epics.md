@@ -65,6 +65,13 @@ FR46: Admin receives an email notification when a Delivery Manager submits a new
 FR47: Delivery Manager receives an email notification when their project submission is approved or rejected
 FR49: Users can request a password reset via email
 FR50: Admin-created users receive a temporary password and are prompted to set a new password on first login
+FR51: Team member assignment captures employee + role + selling rate as a single operation; selling rate mandatory for T&M
+FR52: Admin can manage configurable project roles (add/deactivate) from settings
+FR53: Project creation form includes inline team member assignment; same component reused on project detail
+FR54: T&M revenue = Σ(member_hours × member_selling_rate) — per-member, not flat project rate
+FR55: Project detail view displays team roster + project financial summary (revenue, cost, profit, margin)
+FR56: All dashboard project references are clickable links to project detail view
+FR57: Employee search for team assignment is org-wide, not department-scoped
 
 ### NonFunctional Requirements
 
@@ -194,8 +201,15 @@ NFR16: Database schema and query design accommodate upload history growth withou
 | FR42 | Epic 7 | Shareable read-only report links |
 | FR43 | Epic 7 | Audit log recording |
 | FR44 | Epic 7 | Admin views audit log |
+| FR51 | Epic 8 | Team member assignment: employee + role + selling rate |
+| FR52 | Epic 8 | Admin-configurable project roles |
+| FR53 | Epic 8 | Inline team member assignment in project creation |
+| FR54 | Epic 8 | T&M per-member selling rate revenue calculation |
+| FR55 | Epic 8 | Project detail: team roster + financial summary |
+| FR56 | Epic 8 | Dashboard click-through to project detail |
+| FR57 | Epic 8 | Org-wide employee search for team assignment |
 
-_Coverage: 49/49 FRs mapped. FR48 absent from PRD — confirmed intentional._
+_Coverage: 56/56 FRs mapped. FR48 absent from PRD — confirmed intentional._
 
 ## Epic List
 
@@ -233,6 +247,11 @@ All roles can view profitability intelligence across all dimensions — Executiv
 Finance and Admin can export any dashboard report as PDF, generate shareable read-only links for leadership, and Admin can view the complete immutable audit trail — enabling leadership reporting, compliance, and accountability.
 **FRs covered:** FR41, FR42, FR43, FR44
 **Pre-notes:** PDF via Puppeteer (≤10s, NFR3). Shareable links: UUID tokens, snapshot data, 30-day expiry, revocable. Audit log append-only — audit entries written across all epics, viewed here. `shared/schemas/report.schema.ts` added in this epic.
+
+### Epic 8: Project Experience & Data Quality Enhancements
+Addresses functional gaps surfaced during user testing: admin-configurable project roles replace free-text entry, per-member selling rates enable accurate T&M revenue calculation, unified team member assignment streamlines project setup, and dashboard-to-project navigation completes the drill-down experience.
+**FRs covered:** FR51, FR52, FR53, FR54, FR55, FR56, FR57
+**Pre-notes:** Renaming: existing `billingRatePaise` column in `employee_projects` is reused as the selling rate field — no schema rename needed, but UI labels and API docs change from "billing rate" to "selling rate". New `ProjectRole` table for admin-configurable roles. T&M calc engine already uses per-member rates (confirmed in `upload.service.ts`); this epic ensures the UI fully surfaces and enforces it. Employee search is org-wide (no department scoping). `shared/schemas/project-role.schema.ts` added in this epic.
 
 ---
 
@@ -1723,3 +1742,205 @@ So that dashboard queries are fast reads against pre-computed data and the Ledge
 **Then** tests cover: correct row insert for each action type, fire-and-forget on DB error (primary operation unaffected), nullable actor for system-initiated events, all 18+ action strings are constants (not magic strings) exported from `audit.constants.ts`
 
 **Architecture Notes:** Action strings are constants in `packages/shared/src/constants/audit.constants.ts` — imported by both service and tests. `logAuditEvent` is called at the service layer (not route handler) after the primary transaction commits. `actor_id` is nullable to support future scheduled/system jobs that trigger mutations without a user context.
+
+---
+
+## Epic 8: Project Experience & Data Quality Enhancements
+
+Addresses functional gaps surfaced during user testing: admin-configurable project roles, per-member selling rates, unified team member assignment, project detail enrichment, and dashboard navigation.
+
+### Story 8.1: Project Role Management — Schema & Admin API
+
+As an Admin,
+I want to manage a configurable list of project roles (add/deactivate) so that team member assignments use standardised role names instead of free text.
+
+**Acceptance Criteria:**
+
+**Given** the Prisma schema,
+**When** the migration runs,
+**Then** a `project_roles` table exists with columns: `id` (UUID), `name` (VARCHAR unique), `is_active` (BOOLEAN default true), `created_at` (TIMESTAMPTZ); and the migration seeds default roles: Developer, Senior Developer, Tech Lead, QA Engineer, Business Analyst, Project Manager, Designer, DevOps Engineer, Architect, Support Engineer
+
+**Given** an authenticated Admin,
+**When** `POST /api/v1/project-roles` is called with `{ name: "Data Engineer" }`,
+**Then** a new role is created and returned `{ data: { id, name, isActive, createdAt } }` — duplicate names return `409 CONFLICT`
+
+**Given** an authenticated Admin,
+**When** `GET /api/v1/project-roles` is called,
+**Then** all roles are returned sorted by name ascending: `{ data: [...], meta: { total } }` — includes both active and inactive roles with `isActive` flag
+
+**Given** an authenticated Admin,
+**When** `PATCH /api/v1/project-roles/:id` with `{ isActive: false }` is called,
+**Then** the role is soft-deactivated — existing project member assignments retain the role, but the role no longer appears in active role dropdowns
+
+**Given** a non-Admin user,
+**When** any project-roles endpoint is called,
+**Then** `403 FORBIDDEN` is returned
+
+**Given** `addTeamMemberSchema` in `shared/schemas/project.schema.ts`,
+**When** a team member is added to a project,
+**Then** the `role` field is validated as a UUID referencing an active `ProjectRole` — the free-text `role: string` on `EmployeeProject` is migrated to `roleId: string` (FK → `project_roles.id`)
+
+---
+
+### Story 8.2: Admin Role Management UI
+
+As an Admin,
+I want a settings screen to add and deactivate project roles so that project managers can select from a curated list when assigning team members.
+
+**Acceptance Criteria:**
+
+**Given** an Admin navigates to the system settings page,
+**When** the page renders,
+**Then** a "Project Roles" section is visible with: a list of all roles showing name and active/inactive status, an inline text input + "Add Role" button for new roles, and a toggle switch on each role to activate/deactivate
+
+**Given** the Admin types a role name and clicks "Add Role",
+**When** the role name is non-empty and unique,
+**Then** `POST /api/v1/project-roles` is called, the new role appears in the list immediately, and the input clears
+
+**Given** the Admin enters a role name that already exists,
+**When** the API returns `409 CONFLICT`,
+**Then** an inline error message displays: "A role with this name already exists"
+
+**Given** the Admin toggles a role from Active to Inactive,
+**When** `PATCH /api/v1/project-roles/:id` with `{ isActive: false }` succeeds,
+**Then** the role's badge changes to "Inactive" (greyed out) and the list re-renders
+
+**Given** `role-management.test.tsx`,
+**When** `pnpm test` runs,
+**Then** tests cover: role list renders, add new role, duplicate error, deactivate toggle, non-Admin 403 redirect
+
+---
+
+### Story 8.3: Unified Team Member Assignment Component
+
+As a Delivery Manager,
+I want to assign team members (employee + role + selling rate) to my project during creation or at any time after approval, using a single consistent interface, so that project setup is fast and complete.
+
+**Acceptance Criteria:**
+
+**Given** the project creation form,
+**When** the "Team Members" section renders,
+**Then** it displays a repeatable row component with: searchable employee dropdown (org-wide active employees — FR57), role dropdown (active `ProjectRole` entries only), selling rate numeric input (₹/hr label), and [+ Add] / [✕ Remove] buttons
+
+**Given** the employee search dropdown,
+**When** the user types in the search field,
+**Then** it queries `GET /api/v1/employees?search=<term>&status=active` returning all matching active employees regardless of department — showing employee name, designation, and department for disambiguation
+
+**Given** a T&M project creation form with team members,
+**When** the user attempts to submit without selling rate on any member row,
+**Then** client-side validation blocks submission with: "Selling rate is required for T&M projects"
+
+**Given** a non-T&M project (Fixed Cost, AMC, Infrastructure),
+**When** team members are added,
+**Then** selling rate is optional — the field is still visible but not required
+
+**Given** the project creation payload,
+**When** `POST /api/v1/projects` is called with a `members[]` array,
+**Then** the project and all team member assignments are created atomically in a single transaction — if any member assignment fails, the entire creation rolls back
+
+**Given** the project detail page for an ACTIVE project,
+**When** a Delivery Manager or Admin clicks "Add Team Member",
+**Then** the same row component appears (employee search + role dropdown + selling rate), and `POST /api/v1/projects/:id/team-members` is called on save
+
+**Given** the `addTeamMemberSchema` validation,
+**When** a team member is submitted with a `roleId` that references an inactive or non-existent `ProjectRole`,
+**Then** the API returns `400 VALIDATION_ERROR` with message: "Invalid or inactive project role"
+
+**Given** `team-member-assignment.test.tsx`,
+**When** `pnpm test` runs,
+**Then** tests cover: employee search org-wide, role dropdown shows only active roles, T&M selling rate validation, non-T&M selling rate optional, add/remove row behaviour, project creation with members payload
+
+---
+
+### Story 8.4: T&M Revenue Calculation — Per-Member Selling Rate
+
+As a Finance user,
+I want T&M project revenue to be calculated using each team member's individual selling rate so that profitability reflects the actual rate billed to the client per resource.
+
+**Acceptance Criteria:**
+
+**Given** the T&M calculation path in `upload.service.ts`,
+**When** a recalculation runs for a T&M project,
+**Then** revenue is calculated as `Σ(employee_hours × employee_selling_rate)` using each member's `billingRatePaise` from `employee_projects` — this is already the current implementation; this story validates, adds tests, and handles the label rename from "billing rate" to "selling rate" in all API responses and UI
+
+**Given** a T&M project with members who have `billingRatePaise = null`,
+**When** the recalculation runs,
+**Then** those members contribute `0` to revenue (their hours × 0) — the system does not error; it logs a warning: "T&M member {employeeId} on project {projectId} has no selling rate — contributing ₹0 revenue"
+
+**Given** the existing `TmInput` type interface,
+**When** story 8.4 is complete,
+**Then** the type is unchanged (the field is already `billingRatePaise`); only UI labels, API response field names in documentation, and test descriptions use "selling rate" terminology
+
+**Given** `tm-selling-rate.test.ts`,
+**When** `pnpm test` runs,
+**Then** tests cover: multi-member T&M project with different selling rates produces correct per-member revenue aggregation, member with null selling rate contributes ₹0 revenue, zero-hour member contributes ₹0 regardless of rate, single-member project matches simple hours × rate
+
+**Given** the calculation snapshot breakdown JSON for a T&M project,
+**When** the snapshot is persisted,
+**Then** each employee entry in the breakdown includes `sellingRatePaise` alongside existing `costPerHourPaise` and `contributionPaise` for full Ledger Drawer traceability
+
+---
+
+### Story 8.5: Project Detail View — Team Roster & Financial Summary
+
+As a Delivery Manager or Finance user,
+I want the project detail page to show the complete team roster and a financial summary so that I can see who is on the project, at what cost, and how the project is performing financially — all in one view.
+
+**Acceptance Criteria:**
+
+**Given** the project detail API `GET /api/v1/projects/:id`,
+**When** the response is returned,
+**Then** it includes a `financials` object: `{ revenuePaise, costPaise, profitPaise, marginPercent }` sourced from the latest `calculation_snapshots` for that project — returns `null` if no snapshots exist
+
+**Given** the project detail page renders,
+**When** the team roster section loads,
+**Then** it displays an antd `Table` with columns: Employee Name, Designation, Role (resolved role name from `ProjectRole`), Selling Rate (₹/hr formatted via `formatCurrency`), Joined Date — sorted by `assignedAt` ascending
+
+**Given** the project detail page renders,
+**When** the financial summary section loads,
+**Then** it displays KPI cards: Total Revenue, Total Cost, Profit, and Margin % — all formatted via `formatCurrency()` / `formatPercent()`. Margin card uses `MarginHealthBadge` colour coding. Shows "No financial data yet" if no snapshots exist.
+
+**Given** a Delivery Manager viewing their own ACTIVE project,
+**When** the "Add Team Member" button is clicked,
+**Then** the unified team member assignment component (from Story 8.3) opens as a modal/inline form, and after save the roster table refreshes via `queryClient.invalidateQueries`
+
+**Given** a Delivery Manager or Admin viewing the team roster,
+**When** the [✕] remove button is clicked on a member,
+**Then** a confirmation popover appears: "Remove {name} from this project?"; on confirm, `DELETE /api/v1/projects/:id/team-members/:employeeId` is called and the table refreshes
+
+**Given** `project-detail-enhanced.test.tsx`,
+**When** `pnpm test` runs,
+**Then** tests cover: team roster renders with role names, financial summary displays formatted values, MarginHealthBadge on margin card, "No financial data yet" empty state, add member flow, remove member confirmation
+
+---
+
+### Story 8.6: Dashboard Click-Through Navigation to Projects
+
+As any dashboard user,
+I want to click on any project reference on any dashboard to navigate directly to that project's detail page so that I can drill down from portfolio overview to project specifics without manual navigation.
+
+**Acceptance Criteria:**
+
+**Given** the Project Dashboard table,
+**When** a user clicks on a project name in any row,
+**Then** the browser navigates to `/projects/:projectId` — the project detail page with team roster and financial summary (Story 8.5)
+
+**Given** the Executive Dashboard top 5 / bottom 5 project cards,
+**When** a user clicks on a project card,
+**Then** the browser navigates to `/projects/:projectId`
+
+**Given** the Department Dashboard table,
+**When** a user clicks on a department row,
+**Then** the existing behaviour is preserved (navigates to project dashboard filtered by department) — no change to department click behaviour
+
+**Given** the Company Dashboard department breakdown table,
+**When** a user clicks on a department row,
+**Then** the existing behaviour is preserved (navigates to project dashboard filtered by department)
+
+**Given** all navigation links on dashboards,
+**When** the target project ID is included in the dashboard API response,
+**Then** the `projectId` field is available for constructing the navigation URL — no additional API calls needed
+
+**Given** `dashboard-navigation.test.tsx`,
+**When** `pnpm test` runs,
+**Then** tests cover: project name click on ProjectDashboard navigates to /projects/:id, executive dashboard project card click navigates to /projects/:id, department row click preserves existing filter navigation, RBAC check — DM clicking a project they don't own still navigates (RBAC enforced on project detail page, not dashboard)

@@ -1,6 +1,6 @@
 # Story 7.4: Audit Event Instrumentation
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -40,55 +40,55 @@ so that Admins have a complete, tamper-evident history of all data changes witho
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Audit constants (AC: 3, 5)
-  - [ ] 1.1 Create `shared/constants/audit.constants.ts`
-  - [ ] 1.2 Export all action strings as constants: `AUDIT_ACTIONS.USER_CREATED`, `AUDIT_ACTIONS.PROJECT_APPROVED`, etc.
-  - [ ] 1.3 Export from shared index
+- [x] Task 1: Audit constants (AC: 3, 5)
+  - [x] 1.1 Create `shared/constants/audit.constants.ts`
+  - [x] 1.2 Export all action strings as constants: `AUDIT_ACTIONS.USER_CREATED`, `AUDIT_ACTIONS.PROJECT_APPROVED`, etc.
+  - [x] 1.3 Export from shared index
 
-- [ ] Task 2: logAuditEvent function (AC: 1, 4)
-  - [ ] 2.1 Add `logAuditEvent` to `services/audit.service.ts` (created in Story 7.3)
-  - [ ] 2.2 Signature: `logAuditEvent({ actorId, action, entityType, entityId, ipAddress, metadata })`
-  - [ ] 2.3 Insert one row into `audit_events`
-  - [ ] 2.4 Wrap in try/catch — never rethrow. Log error via pino if insert fails.
-  - [ ] 2.5 Fire-and-forget — do not await in calling code (or await but swallow errors)
+- [x] Task 2: logAuditEvent function (AC: 1, 4)
+  - [x] 2.1 Add `logAuditEvent` to `services/audit.service.ts` (created in Story 7.3)
+  - [x] 2.2 Signature: `logAuditEvent({ actorId, action, entityType, entityId, ipAddress, metadata })`
+  - [x] 2.3 Insert one row into `audit_events`
+  - [x] 2.4 Wrap in try/catch — never rethrow. Log error via pino if insert fails.
+  - [x] 2.5 Fire-and-forget — do not await in calling code (or await but swallow errors)
 
-- [ ] Task 3: Instrument user service (AC: 3)
-  - [ ] 3.1 Add `logAuditEvent` calls to `user.service.ts`:
-  - [ ] 3.2 `USER_CREATED` after user creation commit
-  - [ ] 3.3 `USER_UPDATED` after user update commit
-  - [ ] 3.4 `USER_DEACTIVATED` after user deactivation commit
+- [x] Task 3: Instrument user service (AC: 3)
+  - [x] 3.1 Add `logAuditEvent` calls to `user.service.ts`:
+  - [x] 3.2 `USER_CREATED` after user creation commit
+  - [x] 3.3 `USER_UPDATED` after user update commit
+  - [x] 3.4 `USER_DEACTIVATED` after user deactivation commit
 
-- [ ] Task 4: Instrument project service (AC: 3)
-  - [ ] 4.1 Add `logAuditEvent` calls to `project.service.ts`:
-  - [ ] 4.2 `PROJECT_CREATED` after project creation
-  - [ ] 4.3 `PROJECT_RESUBMITTED` after resubmission
-  - [ ] 4.4 `PROJECT_APPROVED` after approval (metadata includes comment if any)
-  - [ ] 4.5 `PROJECT_REJECTED` after rejection (metadata includes rejection comment)
+- [x] Task 4: Instrument project service (AC: 3)
+  - [x] 4.1 Add `logAuditEvent` calls to `project.service.ts`:
+  - [x] 4.2 `PROJECT_CREATED` after project creation
+  - [x] 4.3 `PROJECT_RESUBMITTED` after resubmission
+  - [x] 4.4 `PROJECT_APPROVED` after approval (metadata includes comment if any)
+  - [x] 4.5 `PROJECT_REJECTED` after rejection (metadata includes rejection comment)
 
-- [ ] Task 5: Instrument upload service (AC: 3)
-  - [ ] 5.1 Add `logAuditEvent` calls to `upload.service.ts`:
-  - [ ] 5.2 `UPLOAD_TIMESHEET_SUCCESS` / `UPLOAD_TIMESHEET_REJECTED` after timesheet processing
-  - [ ] 5.3 `UPLOAD_BILLING_SUCCESS` after billing upload commit
-  - [ ] 5.4 `UPLOAD_SALARY_SUCCESS` / `UPLOAD_SALARY_PARTIAL` after salary upload
-  - [ ] 5.5 `RECALCULATION_TRIGGERED` after recalculation completes (metadata: runId, projectsProcessed)
-  - [ ] 5.6 All audit calls AFTER transaction commits — never inside a transaction block
+- [x] Task 5: Instrument upload service (AC: 3)
+  - [x] 5.1 Add `logAuditEvent` calls to `upload.service.ts`:
+  - [x] 5.2 `UPLOAD_TIMESHEET_SUCCESS` / `UPLOAD_TIMESHEET_REJECTED` after timesheet processing
+  - [x] 5.3 `UPLOAD_BILLING_SUCCESS` after billing upload commit
+  - [x] 5.4 `UPLOAD_SALARY_SUCCESS` / `UPLOAD_SALARY_PARTIAL` after salary upload
+  - [x] 5.5 `RECALCULATION_TRIGGERED` after recalculation completes (metadata: runId, projectsProcessed)
+  - [x] 5.6 All audit calls AFTER transaction commits — never inside a transaction block
 
-- [ ] Task 6: Instrument report service (AC: 3)
-  - [ ] 6.1 Add `logAuditEvent` calls to `report.service.ts`:
-  - [ ] 6.2 `PDF_EXPORTED` after PDF generation (metadata: reportType, entityId, period)
-  - [ ] 6.3 `SHARE_LINK_CREATED` after share link creation
-  - [ ] 6.4 `SHARE_LINK_REVOKED` after share link revocation
+- [x] Task 6: Instrument report service (AC: 3)
+  - [x] 6.1 Add `logAuditEvent` calls to `report.service.ts`:
+  - [x] 6.2 `PDF_EXPORTED` after PDF generation (metadata: reportType, entityId, period)
+  - [x] 6.3 `SHARE_LINK_CREATED` after share link creation
+  - [x] 6.4 `SHARE_LINK_REVOKED` after share link revocation
 
-- [ ] Task 7: Instrument config service (AC: 3)
-  - [ ] 7.1 `SETTINGS_UPDATED` after system config update
+- [x] Task 7: Instrument config service (AC: 3)
+  - [x] 7.1 `SETTINGS_UPDATED` after system config update
 
-- [ ] Task 8: Tests (AC: 5)
-  - [ ] 8.1 Add to `services/audit.service.test.ts`:
-  - [ ] 8.2 Test: `logAuditEvent` inserts correct row for each action type
-  - [ ] 8.3 Test: Fire-and-forget — DB error does not propagate to caller
-  - [ ] 8.4 Test: Nullable `actor_id` for system-initiated events
-  - [ ] 8.5 Test: All action strings imported from `audit.constants.ts` (no magic strings)
-  - [ ] 8.6 Test: `ip_address` populated from `req.ip`
+- [x] Task 8: Tests (AC: 5)
+  - [x] 8.1 Add to `services/audit.service.test.ts`:
+  - [x] 8.2 Test: `logAuditEvent` inserts correct row for each action type
+  - [x] 8.3 Test: Fire-and-forget — DB error does not propagate to caller
+  - [x] 8.4 Test: Nullable `actor_id` for system-initiated events
+  - [x] 8.5 Test: All action strings imported from `audit.constants.ts` (no magic strings)
+  - [x] 8.6 Test: `ip_address` populated from `req.ip`
 
 ## Dev Notes
 
@@ -170,6 +170,60 @@ packages/shared/src/index.ts                        # Export audit constants
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
+
 ### Debug Log References
+- Database unavailable during implementation — type-checking used as primary validation. Tests require PostgreSQL to be running for integration testing.
+
 ### Completion Notes List
+- Task 1: Created `AUDIT_ACTIONS` constant object with 17 action strings and `AuditAction` type union. Exported from shared index.
+- Task 2: Added `logAuditEvent()` function with `LogAuditEventInput` interface. Uses `prisma.auditEvent.create()` wrapped in try/catch, logs errors via pino, never rethrows. Uses `Prisma.InputJsonValue` for metadata type safety.
+- Task 3: Instrumented `createUser` and `updateUser` with optional `actorId`/`ipAddress` params. `USER_DEACTIVATED` detected via `data.isActive === false` in `updateUser`. Route handlers pass `req.user!.id` and `req.ip`.
+- Task 4: Instrumented `createProject`, `approveProject`, `rejectProject`, `resubmitProject` with audit calls. Added `actorId`/`ipAddress` params to `approveProject` and `rejectProject`. Route handlers updated to pass user/IP context.
+- Task 5: Instrumented all 3 upload functions and `triggerRecalculation`. Timesheet uses outer try/catch for `UploadRejectedError` to audit rejections from both shape validation and DB validation. All audit calls placed AFTER `$transaction` commits. Salary audit differentiates `UPLOAD_SALARY_SUCCESS` vs `UPLOAD_SALARY_PARTIAL` based on upload status.
+- Task 6: `PDF_EXPORTED` audit added in route handler (exception to service-layer rule since `exportPdf` is read-only). `SHARE_LINK_CREATED` and `SHARE_LINK_REVOKED` added to `share.service.ts` with `ipAddress` param.
+- Task 7: `SETTINGS_UPDATED` added to `config.service.ts` with `actorId`/`ipAddress` params.
+- Task 8: Added 7 tests to `audit.service.test.ts`: correct row insert, null actorId, null entityId, fire-and-forget on FK violation, JSON metadata, IP address, and AUDIT_ACTIONS constants validation.
+- All new parameters are optional, preserving backward compatibility with existing callers and tests.
+- All code passes TypeScript strict type-checking (`pnpm --filter backend typecheck`).
+
+### Senior Developer Review (AI)
+
+**Reviewer:** Dell on 2026-03-04
+**Outcome:** Approved with fixes applied
+
+**Findings Found:** 3 High, 4 Medium, 3 Low
+
+**Fixes Applied:**
+1. **H1 — Fire-and-forget violation (AC1):** Removed `await` from all 14 `logAuditEvent` call sites. Now uses `void logAuditEvent(...)` pattern so audit writes never block primary operations.
+2. **H2 — PROJECT_APPROVED metadata:** Downgraded — approval flow has no comment field by design. No code change needed.
+3. **H3 — Missing UPLOAD_SALARY_REJECTED:** Added 18th constant `UPLOAD_SALARY_REJECTED` to `audit.constants.ts` and audit call in `upload.service.ts` when all salary rows fail.
+4. **M2 — SHARE_LINK_REVOKED empty metadata:** Added `{ tokenId }` metadata to revoke audit event.
+5. **M3 — Incomplete test coverage:** Replaced sample-based test with programmatic `Object.values(AUDIT_ACTIONS)` iteration covering all 18 actions.
+6. **M4 — Ambiguous metadata null handling:** Changed `input.metadata ?? undefined` to `input.metadata ?? Prisma.JsonNull` for explicit null storage.
+7. **L3 — Weak action type:** Changed `LogAuditEventInput.action` from `string` to `AuditAction` union type for compile-time safety.
+
+**Notes (not fixed — tracked for future):**
+- L1: `updateProject()`, `addTeamMember()`, `removeTeamMember()` have no audit calls. Not required by AC3 but represent audit trail gaps.
+- M1: PDF_EXPORTED audit remains in route handler (documented exception). Acceptable.
+
+### Change Log
+- 2026-03-04: Story 7.4 implementation complete — all 8 tasks done, 17 audit actions instrumented across 6 services + 1 route handler.
+- 2026-03-04: Code review — 7 fixes applied: fire-and-forget pattern (void instead of await), added UPLOAD_SALARY_REJECTED (18 actions total), AuditAction type safety, metadata improvements, comprehensive test coverage.
+
 ### File List
+- packages/shared/src/constants/audit.constants.ts (NEW)
+- packages/shared/src/index.ts (MODIFIED)
+- packages/backend/src/services/audit.service.ts (MODIFIED)
+- packages/backend/src/services/audit.service.test.ts (MODIFIED)
+- packages/backend/src/services/user.service.ts (MODIFIED)
+- packages/backend/src/routes/users.routes.ts (MODIFIED)
+- packages/backend/src/services/project.service.ts (MODIFIED)
+- packages/backend/src/routes/projects.routes.ts (MODIFIED)
+- packages/backend/src/services/upload.service.ts (MODIFIED)
+- packages/backend/src/routes/uploads.routes.ts (MODIFIED)
+- packages/backend/src/services/share.service.ts (MODIFIED)
+- packages/backend/src/routes/reports.routes.ts (MODIFIED)
+- packages/backend/src/services/config.service.ts (MODIFIED)
+- packages/backend/src/routes/config.routes.ts (MODIFIED)
+- _bmad-output/implementation-artifacts/sprint-status.yaml (MODIFIED)

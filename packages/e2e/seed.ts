@@ -18,6 +18,7 @@ async function main() {
   await prisma.uploadEvent.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.employeeProject.deleteMany();
+  await prisma.projectRole.deleteMany();
   await prisma.passwordResetToken.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.project.deleteMany();
@@ -213,6 +214,14 @@ async function main() {
     },
   });
 
+  // Seed project roles for team assignment
+  const developerRole = await prisma.projectRole.create({ data: { name: 'Developer' } });
+  await prisma.projectRole.create({ data: { name: 'Tech Lead' } });
+  await prisma.projectRole.create({ data: { name: 'QA Engineer' } });
+  await prisma.projectRole.create({ data: { name: 'Architect' } });
+  await prisma.projectRole.create({ data: { name: 'Scrum Master' } });
+  const inactiveRole = await prisma.projectRole.create({ data: { name: 'Deprecated Role', isActive: false } });
+
   // Seed projects for project management tests
   await prisma.project.create({
     data: {
@@ -308,7 +317,7 @@ async function main() {
       data: {
         projectId: activeTmProject.id,
         employeeId: emp1.id,
-        role: 'Developer',
+        roleId: developerRole.id,
         billingRatePaise: BigInt(500000),
       },
     });
@@ -405,7 +414,10 @@ async function main() {
         revenue: 5000000,
         cost: 3500000,
         profit: 1500000,
-        employees: [],
+        employees: [
+          { employeeId: 'emp-seed-1', name: 'Seeded Employee One', designation: 'Senior Developer', hours: 160, costPerHourPaise: 53125, contributionPaise: 2000000 },
+          { employeeId: 'emp-seed-2', name: 'Seeded Employee Two', designation: 'Financial Analyst', hours: 120, costPerHourPaise: 41667, contributionPaise: 1500000 },
+        ],
       },
       engineVersion: '1.0.0',
       calculatedAt: new Date(),
@@ -449,12 +461,125 @@ async function main() {
         revenue: 2000000,
         cost: 2100000,
         profit: -100000,
-        employees: [],
+        employees: [
+          { employeeId: 'emp-seed-4', name: 'Seeded Employee Four', designation: 'QA Engineer', hours: 100, costPerHourPaise: 37500, contributionPaise: 1200000 },
+          { employeeId: 'emp-seed-5', name: 'Seeded Employee Five', designation: 'Project Manager', hours: 80, costPerHourPaise: 45833, contributionPaise: 900000 },
+        ],
       },
       engineVersion: '1.0.0',
       calculatedAt: new Date(),
     },
   });
+
+  // ── Story 6.4: Infra SIMPLE and DETAILED projects for Ledger Drawer tests ──
+
+  const infraSimpleProject = await prisma.project.create({
+    data: {
+      name: 'Seeded Infra Simple Project',
+      client: 'CloudBasic Corp',
+      vertical: 'Cloud Services',
+      engagementModel: 'INFRASTRUCTURE',
+      infraCostMode: 'SIMPLE',
+      vendorCostPaise: BigInt(5000000),
+      manpowerCostPaise: BigInt(3000000),
+      status: 'ACTIVE',
+      deliveryManagerId: dm2User.id,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+    },
+  });
+
+  // Infra SIMPLE: margin 20%, revenue 10M, cost 8M, profit 2M
+  await prisma.calculationSnapshot.create({
+    data: {
+      recalculationRunId: dashRun.id,
+      entityType: 'PROJECT',
+      entityId: infraSimpleProject.id,
+      figureType: 'MARGIN_PERCENT',
+      periodMonth: 2,
+      periodYear: 2026,
+      valuePaise: BigInt(2000),
+      breakdownJson: {
+        engagementModel: 'INFRASTRUCTURE',
+        infraCostMode: 'SIMPLE',
+        revenue: 10000000,
+        cost: 8000000,
+        profit: 2000000,
+        vendorCostPaise: 5000000,
+        manpowerCostPaise: 3000000,
+      },
+      engineVersion: '1.0.0',
+      calculatedAt: new Date(),
+    },
+  });
+
+  const infraDetailedProject = await prisma.project.create({
+    data: {
+      name: 'Seeded Infra Detailed Project',
+      client: 'CloudPro Corp',
+      vertical: 'Cloud Services',
+      engagementModel: 'INFRASTRUCTURE',
+      infraCostMode: 'DETAILED',
+      vendorCostPaise: BigInt(4000000),
+      status: 'ACTIVE',
+      deliveryManagerId: dm2User.id,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+    },
+  });
+
+  // Infra DETAILED: margin 10%, revenue 10M, cost 9M, profit 1M
+  await prisma.calculationSnapshot.create({
+    data: {
+      recalculationRunId: dashRun.id,
+      entityType: 'PROJECT',
+      entityId: infraDetailedProject.id,
+      figureType: 'MARGIN_PERCENT',
+      periodMonth: 2,
+      periodYear: 2026,
+      valuePaise: BigInt(1000),
+      breakdownJson: {
+        engagementModel: 'INFRASTRUCTURE',
+        infraCostMode: 'DETAILED',
+        revenue: 10000000,
+        cost: 9000000,
+        profit: 1000000,
+        vendorCostPaise: 4000000,
+        employees: [
+          { employeeId: 'emp-infra-1', name: 'Infra Ops Lead', designation: 'DevOps Lead', hours: 120, costPerHourPaise: 62500, contributionPaise: 5000000 },
+        ],
+      },
+      engineVersion: '1.0.0',
+      calculatedAt: new Date(),
+    },
+  });
+
+  // ── Duplicate PROJECT snapshots for current month (so ledger-drawer tests survive after bulk-upload creates a new upload event) ──
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1; // 1-based
+  const currentYear = now.getFullYear();
+  if (currentMonth !== 2 || currentYear !== 2026) {
+    // Only duplicate if current month differs from seeded Feb 2026
+    const feb2026Snapshots = await prisma.calculationSnapshot.findMany({
+      where: { entityType: 'PROJECT', periodMonth: 2, periodYear: 2026 },
+    });
+    for (const snap of feb2026Snapshots) {
+      await prisma.calculationSnapshot.create({
+        data: {
+          recalculationRunId: snap.recalculationRunId,
+          entityType: snap.entityType,
+          entityId: snap.entityId,
+          figureType: snap.figureType,
+          periodMonth: currentMonth,
+          periodYear: currentYear,
+          valuePaise: snap.valuePaise,
+          breakdownJson: snap.breakdownJson ?? undefined,
+          engineVersion: snap.engineVersion,
+          calculatedAt: snap.calculatedAt,
+        },
+      });
+    }
+  }
 
   // ── Story 6.2: Executive/Practice/Department/Company dashboard snapshots ──
 
@@ -482,15 +607,39 @@ async function main() {
   await seedEntitySnaps('PRACTICE', 'QA Engineer', 4000000, 3000000, 2500);
   await seedEntitySnaps('PRACTICE', 'Financial Analyst', 3000000, 4400000, -4667);
 
-  // EMPLOYEE snapshots (with breakdownJson containing hours for utilisation calc)
-  const seededEmployees = await prisma.employee.findMany({ where: { isResigned: false } });
-  for (const emp of seededEmployees) {
-    await seedEntitySnaps('EMPLOYEE', emp.id, 3000000, 2000000, 0, {
-      totalHours: 160,
-      billableHours: 120,
-      availableHours: 176,
-    });
-  }
+  // ── Story 6.5: Varied EMPLOYEE snapshots for Employee Dashboard tests ──
+  // Different revenue/cost/hours per employee to test under-utilisation, loss-row, and ranking
+  const allActiveEmps = await prisma.employee.findMany({
+    where: { isResigned: false },
+    orderBy: { employeeCode: 'asc' },
+  });
+  const empByCode: Record<string, string> = {};
+  for (const e of allActiveEmps) empByCode[e.employeeCode] = e.id;
+
+  // EMP001 (Engineering, Senior Developer): Highest revenue, high utilisation → rank 1
+  await seedEntitySnaps('EMPLOYEE', empByCode['EMP001'], 5000000, 3000000, 0, {
+    totalHours: 160, billableHours: 140, availableHours: 176,
+  });
+
+  // EMP002 (Finance, Financial Analyst): Medium revenue → rank 2
+  await seedEntitySnaps('EMPLOYEE', empByCode['EMP002'], 3000000, 2000000, 0, {
+    totalHours: 160, billableHours: 120, availableHours: 176,
+  });
+
+  // EMP003 (HR, HR Coordinator): Low revenue, LOSS (cost>revenue), UNDER-UTILISED (<50%) → rank 5
+  await seedEntitySnaps('EMPLOYEE', empByCode['EMP003'], 500000, 2000000, 0, {
+    totalHours: 160, billableHours: 40, availableHours: 176,
+  });
+
+  // EMP004 (Engineering, QA Engineer): Medium revenue → rank 3
+  await seedEntitySnaps('EMPLOYEE', empByCode['EMP004'], 2000000, 1500000, 0, {
+    totalHours: 160, billableHours: 100, availableHours: 176,
+  });
+
+  // EMP005 (Delivery, Project Manager): Lower revenue, LOSS, UNDER-UTILISED → rank 4
+  await seedEntitySnaps('EMPLOYEE', empByCode['EMP005'], 1500000, 1800000, 0, {
+    totalHours: 160, billableHours: 60, availableHours: 176,
+  });
 
   console.log('E2E seed complete');
 }

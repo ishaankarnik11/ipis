@@ -1,13 +1,19 @@
-import { Modal, Form, Select, Input, InputNumber, Alert } from 'antd';
+import { Modal, Form, Select, InputNumber, Alert } from 'antd';
 import { useState } from 'react';
 import type { Employee } from '../services/employees.api';
+
+export interface ProjectRoleOption {
+  id: string;
+  name: string;
+}
 
 interface AddTeamMemberModalProps {
   open: boolean;
   onCancel: () => void;
-  onSubmit: (data: { employeeId: string; role: string; billingRatePaise?: number }) => Promise<void>;
+  onSubmit: (data: { employeeId: string; roleId: string; billingRatePaise?: number }) => Promise<void>;
   employees: Employee[];
   existingMemberIds: string[];
+  roles: ProjectRoleOption[];
   isTm: boolean;
   loading: boolean;
 }
@@ -18,6 +24,7 @@ export default function AddTeamMemberModal({
   onSubmit,
   employees,
   existingMemberIds,
+  roles,
   isTm,
   loading,
 }: AddTeamMemberModalProps) {
@@ -34,7 +41,7 @@ export default function AddTeamMemberModal({
       setError(null);
       await onSubmit({
         employeeId: values.employeeId,
-        role: values.role,
+        roleId: values.roleId,
         billingRatePaise: values.billingRatePaise != null ? Math.round(values.billingRatePaise * 100) : undefined,
       });
       form.resetFields();
@@ -79,11 +86,19 @@ export default function AddTeamMemberModal({
           />
         </Form.Item>
         <Form.Item
-          name="role"
+          name="roleId"
           label="Role on Project"
           rules={[{ required: true, message: 'Role is required' }]}
         >
-          <Input placeholder="e.g. Senior Developer, QA Lead" />
+          <Select
+            showSearch
+            placeholder="Select a role"
+            optionFilterProp="label"
+            options={roles.map((r) => ({
+              value: r.id,
+              label: r.name,
+            }))}
+          />
         </Form.Item>
         {isTm && (
           <Form.Item

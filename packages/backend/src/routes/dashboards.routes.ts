@@ -78,4 +78,34 @@ router.get(
   }),
 );
 
+// GET /api/v1/reports/dashboards/employees
+router.get(
+  '/dashboards/employees',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD']),
+  asyncHandler(async (req, res) => {
+    const filters = {
+      department: req.query['department'] as string | undefined,
+      designation: req.query['designation'] as string | undefined,
+    };
+    const data = await dashboardService.getEmployeeDashboard(req.user!, filters);
+    res.json({ data, meta: { total: data.length } });
+  }),
+);
+
+// GET /api/v1/reports/dashboards/employees/:id
+router.get(
+  '/dashboards/employees/:id',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD']),
+  asyncHandler(async (req, res) => {
+    const data = await dashboardService.getEmployeeDetail(req.user!, req.params.id as string);
+    if (!data) {
+      res.status(404).json({ error: { code: 'EMPLOYEE_NOT_FOUND', message: 'Employee not found or access denied' } });
+      return;
+    }
+    res.json({ data });
+  }),
+);
+
 export default router;

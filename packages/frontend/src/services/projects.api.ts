@@ -38,7 +38,8 @@ export interface TeamMember {
   employeeId: string;
   name: string;
   designation: string;
-  role: string;
+  roleId: string;
+  roleName: string;
   billingRatePaise: number | null;
   assignedAt: string;
 }

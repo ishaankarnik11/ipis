@@ -1,7 +1,9 @@
+import { AUDIT_ACTIONS } from '@ipis/shared';
 import { prisma } from '../lib/prisma.js';
 import { parseExcelToRows, type ParsedRow } from '../lib/excel.js';
 import { logger } from '../lib/logger.js';
 import { UploadRejectedError, ValidationError } from '../lib/errors.js';
+import { logAuditEvent } from './audit.service.js';
 import { timesheetRowSchema, type TimesheetRowInput, billingRowSchema, type BillingRowInput } from './upload.schemas.js';
 import { employeeRowSchema } from '@ipis/shared';
 import {
@@ -31,7 +33,9 @@ interface TimesheetUploadResult {
 export async function processTimesheetUpload(
   buffer: Buffer,
   user: AuthUser,
+  ipAddress?: string,
 ): Promise<TimesheetUploadResult> {
+  try {
   // 1. Parse Excel file
   const rows = parseExcelToRows(buffer);
   if (rows.length === 0) {
@@ -143,6 +147,15 @@ export async function processTimesheetUpload(
     };
   });
 
+  void logAuditEvent({
+    actorId: user.id,
+    action: AUDIT_ACTIONS.UPLOAD_TIMESHEET_SUCCESS,
+    entityType: 'Upload',
+    entityId: result.uploadEventId,
+    ipAddress: ipAddress ?? null,
+    metadata: { rowCount: result.rowCount, periodMonth, periodYear },
+  });
+
   logger.info(
     {
       uploadEventId: result.uploadEventId,
@@ -153,6 +166,18 @@ export async function processTimesheetUpload(
   );
 
   return result;
+  } catch (error) {
+    if (error instanceof UploadRejectedError) {
+      void logAuditEvent({
+        actorId: user.id,
+        action: AUDIT_ACTIONS.UPLOAD_TIMESHEET_REJECTED,
+        entityType: 'Upload',
+        ipAddress: ipAddress ?? null,
+        metadata: { errorCount: error.details?.length ?? 0 },
+      });
+    }
+    throw error;
+  }
 }
 
 /**
@@ -209,6 +234,7 @@ interface BillingUploadResult {
 export async function processBillingUpload(
   buffer: Buffer,
   user: AuthUser,
+  ipAddress?: string,
 ): Promise<BillingUploadResult> {
   // 1. Parse Excel file
   const rows = parseExcelToRows(buffer);
@@ -300,6 +326,15 @@ export async function processBillingUpload(
     };
   });
 
+  void logAuditEvent({
+    actorId: user.id,
+    action: AUDIT_ACTIONS.UPLOAD_BILLING_SUCCESS,
+    entityType: 'Upload',
+    entityId: result.uploadEventId,
+    ipAddress: ipAddress ?? null,
+    metadata: { rowCount: result.rowCount, periodMonth, periodYear },
+  });
+
   logger.info(
     {
       uploadEventId: result.uploadEventId,
@@ -310,7 +345,7 @@ export async function processBillingUpload(
   );
 
   // 8. Trigger recalculation AFTER transaction commits (AC2: never inside transaction)
-  const recalcResult = await triggerRecalculation(result.uploadEventId, periodMonth, periodYear);
+  const recalcResult = await triggerRecalculation(result.uploadEventId, periodMonth, periodYear, user.id, ipAddress);
 
   return {
     status: 'SUCCESS',
@@ -371,6 +406,8 @@ export async function triggerRecalculation(
   uploadEventId: string,
   periodMonth: number,
   periodYear: number,
+  actorId?: string,
+  ipAddress?: string,
 ): Promise<RecalcResult> {
   try {
     // 1. Fetch all ACTIVE projects with employee assignments and timesheet data
@@ -561,6 +598,15 @@ export async function triggerRecalculation(
       snapshotsWritten: projectResults.length, // one snapshot set per project
     });
 
+    void logAuditEvent({
+      actorId: actorId ?? null,
+      action: AUDIT_ACTIONS.RECALCULATION_TRIGGERED,
+      entityType: 'RecalculationRun',
+      entityId: recalcRun.id,
+      ipAddress: ipAddress ?? null,
+      metadata: { uploadEventId, projectsProcessed: projectResults.length, periodMonth, periodYear },
+    });
+
     logger.info(
       { uploadEventId, runId: recalcRun.id, projectsProcessed: projectResults.length },
       'Recalculation completed successfully',
@@ -601,6 +647,7 @@ export async function processSalaryUpload(
   buffer: Buffer,
   user: AuthUser,
   mode: 'full' | 'correction' = 'full',
+  ipAddress?: string,
 ): Promise<SalaryUploadResult> {
   // 1. Parse Excel file
   const rows = parseExcelToRows(buffer);
@@ -780,6 +827,35 @@ export async function processSalaryUpload(
       : importedCount > 0
         ? ('PARTIAL' as const)
         : ('FAILED' as const);
+
+  if (uploadStatus === 'SUCCESS') {
+    void logAuditEvent({
+      actorId: user.id,
+      action: AUDIT_ACTIONS.UPLOAD_SALARY_SUCCESS,
+      entityType: 'Upload',
+      entityId: uploadEvent.id,
+      ipAddress: ipAddress ?? null,
+      metadata: { imported: importedCount, mode },
+    });
+  } else if (uploadStatus === 'PARTIAL') {
+    void logAuditEvent({
+      actorId: user.id,
+      action: AUDIT_ACTIONS.UPLOAD_SALARY_PARTIAL,
+      entityType: 'Upload',
+      entityId: uploadEvent.id,
+      ipAddress: ipAddress ?? null,
+      metadata: { imported: importedCount, failed: failedRows.length, mode },
+    });
+  } else {
+    void logAuditEvent({
+      actorId: user.id,
+      action: AUDIT_ACTIONS.UPLOAD_SALARY_REJECTED,
+      entityType: 'Upload',
+      entityId: uploadEvent.id,
+      ipAddress: ipAddress ?? null,
+      metadata: { failed: failedRows.length, mode },
+    });
+  }
 
   logger.info(
     { uploadEventId: uploadEvent.id, imported: importedCount, failed: failedRows.length, mode },

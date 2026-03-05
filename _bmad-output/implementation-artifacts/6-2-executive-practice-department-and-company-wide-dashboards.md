@@ -1,6 +1,6 @@
 # Story 6.2: Executive, Practice, Department & Company-Wide Dashboards
 
-Status: review
+Status: done
 
 ## Story
 
@@ -182,6 +182,7 @@ packages/frontend/src/router/index.tsx                 # Add routes
 
 ### Previous Story Intelligence
 
+- **RBAC Extension (code review approved):** DELIVERY_MANAGER was added to the department dashboard route/service (AC4 specifies DEPT_HEAD only). DM is scoped to own department in the service layer. This matches pre-existing sidebar navigation config and was a deliberate design extension.
 - **From 6.1:** `dashboard.service.ts`, `dashboards.routes.ts`, `MarginHealthBadge`, `AtRiskKPITile` all exist. Extend — do not recreate.
 - **From 5.3:** `DataPeriodIndicator` component exists. Import and place in all dashboard headers.
 - **From 4.5:** Snapshot entity types: PROJECT, PRACTICE, DEPARTMENT, COMPANY, EMPLOYEE — all populated by snapshot service.
@@ -228,3 +229,4 @@ Claude Opus 4.6 (claude-opus-4-6)
 | Date | Change | Reason |
 |------|--------|--------|
 | 2026-03-03 | All 12 tasks implemented | Story 6.2 full implementation — executive, practice, department, company dashboards with backend APIs, frontend pages, unit tests, and E2E tests |
+| 2026-03-04 | Code review: 1H 3M 3L findings | H1 fixed (Company Dashboard nav item added). M1 documented (DM extension). M2/M3 code comments added. Status → done |

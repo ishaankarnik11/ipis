@@ -50,12 +50,19 @@ const employees: Employee[] = [
   },
 ];
 
+const roles = [
+  { id: 'role-1', name: 'Senior Developer' },
+  { id: 'role-2', name: 'QA Lead' },
+  { id: 'role-3', name: 'Tech Lead' },
+];
+
 const defaultProps = {
   open: true,
   onCancel: vi.fn(),
   onSubmit: vi.fn().mockResolvedValue(undefined),
   employees,
   existingMemberIds: [] as string[],
+  roles,
   isTm: false,
   loading: false,
 };
@@ -66,6 +73,16 @@ function renderModal(overrides: Partial<typeof defaultProps> = {}) {
       <AddTeamMemberModal {...defaultProps} {...overrides} />
     </ConfigProvider>,
   );
+}
+
+/** Helper to select an option from an Ant Design Select by clicking the combobox then the option. */
+async function selectOption(user: ReturnType<typeof userEvent.setup>, labelRegex: RegExp, optionText: RegExp) {
+  const select = screen.getByLabelText(labelRegex);
+  await user.click(select);
+  await waitFor(() => {
+    expect(screen.getByText(optionText)).toBeInTheDocument();
+  });
+  await user.click(screen.getByText(optionText));
 }
 
 describe('AddTeamMemberModal', () => {
@@ -79,27 +96,25 @@ describe('AddTeamMemberModal', () => {
     it('excludes resigned employees from the dropdown', async () => {
       renderModal();
 
-      const select = screen.getByRole('combobox');
-      await userEvent.click(select);
+      // The first combobox is the Employee select
+      const selects = screen.getAllByRole('combobox');
+      await userEvent.click(selects[0]);
 
       await waitFor(() => {
-        // Alice Active and Carol Active should be in the dropdown
         expect(screen.getByText(/Alice Active/)).toBeInTheDocument();
         expect(screen.getByText(/Carol Active/)).toBeInTheDocument();
       });
 
-      // Bob Resigned should NOT be in the dropdown
       expect(screen.queryByText(/Bob Resigned/)).not.toBeInTheDocument();
     });
 
     it('excludes already-assigned employees from the dropdown', async () => {
       renderModal({ existingMemberIds: ['emp-1'] });
 
-      const select = screen.getByRole('combobox');
-      await userEvent.click(select);
+      const selects = screen.getAllByRole('combobox');
+      await userEvent.click(selects[0]);
 
       await waitFor(() => {
-        // Only Carol Active should appear (Alice is already assigned, Bob is resigned)
         expect(screen.getByText(/Carol Active/)).toBeInTheDocument();
       });
 
@@ -128,16 +143,10 @@ describe('AddTeamMemberModal', () => {
       const user = userEvent.setup({ delay: null });
 
       // Select employee
-      const select = screen.getByRole('combobox');
-      await user.click(select);
-      await waitFor(() => {
-        expect(screen.getByText(/Alice Active/)).toBeInTheDocument();
-      });
-      await user.click(screen.getByText(/Alice Active/));
+      await selectOption(user, /employee/i, /Alice Active/);
 
-      // Fill role
-      const roleInput = screen.getByLabelText(/role on project/i);
-      await user.type(roleInput, 'Senior Dev');
+      // Select role
+      await selectOption(user, /role on project/i, /Senior Developer/);
 
       // Fill billing rate (₹5000)
       const billingInput = screen.getByLabelText(/Billing Rate/);
@@ -150,7 +159,7 @@ describe('AddTeamMemberModal', () => {
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith({
           employeeId: 'emp-1',
-          role: 'Senior Dev',
+          roleId: 'role-1',
           billingRatePaise: 500000,
         });
       });
@@ -214,16 +223,10 @@ describe('AddTeamMemberModal', () => {
       const user = userEvent.setup({ delay: null });
 
       // Select employee
-      const select = screen.getByRole('combobox');
-      await user.click(select);
-      await waitFor(() => {
-        expect(screen.getByText(/Alice Active/)).toBeInTheDocument();
-      });
-      await user.click(screen.getByText(/Alice Active/));
+      await selectOption(user, /employee/i, /Alice Active/);
 
-      // Fill role
-      const roleInput = screen.getByLabelText(/role on project/i);
-      await user.type(roleInput, 'Dev');
+      // Select role
+      await selectOption(user, /role on project/i, /Senior Developer/);
 
       // Submit
       await user.click(screen.getByRole('button', { name: /add member/i }));

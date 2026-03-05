@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Typography, Table, Select, Space, Empty } from 'antd';
+import { Typography, Table, Select, Space, Empty, Button, message } from 'antd';
+import { FilePdfOutlined, ShareAltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { formatCurrency, formatPercent } from '@ipis/shared';
@@ -15,8 +16,13 @@ import ProjectStatusBadge from '../../components/ProjectStatusBadge';
 import MarginHealthBadge from '../../components/MarginHealthBadge';
 import AtRiskKPITile from '../../components/AtRiskKPITile';
 import type { ProjectStatus } from '../../services/projects.api';
+import { LedgerDrawer } from '../../components/LedgerDrawer';
+import { exportPdf } from '../../services/reports.api';
+import { shareReport } from '../../services/share.api';
+import { useAuth } from '../../hooks/useAuth';
 
 const { Title } = Typography;
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
 const statusOptions = [
   { label: 'Active', value: 'ACTIVE' },
@@ -34,6 +40,14 @@ const modelOptions = [
 
 export default function ProjectDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedProject, setSelectedProject] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const { user } = useAuth();
+  const canShare = user?.role === 'FINANCE' || user?.role === 'ADMIN';
 
   const filters: DashboardFilters = {
     department: searchParams.get('department') || undefined,
@@ -145,7 +159,49 @@ export default function ProjectDashboard() {
 
   return (
     <div data-testid="project-dashboard">
-      <Title level={3}>Project Dashboard</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>Project Dashboard</Title>
+        <Space>
+          {canShare && (
+            <Button
+              icon={<ShareAltOutlined />}
+              loading={sharing}
+              disabled={sharing}
+              onClick={async () => {
+                setSharing(true);
+                try {
+                  const now = new Date();
+                  const period = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+                  await shareReport({ reportType: 'project', entityId: NIL_UUID, period });
+                } catch {
+                  message.error('Failed to create share link');
+                } finally {
+                  setSharing(false);
+                }
+              }}
+            >
+              Share Link
+            </Button>
+          )}
+          <Button
+            icon={<FilePdfOutlined />}
+            loading={exporting}
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const now = new Date();
+                const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                await exportPdf({ reportType: 'project', entityId: NIL_UUID, period });
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            Export PDF
+          </Button>
+        </Space>
+      </div>
 
       <div data-testid="filter-bar" style={{ marginBottom: 16 }}>
         <Space wrap>
@@ -202,7 +258,22 @@ export default function ProjectDashboard() {
         loading={isLoading}
         pagination={false}
         rowClassName={(record) => (record.profitPaise < 0 ? 'loss-row' : '')}
+        onRow={(record) => ({
+          onClick: () =>
+            setSelectedProject({
+              id: record.projectId,
+              name: record.projectName,
+            }),
+          style: { cursor: 'pointer' },
+        })}
         locale={{ emptyText: <Empty description="No project data available" /> }}
+      />
+
+      <LedgerDrawer
+        projectId={selectedProject?.id ?? null}
+        projectName={selectedProject?.name ?? ''}
+        open={!!selectedProject}
+        onClose={() => setSelectedProject(null)}
       />
     </div>
   );

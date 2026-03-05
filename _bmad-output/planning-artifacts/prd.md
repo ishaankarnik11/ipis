@@ -444,6 +444,16 @@ IPIS is now operational. Over the following weeks, projects are created, the sal
 - **FR43:** The system records an audit log entry for: data uploads (timesheet, billing, employee master), project creation, project approval/rejection, and % completion edits
 - **FR44:** Admin can view the audit log
 
+### Project Experience & Data Quality (Enhancement — Epic 8)
+
+- **FR51:** When assigning a team member to a project, the system captures all three fields as a single operation: employee (selected from org-wide active employee list), project role (selected from admin-configured role list), and selling rate (₹/hr — the rate billed to the client for that member). Selling rate is mandatory for T&M projects; optional for Fixed Cost, AMC, and Infrastructure.
+- **FR52:** Admin can manage a configurable list of project roles (add new roles, deactivate existing roles) from a settings screen. Deactivated roles remain visible on existing assignments but are not selectable for new assignments.
+- **FR53:** The project creation form includes inline team member assignment — each member row captures employee + role + selling rate — so the project is created with its initial team in a single submission. The same team member assignment component is reused on the project detail page for post-creation additions.
+- **FR54:** For T&M projects, revenue is calculated as the sum of each member's hours multiplied by their individual selling rate: `Revenue = Σ(member_hours × member_selling_rate)`. This replaces any flat project-level billing rate.
+- **FR55:** The project detail view displays the complete team roster (employee name, role, selling rate, join date) and a project-level financial summary (total revenue, total cost, profit, margin %).
+- **FR56:** All project references on dashboards (project names, KPI tiles, table rows) are clickable links that navigate to the project detail view.
+- **FR57:** The employee search dropdown when assigning team members shows all active employees across the entire organisation, regardless of department. Project membership is cross-functional.
+
 ## Non-Functional Requirements
 
 ### Performance

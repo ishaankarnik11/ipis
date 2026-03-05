@@ -40,3 +40,19 @@ export {
   ledgerResponseSchema,
   type LedgerResponseData,
 } from './ledger.schema.js';
+export {
+  pdfExportRequestSchema,
+  reportTypeEnum,
+  shareRequestSchema,
+  shareResponseSchema,
+  type PdfExportRequest,
+  type ReportType,
+  type ShareRequest,
+  type ShareResponse,
+} from './report.schema.js';
+export {
+  createProjectRoleSchema,
+  updateProjectRoleSchema,
+  type CreateProjectRoleInput,
+  type UpdateProjectRoleInput,
+} from './project-role.schema.js';

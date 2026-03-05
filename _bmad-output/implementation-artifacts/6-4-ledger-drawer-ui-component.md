@@ -1,6 +1,6 @@
 # Story 6.4: Ledger Drawer — UI Component
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -70,66 +70,66 @@ so that I can trust the numbers and investigate any unexpected result without le
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: LedgerDrawer component (AC: 1, 2, 7, 8)
-  - [ ] 1.1 Create `components/LedgerDrawer/LedgerDrawer.tsx`
-  - [ ] 1.2 antd `Drawer` — right side, 480px width, project name + period in title
-  - [ ] 1.3 `useQuery(['ledger', projectId, period])` with `staleTime: 5 * 60 * 1000`
-  - [ ] 1.4 Mobile responsive: < 768px → width = '100%'
-  - [ ] 1.5 Close on Escape/backdrop — cache stays warm
-  - [ ] 1.6 Create `components/LedgerDrawer/index.ts` barrel export
+- [x] Task 1: LedgerDrawer component (AC: 1, 2, 7, 8)
+  - [x] 1.1 Create `components/LedgerDrawer/LedgerDrawer.tsx`
+  - [x] 1.2 antd `Drawer` — right side, 480px width, project name + period in title
+  - [x] 1.3 `useQuery(['ledger', projectId, period])` with `staleTime: 5 * 60 * 1000`
+  - [x] 1.4 Mobile responsive: < 768px → width = '100%'
+  - [x] 1.5 Close on Escape/backdrop — cache stays warm
+  - [x] 1.6 Create `components/LedgerDrawer/index.ts` barrel export
 
-- [ ] Task 2: KPI tiles section (AC: 2)
-  - [ ] 2.1 Revenue, Cost, Profit, Margin % tiles at top of drawer
-  - [ ] 2.2 All monetary via `formatCurrency()`, margin via `formatPercent()`
-  - [ ] 2.3 Loss: profit tile with red text
+- [x] Task 2: KPI tiles section (AC: 2)
+  - [x] 2.1 Revenue, Cost, Profit, Margin % tiles at top of drawer
+  - [x] 2.2 All monetary via `formatCurrency()`, margin via `formatPercent()`
+  - [x] 2.3 Loss: profit tile with red text
 
-- [ ] Task 3: Cost breakdown section — model-aware (AC: 3, 3a, 5)
-  - [ ] 3.1 Check `engagement_model` + `infra_cost_mode` from API response to determine layout
-  - [ ] 3.2 **Employee table** (T&M / FC / AMC / Infra DETAILED): antd `Table` (`size="small"`) — Employee Name, Designation, Hours, Cost/Hour, Contribution
-  - [ ] 3.3 **Infra DETAILED**: Show "Vendor Cost (₹)" line item above the employee table
-  - [ ] 3.4 **Cost summary card** (Infra SIMPLE): Two line items — "Vendor Cost (₹)" and "Manpower Cost (₹)" — no employee table
-  - [ ] 3.5 Monetary cells: `font-feature-settings: 'tnum'` for tabular numerals
-  - [ ] 3.6 Loss project with employee table: largest contributor row background `#FFF2F0`
-  - [ ] 3.7 Loss project with cost card (Infra SIMPLE): red border on card
+- [x] Task 3: Cost breakdown section — model-aware (AC: 3, 3a, 5)
+  - [x] 3.1 Check `engagement_model` + `infra_cost_mode` from API response to determine layout
+  - [x] 3.2 **Employee table** (T&M / FC / AMC / Infra DETAILED): antd `Table` (`size="small"`) — Employee Name, Designation, Hours, Cost/Hour, Contribution
+  - [x] 3.3 **Infra DETAILED**: Show "Vendor Cost (₹)" line item above the employee table
+  - [x] 3.4 **Cost summary card** (Infra SIMPLE): Two line items — "Vendor Cost (₹)" and "Manpower Cost (₹)" — no employee table
+  - [x] 3.5 Monetary cells: `font-feature-settings: 'tnum'` for tabular numerals
+  - [x] 3.6 Loss project with employee table: largest contributor row background `#FFF2F0`
+  - [x] 3.7 Loss project with cost card (Infra SIMPLE): red border on card
 
-- [ ] Task 4: Derived figure tooltips (AC: 4)
-  - [ ] 4.1 Identify derived figures (e.g., Cost/Hour, Margin %)
-  - [ ] 4.2 Dotted underline style: `border-bottom: 1px dotted`
-  - [ ] 4.3 antd `Tooltip` with formula text on hover
+- [x] Task 4: Derived figure tooltips (AC: 4)
+  - [x] 4.1 Identify derived figures (e.g., Cost/Hour, Margin %)
+  - [x] 4.2 Dotted underline style: `border-bottom: 1px dotted`
+  - [x] 4.3 antd `Tooltip` with formula text on hover
 
-- [ ] Task 5: Metadata footer (AC: 6)
-  - [ ] 5.1 Footer: "Calculated: [relative timestamp] · Engine v[version]"
-  - [ ] 5.2 Use relative time formatting (e.g., "2 hours ago")
+- [x] Task 5: Metadata footer (AC: 6)
+  - [x] 5.1 Footer: "Calculated: [relative timestamp] · Engine v[version]"
+  - [x] 5.2 Use relative time formatting (e.g., "2 hours ago")
 
-- [ ] Task 6: API integration (AC: 2)
-  - [ ] 6.1 Add to `services/ledger.api.ts` — `getProjectLedger(projectId, period)`
-  - [ ] 6.2 TanStack Query key: `ledgerKeys.detail(projectId, period)`
-  - [ ] 6.3 `staleTime: 5 * 60 * 1000` (5 min cache)
+- [x] Task 6: API integration (AC: 2)
+  - [x] 6.1 Add to `services/ledger.api.ts` — `getProjectLedger(projectId, period)`
+  - [x] 6.2 TanStack Query key: `ledgerKeys.detail(projectId, period)`
+  - [x] 6.3 `staleTime: 5 * 60 * 1000` (5 min cache)
 
-- [ ] Task 7: Dashboard integration (AC: 1)
-  - [ ] 7.1 Add `LedgerDrawer` to `ProjectDashboard.tsx`
-  - [ ] 7.2 `useState` for selected project + drawer open state
-  - [ ] 7.3 Row click → open drawer with project ID
+- [x] Task 7: Dashboard integration (AC: 1)
+  - [x] 7.1 Add `LedgerDrawer` to `ProjectDashboard.tsx`
+  - [x] 7.2 `useState` for selected project + drawer open state
+  - [x] 7.3 Row click → open drawer with project ID
 
-- [ ] Task 8: Tests (AC: 9)
-  - [ ] 8.1 Create `components/LedgerDrawer/LedgerDrawer.test.tsx`
-  - [ ] 8.2 Test: Drawer opens on project row click
-  - [ ] 8.3 Test: API called with correct project ID and period
-  - [ ] 8.4 Test: Dotted underline on derived figures
-  - [ ] 8.5 Test: Loss-row background (#FFF2F0) on largest contributor
-  - [ ] 8.6 Test: Metadata footer shows engine version + timestamp
-  - [ ] 8.7 Test: Mobile width override (< 768px → 100%)
-  - [ ] 8.8 Test: Escape/backdrop closes drawer
-  - [ ] 8.9 Test: Infra SIMPLE renders cost summary card (no employee table)
-  - [ ] 8.10 Test: Infra DETAILED renders vendor cost line + employee table
-  - [ ] 8.11 Test: Infra SIMPLE loss project shows red border on cost card
+- [x] Task 8: Tests (AC: 9)
+  - [x] 8.1 Create `components/LedgerDrawer/LedgerDrawer.test.tsx`
+  - [x] 8.2 Test: Drawer opens on project row click
+  - [x] 8.3 Test: API called with correct project ID and period
+  - [x] 8.4 Test: Dotted underline on derived figures
+  - [x] 8.5 Test: Loss-row background (#FFF2F0) on largest contributor
+  - [x] 8.6 Test: Metadata footer shows engine version + timestamp
+  - [x] 8.7 Test: Mobile width override (< 768px → 100%)
+  - [x] 8.8 Test: Escape/backdrop closes drawer
+  - [x] 8.9 Test: Infra SIMPLE renders cost summary card (no employee table)
+  - [x] 8.10 Test: Infra DETAILED renders vendor cost line + employee table
+  - [x] 8.11 Test: Infra SIMPLE loss project shows red border on cost card
 
-- [ ] Task 9: E2E Tests (E2E-P1 through E2E-N2)
-  - [ ] 9.1 Create `packages/e2e/tests/ledger-drawer.spec.ts`
-  - [ ] 9.2 Seed data: ensure calculation_snapshots with breakdown_json containing employee inputs exist in `seed.ts`
-  - [ ] 9.3 Implement E2E-P1 through E2E-P6 + E2E-P2a, E2E-P2b (positive scenarios including Infra SIMPLE/DETAILED)
-  - [ ] 9.4 Implement E2E-N1 through E2E-N2 (negative scenarios)
-  - [ ] 9.5 All existing + new E2E tests pass
+- [x] Task 9: E2E Tests (E2E-P1 through E2E-N2)
+  - [x] 9.1 Create `packages/e2e/tests/ledger-drawer.spec.ts`
+  - [x] 9.2 Seed data: ensure calculation_snapshots with breakdown_json containing employee inputs exist in `seed.ts`
+  - [x] 9.3 Implement E2E-P1 through E2E-P6 + E2E-P2a, E2E-P2b (positive scenarios including Infra SIMPLE/DETAILED)
+  - [x] 9.4 Implement E2E-N1 through E2E-N2 (negative scenarios)
+  - [x] 9.5 All existing + new E2E tests pass
 
 ## Dev Notes
 
@@ -190,6 +190,32 @@ packages/frontend/src/pages/dashboards/ProjectDashboard.tsx  # Add drawer trigge
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
+
 ### Debug Log References
+- antd v6 deprecation: `width` prop on Drawer deprecated, migrated to `styles.wrapper.width`
+- antd v6 deprecation: `valueStyle` prop on Statistic deprecated, migrated to `styles.content`
+- jsdom converts hex colors to rgb() in style assertions — adjusted test to compare `rgb(224, 90, 75)` instead of `#E05A4B`
+
 ### Completion Notes List
+- Task 6: Created `ledger.api.ts` with typed LedgerData union (3 variants), query keys, and API function
+- Tasks 1-5: Built LedgerDrawer component with shell, KPI tiles, model-aware cost breakdown (type guards for Infra SIMPLE/DETAILED), DerivedFigure tooltips, metadata footer, responsive width, and 5-min query cache
+- Task 7: Integrated LedgerDrawer into ProjectDashboard via `onRow` click handler and `useState` for selected project
+- Task 8: Created 11 unit tests — all pass (241 total frontend tests, 0 regressions)
+- Task 9: Enriched E2E seed with employee data in breakdownJson, added Infra SIMPLE and Infra DETAILED projects, created 10 E2E test scenarios
+
 ### File List
+**New files:**
+- `packages/frontend/src/services/ledger.api.ts`
+- `packages/frontend/src/components/LedgerDrawer/LedgerDrawer.tsx`
+- `packages/frontend/src/components/LedgerDrawer/LedgerDrawer.test.tsx`
+- `packages/frontend/src/components/LedgerDrawer/index.ts`
+- `packages/e2e/tests/ledger-drawer.spec.ts`
+
+**Modified files:**
+- `packages/frontend/src/pages/dashboards/ProjectDashboard.tsx`
+- `packages/e2e/seed.ts`
+
+### Change Log
+- 2026-03-04: Implemented Story 6.4 — Ledger Drawer UI Component. Added right-side drawer to Project Dashboard with model-aware cost breakdown, KPI tiles, derived figure tooltips, loss highlighting, metadata footer, and responsive mobile support. 11 unit tests + 10 E2E test scenarios.
+- 2026-03-04: Code review completed. Fixed: H1/H2 (unit test silent-pass guards removed), M1 (resize debounce added), M3 (CostBreakdown unknown shape warning). Accepted: H3 (generic formula — API doesn't provide CTC), H4 (mixed naming — 6.3 contract), M2 (duplicate CSS — defensive), M4/L1-L3 (low impact). All 242 tests pass.

@@ -82,6 +82,7 @@ router.post(
     const result = await uploadService.processTimesheetUpload(
       req.file.buffer,
       req.user!,
+      req.ip,
     );
     res.json({ data: result });
   }),
@@ -101,6 +102,7 @@ router.post(
     const result = await uploadService.processBillingUpload(
       req.file.buffer,
       req.user!,
+      req.ip,
     );
     res.json({ data: result });
   }),
@@ -123,6 +125,7 @@ router.post(
       req.file.buffer,
       req.user!,
       mode,
+      req.ip,
     );
     res.json({ data: result });
   }),

@@ -355,6 +355,82 @@ describe('ledger.service — getProjectLedger', () => {
     expect(Number.isInteger(withEmployees.employees[0]!.contribution_paise)).toBe(true);
   });
 
+  // ── M1 Fix: Invalid projectId — 404 ──
+
+  it('throws NotFoundError for non-existent projectId', async () => {
+    await expect(getProjectLedger('non-existent-uuid', 1, 2026, financeUser))
+      .rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        statusCode: 404,
+      });
+  });
+
+  // ── M2 Fix: Admin can access any project ──
+
+  it('allows Admin to access any project ledger (AC 5)', async () => {
+    const admin = await createTestUser('ADMIN', { email: 'admin-ledger@test.com', departmentId: depts.get('Finance') });
+    const adminUser = { id: admin.id, role: admin.role, email: admin.email };
+
+    const breakdown = {
+      engagementModel: 'TIME_AND_MATERIALS',
+      revenue: 40000000,
+      cost: 28000000,
+      profit: 12000000,
+      employees: [
+        { employeeId: 'emp-1', name: 'Dev', designation: 'Dev', hours: 160, costPerHourPaise: 50000, contributionPaise: 8000000 },
+      ],
+    };
+
+    const project = await createProjectWithSnapshot({
+      deliveryManagerId: dmUser.id,
+      engagementModel: 'TIME_AND_MATERIALS',
+      breakdownJson: breakdown,
+      marginBasisPoints: 3000,
+    });
+
+    const result = await getProjectLedger(project.id, 1, 2026, adminUser);
+    expect(result.revenue_paise).toBe(40000000);
+  });
+
+  // ── M4 Fix: Fixed Cost with actual employees ──
+
+  it('returns Fixed Cost ledger with employees array (AC 2)', async () => {
+    const breakdown = {
+      engagementModel: 'FIXED_COST',
+      revenue: 60000000,
+      cost: 42000000,
+      profit: 18000000,
+      employees: [
+        { employeeId: 'emp-1', name: 'Alice', designation: 'Senior Dev', hours: 160, costPerHourPaise: 65000, contributionPaise: 10400000 },
+        { employeeId: 'emp-2', name: 'Bob', designation: 'Junior Dev', hours: 160, costPerHourPaise: 35000, contributionPaise: 5600000 },
+      ],
+    };
+
+    const project = await createProjectWithSnapshot({
+      deliveryManagerId: dmUser.id,
+      engagementModel: 'FIXED_COST',
+      breakdownJson: breakdown,
+      marginBasisPoints: 3000,
+    });
+
+    const result = await getProjectLedger(project.id, 1, 2026, financeUser);
+
+    expect(result.engagement_model).toBe('FIXED_COST');
+    expect('employees' in result).toBe(true);
+    const withEmployees = result as typeof result & { employees: Array<{ employeeId: string; employeeName: string }> };
+    expect(withEmployees.employees).toHaveLength(2);
+    expect(withEmployees.employees[0]).toMatchObject({
+      employeeId: 'emp-1',
+      employeeName: 'Alice',
+      designation: 'Senior Dev',
+    });
+    expect(withEmployees.employees[1]).toMatchObject({
+      employeeId: 'emp-2',
+      employeeName: 'Bob',
+      designation: 'Junior Dev',
+    });
+  });
+
   // ── Latest snapshot returned when multiple exist ──
 
   it('returns the latest snapshot when multiple exist for same period', async () => {

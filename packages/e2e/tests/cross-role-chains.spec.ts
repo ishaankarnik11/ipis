@@ -96,7 +96,8 @@ test.describe('Chain 1 — T&M Full Lifecycle', () => {
 
     await page.getByRole('combobox', { name: /employee/i }).click();
     await page.getByText('Seeded Employee One (EMP001)').click();
-    await page.getByLabel('Role on Project').fill('Developer');
+    await page.getByRole('combobox', { name: /role on project/i }).click();
+    await page.getByTitle('Developer', { exact: true }).click();
     await page.getByLabel('Billing Rate').fill('6000');
     await page.getByRole('button', { name: /add member/i }).click();
 
@@ -109,7 +110,8 @@ test.describe('Chain 1 — T&M Full Lifecycle', () => {
 
     await page.getByRole('combobox', { name: /employee/i }).click();
     await page.getByText('Seeded Employee Four (EMP004)').click();
-    await page.getByLabel('Role on Project').fill('QA Lead');
+    await page.getByRole('combobox', { name: /role on project/i }).click();
+    await page.getByTitle('QA Engineer', { exact: true }).click();
     await page.getByLabel('Billing Rate').fill('5500');
     await page.getByRole('button', { name: /add member/i }).click();
 
@@ -311,7 +313,8 @@ test.describe('Chain 3 — Rejection-Resubmission Chain', () => {
 
     await page.getByRole('combobox', { name: /employee/i }).click();
     await page.getByText('Seeded Employee Five (EMP005)').click();
-    await page.getByLabel('Role on Project').fill('Project Manager');
+    await page.getByRole('combobox', { name: /role on project/i }).click();
+    await page.getByTitle('Tech Lead', { exact: true }).click();
     await page.getByLabel('Billing Rate').fill('8000');
     await page.getByRole('button', { name: /add member/i }).click();
 
@@ -354,7 +357,8 @@ test.describe('Chain 4 — Multi-Member Roster Management', () => {
     await page.getByRole('button', { name: /add team member/i }).click();
     await page.getByRole('combobox', { name: /employee/i }).click();
     await page.getByText('Seeded Employee Four (EMP004)').click();
-    await page.getByLabel('Role on Project').fill('QA Engineer');
+    await page.getByRole('combobox', { name: /role on project/i }).click();
+    await page.getByTitle('QA Engineer', { exact: true }).click();
     await page.getByLabel('Billing Rate').fill('4000');
     await page.getByRole('button', { name: /add member/i }).click();
     await expect(page.getByRole('cell', { name: 'Seeded Employee Four' })).toBeVisible({ timeout: 10000 });
@@ -363,7 +367,8 @@ test.describe('Chain 4 — Multi-Member Roster Management', () => {
     await page.getByRole('button', { name: /add team member/i }).click();
     await page.getByRole('combobox', { name: /employee/i }).click();
     await page.getByText('Seeded Employee Five (EMP005)').click();
-    await page.getByLabel('Role on Project').fill('PM');
+    await page.getByRole('combobox', { name: /role on project/i }).click();
+    await page.getByTitle('Architect', { exact: true }).click();
     await page.getByLabel('Billing Rate').fill('6000');
     await page.getByRole('button', { name: /add member/i }).click();
     await expect(page.getByRole('cell', { name: 'Seeded Employee Five' })).toBeVisible({ timeout: 10000 });

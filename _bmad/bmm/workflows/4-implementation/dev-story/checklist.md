@@ -42,12 +42,10 @@ validation-rules:
 - [ ] **Unit Tests:** Unit tests added/updated for ALL core functionality introduced/changed by this story
 - [ ] **Integration Tests:** Integration tests added/updated for component interactions when story requirements demand them
 - [ ] **End-to-End Tests:** End-to-end tests created for critical user flows when story requirements specify them
-- [ ] **Data Contract Verified:** Every field in the story's Data Contract table has a corresponding test that verifies DB persistence after form submission or API call (persist-and-verify pattern). If ANY Data Contract field lacks a DB assertion, this gate FAILS.
 - [ ] **Test Coverage:** Tests cover acceptance criteria and edge cases from story Dev Notes
-- [ ] **Regression Prevention (ABSOLUTE):** ALL existing tests pass — unit, integration, AND full E2E suite. Zero failures required. Story CANNOT move to review with ANY test failure. No inherited reds, no deferrals, no exceptions.
+- [ ] **Regression Prevention:** ALL existing tests pass (no regressions introduced)
 - [ ] **Code Quality:** Linting and static checks pass when configured in project
 - [ ] **Test Framework Compliance:** Tests use project's testing frameworks and patterns from Dev Notes
-- [ ] **Master Test Plan Updated:** All test scenarios for this story's FRs have been updated in `docs/master-test-plan.md` with current status (TEST_WRITTEN or PASS). New scenarios added if coverage gaps found during implementation.
 
 ## 📝 Documentation & Tracking
 

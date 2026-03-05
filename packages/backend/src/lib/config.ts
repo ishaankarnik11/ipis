@@ -12,6 +12,9 @@ export const config = {
   get jwtSecret(): string {
     return requireEnv('JWT_SECRET');
   },
+  get internalServiceSecret(): string {
+    return requireEnv('INTERNAL_SERVICE_SECRET');
+  },
   logLevel: process.env['LOG_LEVEL'] || 'info',
   nodeEnv: process.env['NODE_ENV'] || 'development',
   frontendUrl: process.env['FRONTEND_URL'] || 'http://localhost:5173',

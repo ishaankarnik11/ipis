@@ -80,7 +80,7 @@ vi.mock('antd', async () => {
       error: (...args: unknown[]) => mockMessageError(...args),
     },
     Modal: {
-      ...(actual as Record<string, unknown>).Modal,
+      ...((actual as Record<string, unknown>).Modal as Record<string, unknown>),
       confirm: (...args: unknown[]) => mockModalConfirm(...args),
     },
   };

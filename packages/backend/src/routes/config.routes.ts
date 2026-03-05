@@ -26,7 +26,7 @@ router.put(
   rbacMiddleware(['ADMIN']),
   validate(systemConfigSchema),
   asyncHandler(async (req, res) => {
-    await configService.updateConfig(req.body);
+    await configService.updateConfig(req.body, req.user!.id, req.ip);
     res.json({ success: true });
   }),
 );
