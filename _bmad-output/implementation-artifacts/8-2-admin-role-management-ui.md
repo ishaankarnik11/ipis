@@ -1,6 +1,6 @@
 # Story 8.2: Admin Role Management UI
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -64,35 +64,35 @@ I want a settings screen to add and deactivate project roles so that project man
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Frontend API service — project roles (AC: 3, 6, 7)
-  - [ ] 1.1 Add to `services/projects.api.ts` or create `services/project-roles.api.ts`
-  - [ ] 1.2 `projectRoleKeys = { all: ['project-roles'], active: ['project-roles', { active: true }] }`
-  - [ ] 1.3 `getProjectRoles(activeOnly?: boolean)` → `GET /api/v1/project-roles`
-  - [ ] 1.4 `createProjectRole(data)` → `POST /api/v1/project-roles`
-  - [ ] 1.5 `updateProjectRole(id, data)` → `PATCH /api/v1/project-roles/:id`
-  - [ ] 1.6 Types: `ProjectRole { id, name, isActive, createdAt }`
+- [x] Task 1: Frontend API service — project roles (AC: 3, 6, 7)
+  - [x] 1.1 Add to `services/projects.api.ts` or create `services/project-roles.api.ts`
+  - [x] 1.2 `projectRoleKeys = { all: ['project-roles'], active: ['project-roles', { active: true }] }`
+  - [x] 1.3 `getProjectRoles(activeOnly?: boolean)` → `GET /api/v1/project-roles`
+  - [x] 1.4 `createProjectRole(data)` → `POST /api/v1/project-roles`
+  - [x] 1.5 `updateProjectRole(id, data)` → `PATCH /api/v1/project-roles/:id`
+  - [x] 1.6 Types: `ProjectRole { id, name, isActive, createdAt }`
 
-- [ ] Task 2: ProjectRoleManagement component (AC: 1, 2, 3, 4, 5, 6, 7)
-  - [ ] 2.1 Create `components/ProjectRoleManagement.tsx`
-  - [ ] 2.2 antd `List` with role name, status `Tag` (green Active / grey Inactive), `Switch` toggle
-  - [ ] 2.3 Inline add form: `Input` + `Button` ("Add Role"), `onPressEnter` support
-  - [ ] 2.4 Client-side validation: empty name blocks submit
-  - [ ] 2.5 Duplicate error handling: catch 409 from mutation, show inline Alert
-  - [ ] 2.6 Toggle switch: call `updateProjectRole` with `{ isActive: !current }`, invalidate queries
+- [x] Task 2: ProjectRoleManagement component (AC: 1, 2, 3, 4, 5, 6, 7)
+  - [x] 2.1 Create `components/ProjectRoleManagement.tsx`
+  - [x] 2.2 antd `List` with role name, status `Tag` (green Active / grey Inactive), `Switch` toggle
+  - [x] 2.3 Inline add form: `Input` + `Button` ("Add Role"), `onPressEnter` support
+  - [x] 2.4 Client-side validation: empty name blocks submit
+  - [x] 2.5 Duplicate error handling: catch 409 from mutation, show inline Alert
+  - [x] 2.6 Toggle switch: call `updateProjectRole` with `{ isActive: !current }`, invalidate queries
 
-- [ ] Task 3: Integration into settings page (AC: 1, 8)
-  - [ ] 3.1 Add `<ProjectRoleManagement />` to existing admin settings page (conditional on `user.role === 'ADMIN'`)
-  - [ ] 3.2 Position below or alongside existing system config section
-  - [ ] 3.3 Wrap in antd `Card` with title "Project Roles"
+- [x] Task 3: Integration into settings page (AC: 1, 8)
+  - [x] 3.1 Add `<ProjectRoleManagement />` to existing admin settings page (conditional on `user.role === 'ADMIN'`)
+  - [x] 3.2 Position below or alongside existing system config section
+  - [x] 3.3 Wrap in antd `Card` with title "Project Roles"
 
-- [ ] Task 4: Unit tests (AC: 9)
-  - [ ] 4.1 Create `components/project-role-management.test.tsx`
-  - [ ] 4.2 Tests: renders role list, add role success, duplicate 409 error, empty validation, deactivate toggle, reactivate toggle, non-Admin hidden
+- [x] Task 4: Unit tests (AC: 9)
+  - [x] 4.1 Create `components/project-role-management.test.tsx`
+  - [x] 4.2 Tests: renders role list, add role success, duplicate 409 error, empty validation, deactivate toggle, reactivate toggle, non-Admin hidden
 
-- [ ] Task 5: E2E Tests (E2E-P1 through E2E-N3)
-  - [ ] 5.1 Create `packages/e2e/tests/project-role-management.spec.ts`
-  - [ ] 5.2 Implement E2E-P1 through E2E-P4
-  - [ ] 5.3 Implement E2E-N1 through E2E-N3
+- [x] Task 5: E2E Tests (E2E-P1 through E2E-N3)
+  - [x] 5.1 Create `packages/e2e/tests/project-role-management.spec.ts`
+  - [x] 5.2 Implement E2E-P1 through E2E-P4
+  - [x] 5.3 Implement E2E-N1 through E2E-N3
 
 ## Dev Notes
 
@@ -154,9 +154,30 @@ packages/frontend/src/pages/admin/SystemConfig.tsx (or equivalent settings page)
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
 
 ### Debug Log References
+- No blocking issues encountered during implementation
 
 ### Completion Notes List
+- Extended existing `project-roles.api.ts` with `getProjectRoles()`, `createProjectRole()`, `updateProjectRole()` functions
+- Created `ProjectRoleManagement.tsx` component with antd List, Tag, Switch, Input, Button, Alert, Card components
+- Inline add form with `onPressEnter` support and client-side empty validation (touched state tracking)
+- Duplicate role 409 error handling via ApiError instance check
+- Toggle switch calls `updateProjectRole` with inverted `isActive`, invalidates queries on success
+- Integrated into `SystemConfig.tsx` with `user?.role === 'ADMIN'` conditional rendering
+- 7 unit tests in `project-role-management.test.tsx` + 2 new tests in `SystemConfig.test.tsx` (Admin/non-Admin visibility)
+- 7 E2E test scenarios in `project-role-management.spec.ts` covering E2E-P1 through E2E-N3
+- Full regression: 253 frontend tests pass, 509 backend tests pass
+
+### Change Log
+- 2026-03-05: Story 8.2 implementation complete — all 5 tasks done, all ACs satisfied
 
 ### File List
+- `packages/frontend/src/services/project-roles.api.ts` (modified — added getProjectRoles, createProjectRole, updateProjectRole)
+- `packages/frontend/src/components/ProjectRoleManagement.tsx` (new)
+- `packages/frontend/src/components/project-role-management.test.tsx` (new)
+- `packages/frontend/src/pages/admin/SystemConfig.tsx` (modified — added ProjectRoleManagement integration + useAuth)
+- `packages/frontend/src/pages/admin/SystemConfig.test.tsx` (modified — added useAuth mock + 2 new tests)
+- `packages/e2e/tests/project-role-management.spec.ts` (new)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified — status updates)

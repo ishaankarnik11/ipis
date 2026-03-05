@@ -89,6 +89,7 @@ const tmProject = {
   endDate: '2026-12-31T00:00:00.000Z',
   createdAt: '2026-02-01',
   updatedAt: '2026-02-10',
+  financials: null,
 };
 
 const fixedCostProject = {
@@ -98,6 +99,7 @@ const fixedCostProject = {
   engagementModel: 'FIXED_COST',
   contractValuePaise: 50000000,
   completionPercent: 0.45,
+  financials: null,
 };
 
 const teamMembers = [
@@ -105,7 +107,8 @@ const teamMembers = [
     employeeId: 'emp-1',
     name: 'Alice Dev',
     designation: 'Senior Developer',
-    role: 'Developer',
+    roleId: 'role-1',
+    roleName: 'Developer',
     billingRatePaise: 500000,
     assignedAt: '2026-03-05T00:00:00.000Z',
   },
@@ -113,7 +116,8 @@ const teamMembers = [
     employeeId: 'emp-2',
     name: 'Bob QA',
     designation: 'QA Engineer',
-    role: 'Tester',
+    roleId: 'role-2',
+    roleName: 'Tester',
     billingRatePaise: null,
     assignedAt: '2026-03-10T00:00:00.000Z',
   },
@@ -347,6 +351,20 @@ describe('ProjectDetail', () => {
       });
 
       expect(screen.queryByRole('button', { name: /edit & resubmit/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Selling Rate column header (Story 8.4, AC:7)', () => {
+    it('shows "Selling Rate (₹/hr)" column header instead of "Billing Rate"', async () => {
+      mockGetProject.mockResolvedValue({ data: tmProject });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Alice Dev')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Selling Rate (₹/hr)')).toBeInTheDocument();
+      expect(screen.queryByText('Billing Rate')).not.toBeInTheDocument();
     });
   });
 

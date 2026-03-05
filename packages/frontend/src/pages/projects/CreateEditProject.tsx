@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import {
   Button,
   Card,
@@ -14,7 +14,6 @@ import {
   Typography,
   Divider,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import type { EngagementModel } from '../../services/projects.api';
@@ -26,13 +25,10 @@ import {
   resubmitProject,
 } from '../../services/projects.api';
 import ProjectStatusBadge from '../../components/ProjectStatusBadge';
+import TeamMemberList from '../../components/TeamMemberList';
+import type { TeamMemberRowValue } from '../../components/TeamMemberRow';
 
 const { Title } = Typography;
-
-interface TeamMemberField {
-  role: string;
-  billingRatePaise: number | null;
-}
 
 interface ProjectFormValues {
   name: string;
@@ -47,7 +43,6 @@ interface ProjectFormValues {
   manpowerCostPaise: number | null;
   budgetPaise: number | null;
   infraCostMode: 'SIMPLE' | 'DETAILED';
-  teamMembers: TeamMemberField[];
 }
 
 const engagementModelOptions: { label: string; value: EngagementModel }[] = [
@@ -102,14 +97,11 @@ export default function CreateEditProject() {
       manpowerCostPaise: null,
       budgetPaise: null,
       infraCostMode: 'SIMPLE',
-      teamMembers: [{ role: '', billingRatePaise: null }],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'teamMembers',
-  });
+  const [members, setMembers] = useState<TeamMemberRowValue[]>([]);
+  const [memberError, setMemberError] = useState<string | null>(null);
 
   const engagementModel = watch('engagementModel');
   const infraCostMode = watch('infraCostMode');
@@ -137,7 +129,6 @@ export default function CreateEditProject() {
         manpowerCostPaise: paiseToCurrency(project.manpowerCostPaise),
         budgetPaise: paiseToCurrency(project.budgetPaise),
         infraCostMode: project.infraCostMode === 'DETAILED' ? 'DETAILED' : 'SIMPLE',
-        teamMembers: [{ role: '', billingRatePaise: null }],
       });
     }
   }, [project, isEdit, reset]);
@@ -205,7 +196,23 @@ export default function CreateEditProject() {
         // Mutation error states handle display via mutationError; user can retry
       }
     } else {
-      // Create flow
+      // Create flow — validate T&M selling rates
+      const isTm = values.engagementModel === 'TIME_AND_MATERIALS';
+      const filledMembers = members.filter((m) => m.employeeId && m.roleId);
+      if (isTm && filledMembers.some((m) => !m.sellingRate)) {
+        setMemberError('Selling rate is required for all team members in T&M projects');
+        return;
+      }
+      setMemberError(null);
+
+      const membersPayload = filledMembers.length > 0
+        ? filledMembers.map((m) => ({
+            employeeId: m.employeeId!,
+            roleId: m.roleId!,
+            billingRatePaise: m.sellingRate != null ? Math.round(m.sellingRate * 100) : undefined,
+          }))
+        : undefined;
+
       let createPayload;
       switch (values.engagementModel) {
         case 'TIME_AND_MATERIALS':
@@ -213,6 +220,7 @@ export default function CreateEditProject() {
             ...basePayload,
             engagementModel: 'TIME_AND_MATERIALS' as const,
             contractValuePaise: currencyToPaise(values.contractValuePaise) ?? undefined,
+            members: membersPayload,
           };
           break;
         case 'FIXED_COST':
@@ -221,6 +229,7 @@ export default function CreateEditProject() {
             engagementModel: 'FIXED_COST' as const,
             contractValuePaise: currencyToPaise(values.contractValuePaise)!,
             budgetPaise: currencyToPaise(values.budgetPaise) ?? undefined,
+            members: membersPayload,
           };
           break;
         case 'AMC':
@@ -229,6 +238,7 @@ export default function CreateEditProject() {
             engagementModel: 'AMC' as const,
             contractValuePaise: currencyToPaise(values.contractValuePaise)!,
             slaDescription: values.slaDescription || undefined,
+            members: membersPayload,
           };
           break;
         case 'INFRASTRUCTURE':
@@ -241,6 +251,7 @@ export default function CreateEditProject() {
             ...(values.infraCostMode === 'SIMPLE'
               ? { manpowerCostPaise: currencyToPaise(values.manpowerCostPaise) ?? undefined }
               : {}),
+            members: membersPayload,
           };
           break;
       }
@@ -385,63 +396,21 @@ export default function CreateEditProject() {
           </div>
         </Card>
 
-        {/* T&M Section */}
-        {engagementModel === 'TIME_AND_MATERIALS' && (
-          <Card title="Team Members (T&M)" data-testid="tm-section" style={{ marginBottom: 16 }}>
+        {/* Team Members Section (create mode only) */}
+        {!isEdit && (
+          <Card title="Team Members" data-testid="team-members-section" style={{ marginBottom: 16 }}>
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-              Define planned roles and rates for cost estimation. Actual team members are assigned after project approval.
+              Assign team members now or after project approval.
+              {engagementModel === 'TIME_AND_MATERIALS' && ' Selling rate is required for T&M projects.'}
             </Typography.Text>
-            {fields.map((field, index) => (
-              <div key={field.id} style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
-                  <label htmlFor={`teamMembers.${index}.role`}>Role *</label>
-                  <Controller
-                    name={`teamMembers.${index}.role`}
-                    control={control}
-                    rules={{ required: 'Role is required' }}
-                    render={({ field: f }) => (
-                      <Input id={`teamMembers.${index}.role`} {...f} placeholder="e.g. Senior Developer" />
-                    )}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label htmlFor={`teamMembers.${index}.billingRatePaise`}>Billing Rate *</label>
-                  <Controller
-                    name={`teamMembers.${index}.billingRatePaise`}
-                    control={control}
-                    rules={{ required: 'Billing rate is required' }}
-                    render={({ field: f }) => (
-                      <InputNumber
-                        id={`teamMembers.${index}.billingRatePaise`}
-                        prefix="₹"
-                        value={f.value}
-                        onChange={f.onChange}
-                        style={{ width: '100%' }}
-                        min={0}
-                        placeholder="Hourly rate"
-                      />
-                    )}
-                  />
-                </div>
-                {fields.length > 1 && (
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => remove(index)}
-                    aria-label={`Remove team member ${index + 1}`}
-                  />
-                )}
-              </div>
-            ))}
-            <Button
-              type="dashed"
-              onClick={() => append({ role: '', billingRatePaise: null })}
-              icon={<PlusOutlined />}
-              style={{ width: '100%' }}
-            >
-              Add Team Member
-            </Button>
+            {memberError && (
+              <Alert type="error" message={memberError} style={{ marginBottom: 12 }} showIcon />
+            )}
+            <TeamMemberList
+              value={members}
+              onChange={setMembers}
+              engagementModel={engagementModel}
+            />
           </Card>
         )}
 

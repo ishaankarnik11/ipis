@@ -53,6 +53,7 @@ interface BreakdownEmployee {
   hours: number;
   costPerHourPaise: number;
   contributionPaise: number;
+  sellingRatePaise?: number;
 }
 
 interface TmFcAmcBreakdown {
@@ -136,6 +137,9 @@ function buildProjectBreakdownJson(pr: ProjectResult): BreakdownJson {
     hours: emp.hours,
     costPerHourPaise: emp.costPerHourPaise,
     contributionPaise: emp.contributionPaise,
+    ...(pr.engagementModel === 'TIME_AND_MATERIALS' && emp.billingRatePaise != null
+      ? { sellingRatePaise: emp.billingRatePaise }
+      : {}),
   }));
 
   if (pr.engagementModel === 'INFRASTRUCTURE' && pr.infraCostMode === 'DETAILED') {

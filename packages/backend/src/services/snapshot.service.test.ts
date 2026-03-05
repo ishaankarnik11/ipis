@@ -518,6 +518,44 @@ describe('snapshot.service', () => {
     });
   });
 
+  // 4.8b — breakdown_json includes sellingRatePaise for T&M (Story 8.4)
+  describe('breakdown_json — T&M includes sellingRatePaise (Story 8.4)', () => {
+    it('should include sellingRatePaise in T&M employee breakdown entries', async () => {
+      const run = await createTestRun();
+      await persistSnapshots(makeInput(run.id, [tmProjectResult()]));
+
+      const marginRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'PROJECT',
+          figureType: 'MARGIN_PERCENT',
+        },
+      });
+
+      const breakdown = marginRow!.breakdownJson as Record<string, unknown>;
+      const emp = (breakdown.employees as Record<string, unknown>[])[0];
+      expect(emp).toHaveProperty('sellingRatePaise');
+      expect(emp.sellingRatePaise).toBe(62_500); // from tmProjectResult fixture
+    });
+
+    it('should NOT include sellingRatePaise in Fixed Cost employee breakdown', async () => {
+      const run = await createTestRun();
+      await persistSnapshots(makeInput(run.id, [fixedCostProjectResult()]));
+
+      const marginRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'PROJECT',
+          figureType: 'MARGIN_PERCENT',
+        },
+      });
+
+      const breakdown = marginRow!.breakdownJson as Record<string, unknown>;
+      const emp = (breakdown.employees as Record<string, unknown>[])[0];
+      expect(emp).not.toHaveProperty('sellingRatePaise');
+    });
+  });
+
   // 4.9 — breakdown_json shape for AMC (AC 10)
   describe('breakdown_json — AMC multi-employee (AC 10)', () => {
     it('should produce AMC breakdown with multiple employees', async () => {

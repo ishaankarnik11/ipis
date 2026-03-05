@@ -98,8 +98,10 @@ const testEmployees: Employee[] = [
   },
 ];
 
+let queryClient: QueryClient;
+
 function renderEmployeeList() {
-  const queryClient = new QueryClient({
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
@@ -132,6 +134,7 @@ describe('EmployeeList', () => {
   });
 
   afterEach(() => {
+    queryClient.clear();
     Modal.destroyAll();
     cleanup();
   });

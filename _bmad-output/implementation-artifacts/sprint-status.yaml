@@ -112,9 +112,9 @@ development_status:
   # Epic 8: Project Experience & Data Quality Enhancements
   epic-8: in-progress
   8-1-project-role-management-schema-and-admin-api: review
-  8-2-admin-role-management-ui: ready-for-dev
-  8-3-unified-team-member-assignment-component: ready-for-dev
-  8-4-tm-revenue-per-member-selling-rate: ready-for-dev
-  8-5-project-detail-team-roster-and-financial-summary: ready-for-dev
+  8-2-admin-role-management-ui: review
+  8-3-unified-team-member-assignment-component: review
+  8-4-tm-revenue-per-member-selling-rate: review
+  8-5-project-detail-team-roster-and-financial-summary: review
   8-6-dashboard-click-through-navigation: ready-for-dev
   epic-8-retrospective: optional

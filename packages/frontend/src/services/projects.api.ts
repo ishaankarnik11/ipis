@@ -11,6 +11,13 @@ export const projectKeys = {
 export type ProjectStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'COMPLETED';
 export type EngagementModel = 'TIME_AND_MATERIALS' | 'FIXED_COST' | 'AMC' | 'INFRASTRUCTURE';
 
+export interface ProjectFinancials {
+  revenuePaise: number | null;
+  costPaise: number | null;
+  profitPaise: number | null;
+  marginPercent: number | null;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -32,6 +39,7 @@ export interface Project {
   endDate: string;
   createdAt: string;
   updatedAt: string;
+  financials: ProjectFinancials | null;
 }
 
 export interface TeamMember {

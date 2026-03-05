@@ -52,6 +52,22 @@ router.post(
   }),
 );
 
+// GET /api/v1/employees/search — Search active employees by name (DM, Admin)
+router.get(
+  '/search',
+  authMiddleware,
+  rbacMiddleware(['DELIVERY_MANAGER', 'ADMIN']),
+  asyncHandler(async (req, res) => {
+    const q = (typeof req.query.q === 'string' ? req.query.q : '').trim();
+    if (q.length < 2) {
+      res.json({ data: [], meta: { total: 0 } });
+      return;
+    }
+    const employees = await employeeService.searchEmployees(q);
+    res.json({ data: employees, meta: { total: employees.length } });
+  }),
+);
+
 // GET /api/v1/employees — List all employees (HR, Admin, Finance, DM)
 router.get(
   '/',

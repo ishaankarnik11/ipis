@@ -12,12 +12,21 @@ const isoDateString = z.string().min(1).refine(
   { message: 'Must be a valid date string (e.g., 2026-03-01)' },
 );
 
+const memberInputSchema = z.object({
+  employeeId: z.string().uuid('employeeId must be a valid UUID'),
+  roleId: z.string().uuid('roleId must be a valid UUID'),
+  billingRatePaise: z.number().int().positive('billingRatePaise must be positive').optional(),
+});
+
+export type MemberInput = z.infer<typeof memberInputSchema>;
+
 const baseProjectFields = {
   name: z.string().min(1, 'name is required'),
   client: z.string().min(1, 'client is required'),
   vertical: z.string().min(1, 'vertical is required'),
   startDate: isoDateString,
   endDate: isoDateString,
+  members: z.array(memberInputSchema).optional(),
 };
 
 const timeAndMaterialsSchema = z.object({

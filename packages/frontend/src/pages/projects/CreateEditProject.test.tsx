@@ -31,6 +31,23 @@ const mockUpdateProject = vi.fn();
 const mockResubmitProject = vi.fn();
 const mockGetProject = vi.fn();
 
+vi.mock('../../services/employees.api', () => ({
+  employeeKeys: {
+    all: ['employees'],
+    detail: (id: string) => ['employees', id],
+    search: (q: string) => ['employees', 'search', q],
+  },
+  searchEmployees: vi.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
+}));
+
+vi.mock('../../services/project-roles.api', () => ({
+  projectRoleKeys: {
+    all: ['project-roles'],
+    active: ['project-roles', 'active'],
+  },
+  getActiveProjectRoles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
+}));
+
 vi.mock('../../services/projects.api', () => ({
   projectKeys: {
     all: ['projects'],
@@ -99,8 +116,8 @@ describe('CreateEditProject', () => {
       renderComponent();
 
       // Default engagement model is TIME_AND_MATERIALS
-      expect(screen.getByTestId('tm-section')).toBeInTheDocument();
-      expect(screen.getByText(/add team member/i)).toBeInTheDocument();
+      expect(screen.getByTestId('team-members-section')).toBeInTheDocument();
+      expect(screen.getByText(/add member/i)).toBeInTheDocument();
     });
 
     it('shows Fixed Cost section when Fixed Cost model selected', async () => {
@@ -111,7 +128,7 @@ describe('CreateEditProject', () => {
       await waitFor(() => {
         expect(screen.getByTestId('fixed-cost-section')).toBeInTheDocument();
       });
-      expect(screen.queryByTestId('tm-section')).not.toBeInTheDocument();
+      expect(screen.getByTestId('team-members-section')).toBeInTheDocument();
     });
 
     it('shows AMC section when AMC model selected', async () => {
@@ -122,7 +139,7 @@ describe('CreateEditProject', () => {
       await waitFor(() => {
         expect(screen.getByTestId('amc-section')).toBeInTheDocument();
       });
-      expect(screen.queryByTestId('tm-section')).not.toBeInTheDocument();
+      expect(screen.getByTestId('team-members-section')).toBeInTheDocument();
     });
 
     it('shows Infrastructure section when Infrastructure model selected', async () => {
@@ -133,14 +150,14 @@ describe('CreateEditProject', () => {
       await waitFor(() => {
         expect(screen.getByTestId('infrastructure-section')).toBeInTheDocument();
       });
-      expect(screen.queryByTestId('tm-section')).not.toBeInTheDocument();
+      expect(screen.getByTestId('team-members-section')).toBeInTheDocument();
     });
 
     it('switches sections when changing engagement model (AC: 1)', async () => {
       renderComponent();
 
       // Start with T&M (default)
-      expect(screen.getByTestId('tm-section')).toBeInTheDocument();
+      expect(screen.getByTestId('team-members-section')).toBeInTheDocument();
 
       // Switch to Fixed Cost
       await selectEngagementModel('Fixed Cost');
@@ -148,7 +165,7 @@ describe('CreateEditProject', () => {
       await waitFor(() => {
         expect(screen.getByTestId('fixed-cost-section')).toBeInTheDocument();
       });
-      expect(screen.queryByTestId('tm-section')).not.toBeInTheDocument();
+      expect(screen.getByTestId('team-members-section')).toBeInTheDocument();
     });
   });
 

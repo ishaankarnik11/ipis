@@ -142,6 +142,113 @@ describe('project.service', () => {
       const dbProj = await prisma.project.findUnique({ where: { id: result.id } });
       expect(Number(dbProj!.budgetPaise)).toBe(40000000);
     });
+
+    it('should create project with members atomically', async () => {
+      const dm = await makeDmUser();
+      const emp = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+
+      const result = await projectService.createProject(
+        { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id, billingRatePaise: 500000 }] },
+        dm,
+      );
+
+      const members = await prisma.employeeProject.findMany({ where: { projectId: result.id } });
+      expect(members).toHaveLength(1);
+      expect(members[0]!.employeeId).toBe(emp.id);
+      expect(members[0]!.roleId).toBe(role.id);
+      expect(Number(members[0]!.billingRatePaise)).toBe(500000);
+    });
+
+    it('should create project without members (backward compat)', async () => {
+      const dm = await makeDmUser();
+
+      const result = await projectService.createProject(validCreateInput, dm);
+
+      const members = await prisma.employeeProject.findMany({ where: { projectId: result.id } });
+      expect(members).toHaveLength(0);
+      expect(result.id).toBeDefined();
+    });
+
+    it('should reject duplicate employeeId in members array', async () => {
+      const dm = await makeDmUser();
+      const emp = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+
+      await expect(
+        projectService.createProject(
+          { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id }, { employeeId: emp.id, roleId: role.id }] },
+          dm,
+        ),
+      ).rejects.toThrow('Duplicate employee in members array');
+
+      // No project should exist
+      const projects = await prisma.project.findMany();
+      expect(projects).toHaveLength(0);
+    });
+
+    it('should rollback project creation when member has resigned employee', async () => {
+      const dm = await makeDmUser();
+      const emp = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000), isResigned: true },
+      });
+      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+
+      await expect(
+        projectService.createProject(
+          { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id }] },
+          dm,
+        ),
+      ).rejects.toThrow(/resigned/i);
+
+      const projects = await prisma.project.findMany();
+      expect(projects).toHaveLength(0);
+    });
+
+    it('should rollback project creation when member has inactive role', async () => {
+      const dm = await makeDmUser();
+      const emp = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const role = await prisma.projectRole.create({ data: { name: 'Inactive Role', isActive: false } });
+
+      await expect(
+        projectService.createProject(
+          { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id }] },
+          dm,
+        ),
+      ).rejects.toThrow('Invalid or inactive project role');
+
+      const projects = await prisma.project.findMany();
+      expect(projects).toHaveLength(0);
+    });
+
+    it('should require billingRatePaise for T&M project members', async () => {
+      const dm = await makeDmUser();
+      const emp = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+
+      await expect(
+        projectService.createProject(
+          {
+            name: 'TM Proj', client: 'X', vertical: 'Tech',
+            engagementModel: 'TIME_AND_MATERIALS' as const,
+            startDate: '2026-03-01', endDate: '2026-12-31',
+            members: [{ employeeId: emp.id, roleId: role.id }],
+          },
+          dm,
+        ),
+      ).rejects.toThrow('billingRatePaise is required for T&M projects');
+
+      const projects = await prisma.project.findMany();
+      expect(projects).toHaveLength(0);
+    });
   });
 
   describe('serializeProject', () => {
@@ -710,6 +817,125 @@ describe('project.service', () => {
       const result = await projectService.getTeamMembers(proj.id, fin);
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getById — financials', () => {
+    async function seedSnapshotsForProject(
+      projectId: string,
+      userId: string,
+      figures: Array<{ figureType: string; valuePaise: bigint }>,
+      calculatedAt?: Date,
+    ) {
+      const uploadEvent = await prisma.uploadEvent.create({
+        data: {
+          type: 'TIMESHEET',
+          status: 'SUCCESS',
+          uploadedBy: userId,
+          periodMonth: 3,
+          periodYear: 2026,
+          rowCount: 1,
+        },
+      });
+      const run = await prisma.recalculationRun.create({
+        data: {
+          uploadEventId: uploadEvent.id,
+          projectsProcessed: 1,
+          completedAt: calculatedAt ?? new Date(),
+        },
+      });
+      for (const fig of figures) {
+        await prisma.calculationSnapshot.create({
+          data: {
+            recalculationRunId: run.id,
+            entityType: 'PROJECT',
+            entityId: projectId,
+            figureType: fig.figureType,
+            periodMonth: 3,
+            periodYear: 2026,
+            valuePaise: fig.valuePaise,
+            breakdownJson: {},
+            engineVersion: '1.0.0',
+            calculatedAt: calculatedAt ?? new Date(),
+          },
+        });
+      }
+    }
+
+    it('should return financials: null when no snapshots exist', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(result.financials).toBeNull();
+    });
+
+    it('should return financials object when snapshots exist', async () => {
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      await seedSnapshotsForProject(proj.id, admin.id, [
+        { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(1000000) },
+        { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(500000) },
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(2500) },
+      ]);
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(result.financials).not.toBeNull();
+      expect(result.financials!.revenuePaise).toBe(1000000);
+      expect(result.financials!.costPaise).toBe(500000);
+      expect(result.financials!.profitPaise).toBe(500000);
+      expect(result.financials!.marginPercent).toBe(0.25);
+    });
+
+    it('should return latest snapshot when multiple exist', async () => {
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      // Older snapshots
+      await seedSnapshotsForProject(proj.id, admin.id, [
+        { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(500000) },
+        { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(400000) },
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(1000) },
+      ], new Date('2026-01-01'));
+
+      // Newer snapshots
+      await seedSnapshotsForProject(proj.id, admin.id, [
+        { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(2000000) },
+        { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(800000) },
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(3000) },
+      ], new Date('2026-02-01'));
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(result.financials!.revenuePaise).toBe(2000000);
+      expect(result.financials!.costPaise).toBe(800000);
+      expect(result.financials!.profitPaise).toBe(1200000);
+      expect(result.financials!.marginPercent).toBe(0.30);
+    });
+
+    it('should return number types for financials values (not BigInt)', async () => {
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      await seedSnapshotsForProject(proj.id, admin.id, [
+        { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(1000000) },
+        { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(500000) },
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(2500) },
+      ]);
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(typeof result.financials!.revenuePaise).toBe('number');
+      expect(typeof result.financials!.costPaise).toBe('number');
+      expect(typeof result.financials!.profitPaise).toBe('number');
+      expect(typeof result.financials!.marginPercent).toBe('number');
     });
   });
 

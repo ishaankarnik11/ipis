@@ -21,7 +21,7 @@ test.describe('Project Creation — DM role', () => {
     await page.getByLabel('Vertical').fill('Technology');
 
     // Engagement model defaults to T&M — verify team member section is visible
-    await expect(page.getByTestId('tm-section')).toBeVisible();
+    await expect(page.getByTestId('team-members-section')).toBeVisible();
 
     // Fill start date
     await page.getByLabel('Start Date').click();
@@ -33,9 +33,8 @@ test.describe('Project Creation — DM role', () => {
     await page.getByLabel('End Date').fill('2027-05-31');
     await page.keyboard.press('Enter');
 
-    // Fill team member role and billing rate
-    await page.locator('input[id="teamMembers.0.role"]').fill('Senior Developer');
-    await page.locator('input[id="teamMembers.0.billingRatePaise"]').fill('5000');
+    // Team members section is visible but optional — submit without members
+    await expect(page.getByTestId('team-members-section')).toBeVisible();
 
     // Submit
     await page.getByRole('button', { name: /create project/i }).click();
@@ -71,9 +70,9 @@ test.describe('Project Creation — DM role', () => {
     await page.locator('#engagementModel').click();
     await page.locator('.ant-select-item[title="Fixed Cost"]').click();
 
-    // Verify Fixed Cost section appears
+    // Verify Fixed Cost section appears (team members section is always visible)
     await expect(page.getByTestId('fixed-cost-section')).toBeVisible();
-    await expect(page.getByTestId('tm-section')).not.toBeVisible();
+    await expect(page.getByTestId('team-members-section')).toBeVisible();
 
     // Fill Fixed Cost fields — Contract Value is required
     await page.getByLabel('Contract Value').click();
@@ -95,15 +94,15 @@ test.describe('Project Creation — DM role', () => {
   test('DM switches engagement model and sees correct sections', async ({ page }) => {
     await page.goto('/projects/new');
 
-    // Default: T&M section visible
-    await expect(page.getByTestId('tm-section')).toBeVisible();
+    // Team members section is always visible in create mode
+    await expect(page.getByTestId('team-members-section')).toBeVisible();
 
     // Switch to Fixed Cost
     await page.locator('#engagementModel').click();
     await page.locator('.ant-select-item[title="Fixed Cost"]').click();
 
     await expect(page.getByTestId('fixed-cost-section')).toBeVisible();
-    await expect(page.getByTestId('tm-section')).not.toBeVisible();
+    await expect(page.getByTestId('team-members-section')).toBeVisible();
 
     // Switch to AMC
     await page.locator('#engagementModel').click();
@@ -123,7 +122,7 @@ test.describe('Project Creation — DM role', () => {
     await page.locator('#engagementModel').click();
     await page.locator('.ant-select-item[title="Time & Materials"]').click();
 
-    await expect(page.getByTestId('tm-section')).toBeVisible();
+    await expect(page.getByTestId('team-members-section')).toBeVisible();
     await expect(page.getByTestId('infrastructure-section')).not.toBeVisible();
   });
 
@@ -414,8 +413,7 @@ test.describe('Project Creation — Negative Scenarios', () => {
     await page.getByLabel('End Date').fill('2027-05-31');
     await page.keyboard.press('Enter');
 
-    await page.locator('input[id="teamMembers.0.role"]').fill('Developer');
-    await page.locator('input[id="teamMembers.0.billingRatePaise"]').fill('5000');
+    // Team members are optional — submit without
 
     const submitBtn = page.getByRole('button', { name: /create project/i });
 

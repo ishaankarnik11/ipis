@@ -2,10 +2,13 @@ import { Form, InputNumber, Button, Spin, message } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { configKeys, getConfig, updateConfig } from '../../services/config.api';
 import type { SystemConfigInput } from '@ipis/shared';
+import { useAuth } from '../../hooks/useAuth';
+import ProjectRoleManagement from '../../components/ProjectRoleManagement';
 
 export default function SystemConfig() {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: configKeys.current,
@@ -80,6 +83,8 @@ export default function SystemConfig() {
           </Button>
         </Form.Item>
       </Form>
+
+      {user?.role === 'ADMIN' && <ProjectRoleManagement />}
     </div>
   );
 }

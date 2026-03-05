@@ -98,7 +98,7 @@ test.describe('Chain 1 — T&M Full Lifecycle', () => {
     await page.getByText('Seeded Employee One (EMP001)').click();
     await page.getByRole('combobox', { name: /role on project/i }).click();
     await page.getByTitle('Developer', { exact: true }).click();
-    await page.getByLabel('Billing Rate').fill('6000');
+    await page.locator('[data-testid="selling-rate"] input').fill('6000');
     await page.getByRole('button', { name: /add member/i }).click();
 
     // Wait for member to appear in roster
@@ -112,7 +112,7 @@ test.describe('Chain 1 — T&M Full Lifecycle', () => {
     await page.getByText('Seeded Employee Four (EMP004)').click();
     await page.getByRole('combobox', { name: /role on project/i }).click();
     await page.getByTitle('QA Engineer', { exact: true }).click();
-    await page.getByLabel('Billing Rate').fill('5500');
+    await page.locator('[data-testid="selling-rate"] input').fill('5500');
     await page.getByRole('button', { name: /add member/i }).click();
 
     // Verify both appear in roster
@@ -315,7 +315,7 @@ test.describe('Chain 3 — Rejection-Resubmission Chain', () => {
     await page.getByText('Seeded Employee Five (EMP005)').click();
     await page.getByRole('combobox', { name: /role on project/i }).click();
     await page.getByTitle('Tech Lead', { exact: true }).click();
-    await page.getByLabel('Billing Rate').fill('8000');
+    await page.locator('[data-testid="selling-rate"] input').fill('8000');
     await page.getByRole('button', { name: /add member/i }).click();
 
     await expect(page.getByRole('cell', { name: 'Seeded Employee Five' })).toBeVisible({ timeout: 10000 });
@@ -359,7 +359,7 @@ test.describe('Chain 4 — Multi-Member Roster Management', () => {
     await page.getByText('Seeded Employee Four (EMP004)').click();
     await page.getByRole('combobox', { name: /role on project/i }).click();
     await page.getByTitle('QA Engineer', { exact: true }).click();
-    await page.getByLabel('Billing Rate').fill('4000');
+    await page.locator('[data-testid="selling-rate"] input').fill('4000');
     await page.getByRole('button', { name: /add member/i }).click();
     await expect(page.getByRole('cell', { name: 'Seeded Employee Four' })).toBeVisible({ timeout: 10000 });
 
@@ -369,7 +369,7 @@ test.describe('Chain 4 — Multi-Member Roster Management', () => {
     await page.getByText('Seeded Employee Five (EMP005)').click();
     await page.getByRole('combobox', { name: /role on project/i }).click();
     await page.getByTitle('Architect', { exact: true }).click();
-    await page.getByLabel('Billing Rate').fill('6000');
+    await page.locator('[data-testid="selling-rate"] input').fill('6000');
     await page.getByRole('button', { name: /add member/i }).click();
     await expect(page.getByRole('cell', { name: 'Seeded Employee Five' })).toBeVisible({ timeout: 10000 });
 

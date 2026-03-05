@@ -491,6 +491,12 @@ export async function triggerRecalculation(
           // T&M: revenue = SUM(emp.hours * emp.billingRate) for per-employee rates
           revenuePaise = 0;
           for (const ep of project.employeeProjects) {
+            if (ep.billingRatePaise == null) {
+              logger.warn(
+                { employeeId: ep.employeeId, projectId: project.id },
+                'T&M member has null selling rate — contributing ₹0 revenue',
+              );
+            }
             const empHours = hoursByEmployee.get(ep.employeeId) ?? 0;
             revenuePaise += Math.round(empHours * Number(ep.billingRatePaise ?? 0));
           }

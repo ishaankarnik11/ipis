@@ -5,6 +5,7 @@ import type { DataResponse, ListResponse, SuccessResponse } from './types';
 export const employeeKeys = {
   all: ['employees'] as const,
   detail: (id: string) => ['employees', id] as const,
+  search: (q: string) => ['employees', 'search', q] as const,
 };
 
 export interface Employee {
@@ -39,4 +40,16 @@ export function updateEmployee(id: string, data: UpdateEmployeeInput): Promise<D
 
 export function resignEmployee(id: string): Promise<SuccessResponse> {
   return patch<SuccessResponse>(`/employees/${id}/resign`);
+}
+
+export interface EmployeeSearchResult {
+  id: string;
+  name: string;
+  employeeCode: string;
+  designation: string;
+  departmentName: string;
+}
+
+export function searchEmployees(q: string): Promise<ListResponse<EmployeeSearchResult>> {
+  return get<ListResponse<EmployeeSearchResult>>(`/employees/search?q=${encodeURIComponent(q)}`);
 }

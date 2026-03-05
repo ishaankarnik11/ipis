@@ -7,11 +7,27 @@ import SystemConfig from './SystemConfig';
 
 const mockGetConfig = vi.fn();
 const mockUpdateConfig = vi.fn();
+const mockGetProjectRoles = vi.fn();
 
 vi.mock('../../services/config.api', () => ({
   configKeys: { current: ['config'] as const },
   getConfig: (...args: unknown[]) => mockGetConfig(...args),
   updateConfig: (...args: unknown[]) => mockUpdateConfig(...args),
+}));
+
+vi.mock('../../services/project-roles.api', () => ({
+  projectRoleKeys: {
+    all: ['project-roles'] as const,
+    active: ['project-roles', 'active'] as const,
+  },
+  getProjectRoles: (...args: unknown[]) => mockGetProjectRoles(...args),
+  createProjectRole: vi.fn(),
+  updateProjectRole: vi.fn(),
+}));
+
+const mockUseAuth = vi.fn();
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
 }));
 
 const mockMessageSuccess = vi.fn();
@@ -50,6 +66,14 @@ describe('SystemConfig', () => {
     vi.clearAllMocks();
     mockGetConfig.mockResolvedValue(defaultConfig);
     mockUpdateConfig.mockResolvedValue({ success: true });
+    mockGetProjectRoles.mockResolvedValue({ data: [], meta: { total: 0 } });
+    mockUseAuth.mockReturnValue({
+      user: { id: '1', name: 'Admin', email: 'admin@test.com', role: 'ADMIN', isActive: true },
+      isLoading: false,
+      isError: false,
+      isAuthenticated: true,
+      mustChangePassword: false,
+    });
   });
 
   it('should render the System Configuration heading', async () => {
@@ -122,5 +146,31 @@ describe('SystemConfig', () => {
     renderSystemConfig();
 
     expect(document.querySelector('.ant-spin')).toBeInTheDocument();
+  });
+
+  it('should show Project Roles section for Admin users', async () => {
+    renderSystemConfig();
+
+    await waitFor(() => {
+      expect(screen.getByText('Project Roles')).toBeInTheDocument();
+    });
+  });
+
+  it('should hide Project Roles section for non-Admin users', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: '2', name: 'Finance User', email: 'finance@test.com', role: 'FINANCE', isActive: true },
+      isLoading: false,
+      isError: false,
+      isAuthenticated: true,
+      mustChangePassword: false,
+    });
+
+    renderSystemConfig();
+
+    await waitFor(() => {
+      expect(screen.getByText('System Configuration')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Project Roles')).not.toBeInTheDocument();
   });
 });

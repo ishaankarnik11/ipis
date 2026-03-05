@@ -140,19 +140,72 @@ export async function createProject(data: CreateProjectInput, user: RequestUser,
       break;
   }
 
-  const project = await prisma.project.create({
-    data: {
-      name: data.name,
-      client: data.client,
-      vertical: data.vertical,
-      engagementModel: data.engagementModel as EngagementModel,
-      contractValuePaise: data.contractValuePaise ?? null,
-      deliveryManagerId: user.id,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
-      ...modelFields,
-    },
-    select: PROJECT_SELECT,
+  const members = data.members ?? [];
+
+  // Pre-validate: check for duplicate employeeIds in members array
+  if (members.length > 0) {
+    const employeeIds = members.map((m) => m.employeeId);
+    const uniqueIds = new Set(employeeIds);
+    if (uniqueIds.size !== employeeIds.length) {
+      throw new ValidationError('Duplicate employee in members array');
+    }
+  }
+
+  const project = await prisma.$transaction(async (tx) => {
+    const created = await tx.project.create({
+      data: {
+        name: data.name,
+        client: data.client,
+        vertical: data.vertical,
+        engagementModel: data.engagementModel as EngagementModel,
+        contractValuePaise: data.contractValuePaise ?? null,
+        deliveryManagerId: user.id,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        ...modelFields,
+      },
+      select: PROJECT_SELECT,
+    });
+
+    // Validate and create each member assignment
+    for (const member of members) {
+      // T&M billing rate validation
+      if (data.engagementModel === 'TIME_AND_MATERIALS' && member.billingRatePaise == null) {
+        throw new ValidationError('billingRatePaise is required for T&M projects');
+      }
+
+      // Check employee exists and is not resigned
+      const employee = await tx.employee.findUnique({
+        where: { id: member.employeeId },
+        select: { id: true, isResigned: true, name: true },
+      });
+      if (!employee) {
+        throw new NotFoundError(`Employee ${member.employeeId} not found`);
+      }
+      if (employee.isResigned) {
+        throw new ValidationError(`Cannot assign resigned employee ${employee.name} to a project`);
+      }
+
+      // Validate role is active
+      const role = await tx.projectRole.findUnique({
+        where: { id: member.roleId },
+        select: { isActive: true },
+      });
+      if (!role || !role.isActive) {
+        throw new ValidationError('Invalid or inactive project role');
+      }
+
+      await tx.employeeProject.create({
+        data: {
+          projectId: created.id,
+          employeeId: member.employeeId,
+          roleId: member.roleId,
+          billingRatePaise: member.billingRatePaise ?? null,
+        },
+      });
+    }
+
+    return created;
   });
 
   void logAuditEvent({
@@ -228,7 +281,42 @@ export async function getById(id: string, user: RequestUser) {
     throw new ForbiddenError('Access denied');
   }
 
-  return serializeProject(project);
+  // Query latest calculation snapshots for project financials
+  const snapshots = await prisma.calculationSnapshot.findMany({
+    where: {
+      entityType: 'PROJECT',
+      entityId: id,
+      figureType: { in: ['MARGIN_PERCENT', 'EMPLOYEE_COST', 'REVENUE_CONTRIBUTION'] },
+    },
+    orderBy: { calculatedAt: 'desc' },
+    select: { figureType: true, valuePaise: true },
+  });
+
+  // Deduplicate: keep latest per figureType (already sorted desc)
+  const seen = new Set<string>();
+  let revenuePaise: number | null = null;
+  let costPaise: number | null = null;
+  let marginBasisPoints: number | null = null;
+
+  for (const snap of snapshots) {
+    if (seen.has(snap.figureType)) continue;
+    seen.add(snap.figureType);
+    if (snap.figureType === 'REVENUE_CONTRIBUTION') revenuePaise = Number(snap.valuePaise);
+    else if (snap.figureType === 'EMPLOYEE_COST') costPaise = Number(snap.valuePaise);
+    else if (snap.figureType === 'MARGIN_PERCENT') marginBasisPoints = Number(snap.valuePaise);
+  }
+
+  const hasFinancials = revenuePaise !== null || costPaise !== null || marginBasisPoints !== null;
+  const financials = hasFinancials
+    ? {
+        revenuePaise,
+        costPaise,
+        profitPaise: revenuePaise != null && costPaise != null ? revenuePaise - costPaise : null,
+        marginPercent: marginBasisPoints != null ? marginBasisPoints / 10000 : null,
+      }
+    : null;
+
+  return { ...serializeProject(project), financials };
 }
 
 export async function approveProject(id: string, actorId?: string, ipAddress?: string) {

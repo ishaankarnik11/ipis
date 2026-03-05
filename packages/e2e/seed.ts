@@ -424,6 +424,37 @@ async function main() {
     },
   });
 
+  // activeTmProject: REVENUE_CONTRIBUTION and EMPLOYEE_COST (Story 8.5 — project detail financials)
+  await prisma.calculationSnapshot.create({
+    data: {
+      recalculationRunId: dashRun.id,
+      entityType: 'PROJECT',
+      entityId: activeTmProject.id,
+      figureType: 'REVENUE_CONTRIBUTION',
+      periodMonth: 2,
+      periodYear: 2026,
+      valuePaise: BigInt(5000000),
+      breakdownJson: {},
+      engineVersion: '1.0.0',
+      calculatedAt: new Date(),
+    },
+  });
+
+  await prisma.calculationSnapshot.create({
+    data: {
+      recalculationRunId: dashRun.id,
+      entityType: 'PROJECT',
+      entityId: activeTmProject.id,
+      figureType: 'EMPLOYEE_COST',
+      periodMonth: 2,
+      periodYear: 2026,
+      valuePaise: BigInt(3500000),
+      breakdownJson: {},
+      engineVersion: '1.0.0',
+      calculatedAt: new Date(),
+    },
+  });
+
   // activeFcProject: margin 15% (at-risk), revenue 8M, cost 6.8M, profit 1.2M
   await prisma.calculationSnapshot.create({
     data: {

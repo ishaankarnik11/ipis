@@ -271,6 +271,31 @@ export async function updateEmployee(id: string, data: UpdateEmployeeInput) {
   });
 }
 
+export async function searchEmployees(query: string) {
+  const employees = await prisma.employee.findMany({
+    where: {
+      name: { contains: query, mode: 'insensitive' },
+      isResigned: false,
+    },
+    select: {
+      id: true,
+      name: true,
+      employeeCode: true,
+      designation: true,
+      department: { select: { name: true } },
+    },
+    take: 20,
+    orderBy: { name: 'asc' },
+  });
+  return employees.map((e) => ({
+    id: e.id,
+    name: e.name,
+    employeeCode: e.employeeCode,
+    designation: e.designation,
+    departmentName: e.department.name,
+  }));
+}
+
 export async function resignEmployee(id: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const employee = await tx.employee.findUnique({

@@ -366,6 +366,68 @@ describe('employee.service', () => {
     });
   });
 
+  describe('searchEmployees', () => {
+    it('should return employees matching by name (case-insensitive)', async () => {
+      await prisma.employee.createMany({
+        data: [
+          { employeeCode: 'EMP001', name: 'Alice Smith', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+          { employeeCode: 'EMP002', name: 'Bob Jones', departmentId: departments.get('Finance')!, designation: 'Analyst', annualCtcPaise: BigInt(1000000) },
+          { employeeCode: 'EMP003', name: 'Alicia Walker', departmentId: departments.get('Finance')!, designation: 'Manager', annualCtcPaise: BigInt(2000000) },
+        ],
+      });
+
+      const results = await employeeService.searchEmployees('ali');
+
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.name)).toContain('Alice Smith');
+      expect(results.map((r) => r.name)).toContain('Alicia Walker');
+    });
+
+    it('should exclude resigned employees', async () => {
+      await prisma.employee.createMany({
+        data: [
+          { employeeCode: 'EMP001', name: 'Alice Active', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000), isResigned: false },
+          { employeeCode: 'EMP002', name: 'Alice Resigned', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000), isResigned: true },
+        ],
+      });
+
+      const results = await employeeService.searchEmployees('Alice');
+
+      expect(results).toHaveLength(1);
+      expect(results[0]!.name).toBe('Alice Active');
+    });
+
+    it('should include department name in results', async () => {
+      await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+
+      const results = await employeeService.searchEmployees('Alice');
+
+      expect(results[0]!.departmentName).toBe('Engineering');
+    });
+
+    it('should return at most 20 results', async () => {
+      const data = Array.from({ length: 25 }, (_, i) => ({
+        employeeCode: `EMP${String(i).padStart(3, '0')}`,
+        name: `TestUser ${i}`,
+        departmentId: departments.get('Engineering')!,
+        designation: 'Dev',
+        annualCtcPaise: BigInt(1500000),
+      }));
+      await prisma.employee.createMany({ data });
+
+      const results = await employeeService.searchEmployees('TestUser');
+
+      expect(results).toHaveLength(20);
+    });
+
+    it('should return empty array when no matches', async () => {
+      const results = await employeeService.searchEmployees('NonExistent');
+      expect(results).toHaveLength(0);
+    });
+  });
+
   describe('resignEmployee', () => {
     it('should set isResigned to true', async () => {
       const emp = await prisma.employee.create({

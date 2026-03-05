@@ -6,10 +6,9 @@ import { formatCurrency } from '@ipis/shared';
 import type { ColumnsType } from 'antd/es/table';
 import { projectKeys, getProject, getTeamMembers, addTeamMember, removeTeamMember, updateProject, engagementModelLabels } from '../../services/projects.api';
 import type { TeamMember } from '../../services/projects.api';
-import { employeeKeys, getEmployees } from '../../services/employees.api';
-import { projectRoleKeys, getActiveProjectRoles } from '../../services/project-roles.api';
 import ProjectStatusBadge from '../../components/ProjectStatusBadge';
 import AddTeamMemberModal from '../../components/AddTeamMemberModal';
+import ProjectFinancialSummary from '../../components/ProjectFinancialSummary';
 import { useAuth } from '../../hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { ApiError } from '../../services/api';
@@ -42,18 +41,6 @@ export default function ProjectDetail() {
   const canManageTeam =
     project?.status === 'ACTIVE' &&
     (user?.role === 'ADMIN' || (user?.role === 'DELIVERY_MANAGER' && user?.id === project?.deliveryManagerId));
-
-  const { data: employeesData } = useQuery({
-    queryKey: employeeKeys.all,
-    queryFn: getEmployees,
-    enabled: canManageTeam && addModalOpen,
-  });
-
-  const { data: rolesData } = useQuery({
-    queryKey: projectRoleKeys.active,
-    queryFn: getActiveProjectRoles,
-    enabled: canManageTeam && addModalOpen,
-  });
 
   const addMutation = useMutation({
     mutationFn: (data: { employeeId: string; roleId: string; billingRatePaise?: number }) =>
@@ -124,7 +111,7 @@ export default function ProjectDetail() {
     { title: 'Designation', dataIndex: 'designation', key: 'designation' },
     { title: 'Role', dataIndex: 'roleName', key: 'roleName' },
     {
-      title: 'Billing Rate',
+      title: 'Selling Rate (₹/hr)',
       dataIndex: 'billingRatePaise',
       key: 'billingRate',
       align: 'right',
@@ -134,6 +121,12 @@ export default function ProjectDetail() {
         ) : (
           '—'
         ),
+    },
+    {
+      title: 'Joined Date',
+      dataIndex: 'assignedAt',
+      key: 'joinedDate',
+      render: (date: string) => (date ? date.slice(0, 10) : '—'),
     },
     ...(canManageTeam
       ? [
@@ -254,6 +247,10 @@ export default function ProjectDetail() {
         </div>
       )}
 
+      <div style={{ marginTop: 24 }}>
+        <ProjectFinancialSummary financials={project.financials} />
+      </div>
+
       <div data-testid="team-roster-section" style={{ marginTop: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <Title level={5} style={{ margin: 0 }}>Team Roster</Title>
@@ -283,9 +280,7 @@ export default function ProjectDetail() {
           open={addModalOpen}
           onCancel={() => setAddModalOpen(false)}
           onSubmit={handleAddSubmit}
-          employees={employeesData?.data ?? []}
           existingMemberIds={teamMembers.map((m) => m.employeeId)}
-          roles={(rolesData?.data ?? []).map((r) => ({ id: r.id, name: r.name }))}
           isTm={isTm}
           loading={addMutation.isPending}
         />
