@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Typography, Table, Select, Space, Empty, Button, message } from 'antd';
 import { FilePdfOutlined, ShareAltOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -16,7 +16,6 @@ import ProjectStatusBadge from '../../components/ProjectStatusBadge';
 import MarginHealthBadge from '../../components/MarginHealthBadge';
 import AtRiskKPITile from '../../components/AtRiskKPITile';
 import type { ProjectStatus } from '../../services/projects.api';
-import { LedgerDrawer } from '../../components/LedgerDrawer';
 import { exportPdf } from '../../services/reports.api';
 import { shareReport } from '../../services/share.api';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,10 +39,6 @@ const modelOptions = [
 
 export default function ProjectDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedProject, setSelectedProject] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const { user } = useAuth();
@@ -93,6 +88,9 @@ export default function ProjectDashboard() {
       dataIndex: 'projectName',
       key: 'projectName',
       sorter: (a, b) => a.projectName.localeCompare(b.projectName),
+      render: (name: string, record) => (
+        <Link to={`/projects/${record.projectId}`}>{name}</Link>
+      ),
     },
     {
       title: 'Model',
@@ -258,23 +256,9 @@ export default function ProjectDashboard() {
         loading={isLoading}
         pagination={false}
         rowClassName={(record) => (record.profitPaise < 0 ? 'loss-row' : '')}
-        onRow={(record) => ({
-          onClick: () =>
-            setSelectedProject({
-              id: record.projectId,
-              name: record.projectName,
-            }),
-          style: { cursor: 'pointer' },
-        })}
         locale={{ emptyText: <Empty description="No project data available" /> }}
       />
 
-      <LedgerDrawer
-        projectId={selectedProject?.id ?? null}
-        projectName={selectedProject?.name ?? ''}
-        open={!!selectedProject}
-        onClose={() => setSelectedProject(null)}
-      />
     </div>
   );
 }

@@ -154,7 +154,7 @@ export default function ExecutiveDashboard() {
               hoverable
               size="small"
               data-testid="project-card"
-              onClick={() => navigate(`/dashboards/projects?project=${project.projectId}`)}
+              onClick={() => navigate(`/projects/${project.projectId}`)}
               style={{ cursor: 'pointer' }}
             >
               <Text strong>{project.projectName}</Text>
@@ -181,7 +181,7 @@ export default function ExecutiveDashboard() {
               hoverable
               size="small"
               data-testid="project-card"
-              onClick={() => navigate(`/dashboards/projects?project=${project.projectId}`)}
+              onClick={() => navigate(`/projects/${project.projectId}`)}
               style={{ cursor: 'pointer' }}
             >
               <Text strong>{project.projectName}</Text>

@@ -1,6 +1,6 @@
 # Story 8.6: Dashboard Click-Through Navigation to Projects
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -59,34 +59,34 @@ I want to click on any project reference on any dashboard to navigate directly t
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Project Dashboard — clickable project names (AC: 1, 2)
-  - [ ] 1.1 In `ProjectDashboard.tsx`, wrap project name column with React Router `Link` to `/projects/${record.projectId}`
-  - [ ] 1.2 Style: antd `Typography.Link` or CSS class for blue color, hover underline, pointer cursor
-  - [ ] 1.3 Ensure `projectId` is available in table row data (already in `ProjectDashboardItem`)
+- [x] Task 1: Project Dashboard — clickable project names (AC: 1, 2)
+  - [x] 1.1 In `ProjectDashboard.tsx`, wrap project name column with React Router `Link` to `/projects/${record.projectId}`
+  - [x] 1.2 Style: React Router `Link` renders as `<a>` with blue color, hover underline, pointer cursor
+  - [x] 1.3 Ensure `projectId` is available in table row data (already in `ProjectDashboardItem`)
 
-- [ ] Task 2: Executive Dashboard — clickable project cards (AC: 3, 4)
-  - [ ] 2.1 In `ExecutiveDashboard.tsx`, wrap project name/card in Top 5 section with `Link` to `/projects/${item.projectId}`
-  - [ ] 2.2 In `ExecutiveDashboard.tsx`, wrap project name/card in Bottom 5 section with `Link` to `/projects/${item.projectId}`
-  - [ ] 2.3 Consistent link styling with Project Dashboard
+- [x] Task 2: Executive Dashboard — clickable project cards (AC: 3, 4)
+  - [x] 2.1 In `ExecutiveDashboard.tsx`, updated Top 5 card onClick to navigate to `/projects/${project.projectId}`
+  - [x] 2.2 In `ExecutiveDashboard.tsx`, updated Bottom 5 card onClick to navigate to `/projects/${project.projectId}`
+  - [x] 2.3 Consistent link styling with Project Dashboard (card hoverable + cursor pointer)
 
-- [ ] Task 3: Verify existing department navigation (AC: 5, 6)
-  - [ ] 3.1 Verify Department Dashboard row click → `/dashboards/projects?department={name}` — no modification needed
-  - [ ] 3.2 Verify Company Dashboard department row click → same filter navigation — no modification needed
-  - [ ] 3.3 Add regression test to confirm department click behaviour unchanged
+- [x] Task 3: Verify existing department navigation (AC: 5, 6)
+  - [x] 3.1 Verify Department Dashboard row click → `/dashboards/projects?department={name}` — no modification needed
+  - [x] 3.2 Verify Company Dashboard department row click → same filter navigation — no modification needed
+  - [x] 3.3 Add regression test to confirm department click behaviour unchanged
 
-- [ ] Task 4: Frontend tests (AC: 8)
-  - [ ] 4.1 Create `pages/dashboards/dashboard-navigation.test.tsx`
-  - [ ] 4.2 Test: ProjectDashboard project name click → navigate to /projects/:id
-  - [ ] 4.3 Test: ExecutiveDashboard top 5 project click → navigate to /projects/:id
-  - [ ] 4.4 Test: ExecutiveDashboard bottom 5 project click → navigate to /projects/:id
-  - [ ] 4.5 Test: DepartmentDashboard row click → existing filter navigation preserved
-  - [ ] 4.6 Test: Link styling assertions (rendered as anchor tag or Link component)
+- [x] Task 4: Frontend tests (AC: 8)
+  - [x] 4.1 Create `pages/dashboards/dashboard-navigation.test.tsx`
+  - [x] 4.2 Test: ProjectDashboard project name click → navigate to /projects/:id
+  - [x] 4.3 Test: ExecutiveDashboard top 5 project click → navigate to /projects/:id
+  - [x] 4.4 Test: ExecutiveDashboard bottom 5 project click → navigate to /projects/:id
+  - [x] 4.5 Test: DepartmentDashboard row click → existing filter navigation preserved
+  - [x] 4.6 Test: Link styling assertions (rendered as anchor tag or Link component)
 
-- [ ] Task 5: E2E Tests (E2E-P1 through E2E-N1)
-  - [ ] 5.1 Create `packages/e2e/tests/dashboard-navigation.spec.ts`
-  - [ ] 5.2 Implement E2E-P1 through E2E-P5
-  - [ ] 5.3 Implement E2E-N1
-  - [ ] 5.4 Verify back button returns to dashboard with filters preserved (browser history)
+- [x] Task 5: E2E Tests (E2E-P1 through E2E-N1)
+  - [x] 5.1 Create `packages/e2e/tests/dashboard-navigation.spec.ts`
+  - [x] 5.2 Implement E2E-P1 through E2E-P5
+  - [x] 5.3 Implement E2E-N1
+  - [x] 5.4 Verify back button returns to dashboard with filters preserved (browser history)
 
 ## Dev Notes
 
@@ -149,9 +149,24 @@ packages/frontend/src/pages/dashboards/ExecutiveDashboard.tsx (project cards →
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6
 
 ### Debug Log References
+- All 30 test files (280 tests) pass with no regressions
+- Pre-existing EmployeeList.test.tsx teardown warnings (not related to this story)
 
 ### Completion Notes List
+- **Task 1:** Added React Router `Link` to ProjectDashboard project name column. Removed `onRow` handler that opened LedgerDrawer (conflicted with Link navigation). Removed unused LedgerDrawer import and state.
+- **Task 2:** Changed ExecutiveDashboard Top 5 and Bottom 5 card onClick from `/dashboards/projects?project=id` to `/projects/${project.projectId}` for direct project detail navigation.
+- **Task 3:** Verified DepartmentDashboard (line 140-143) and CompanyDashboard (line 180-183) onRow handlers correctly navigate to `/dashboards/projects?department=name`. No changes made. Regression test added.
+- **Task 4:** Created `dashboard-navigation.test.tsx` with 7 tests covering: project name as Link, executive card navigation (top 5 + bottom 5), department regression, RBAC (DM + Finance roles), link styling.
+- **Task 5:** Created `dashboard-navigation.spec.ts` with 6 E2E test scenarios: E2E-P1 through E2E-P5 (positive) and E2E-N1 (negative RBAC).
+
+### Change Log
+- 2026-03-05: Story 8.6 implemented — dashboard click-through navigation to project detail pages
 
 ### File List
+- `packages/frontend/src/pages/dashboards/ProjectDashboard.tsx` (modified — added Link import, project name column render with Link, removed onRow/LedgerDrawer)
+- `packages/frontend/src/pages/dashboards/ExecutiveDashboard.tsx` (modified — changed card onClick to navigate to /projects/:id)
+- `packages/frontend/src/pages/dashboards/dashboard-navigation.test.tsx` (new — 7 navigation tests)
+- `packages/e2e/tests/dashboard-navigation.spec.ts` (new — 6 E2E test scenarios)
