@@ -118,3 +118,127 @@ development_status:
   8-5-project-detail-team-roster-and-financial-summary: review
   8-6-dashboard-click-through-navigation: review
   epic-8-retrospective: optional
+
+  # ══════════════════════════════════════════════════════════════════
+  # POST-DEMO STABILIZATION & COMPLETION SPRINTS
+  # Source: User demo feedback + Persona walkthrough findings + Brief gap analysis
+  # Date: 2026-03-14
+  # Backlog items: B1–B28 (see docs/sprint-backlog.md for full traceability)
+  # ══════════════════════════════════════════════════════════════════
+
+  # Epic 9: Stabilization — Fix What's Broken
+  # Goal: Zero P0 bugs. Every existing feature works correctly.
+  # Exit criteria: All 5 persona agents run UAT, zero FAILs on existing features.
+  epic-9: backlog
+
+  # 9.1 Fix download template endpoints + create missing templates (Emp Master, Timesheet)
+  # Backlog: B1, B11 | Personas: Priya, Neha
+  9-1-fix-download-templates-and-create-missing-templates: backlog
+
+  # 9.2 Fix shared report links — render proper read-only view (not raw JSON)
+  # Backlog: B2 | Personas: Priya, Arjun
+  9-2-fix-shared-report-links-render-proper-view: backlog
+
+  # 9.3 Fix Revenue/Cost/Profit blank on Project View — trace upload→snapshot→query
+  # Backlog: B3 | Personas: Vikram, Priya
+  9-3-fix-project-view-financial-data-blank: backlog
+
+  # 9.4 Fix Department Dashboard to include newly created departments
+  # Backlog: B4 | Personas: Arjun
+  9-4-fix-department-dashboard-new-departments: backlog
+
+  # 9.5 Fix Billable Utilisation calculation (shows 0.0% on Exec Dashboard)
+  # Backlog: B12 | Personas: Priya, Rajesh
+  9-5-fix-billable-utilisation-calculation: backlog
+
+  # 9.6 Fix Dept Head project scoping — "No projects found" bug
+  # Backlog: B20 | Personas: Arjun
+  9-6-fix-dept-head-project-list-scoping: backlog
+
+  # 9.7 UI polish — sidebar truncation, pending approval badge, active project sort
+  # Backlog: B8, B22, B23 | Personas: All
+  9-7-ui-polish-sidebar-badge-sort-order: backlog
+
+  # 9.8 Fix active user Edit/Deactivate actions in User Management
+  # Backlog: B21 | Personas: Rajesh
+  9-8-fix-active-user-edit-deactivate-actions: backlog
+
+  epic-9-retrospective: optional
+
+  # Epic 10: Consolidation — Simplify & Fix Role Confusion
+  # Goal: One clear path per user. No duplicate screens. Correct RBAC.
+  # Exit criteria: Each persona completes full daily workflow end-to-end. No dead ends.
+  epic-10: backlog
+
+  # 10.1 RBAC audit & simplification — match brief's 5 roles exactly
+  # Backlog: B7 | Personas: All
+  10-1-rbac-audit-and-simplification: backlog
+
+  # 10.2 HR gets Employee Dashboard + Utilization access
+  # Backlog: B13 | Personas: Neha
+  10-2-hr-employee-dashboard-utilization-access: backlog
+
+  # 10.3 DM gets Upload Center access (timesheet upload)
+  # Backlog: B18 | Personas: Vikram
+  10-3-dm-upload-center-access: backlog
+
+  # 10.4 Consolidate Employee screen into Employee Dashboard (remove redundancy)
+  # Backlog: B5 | Personas: Neha, Rajesh
+  10-4-consolidate-employee-screen-into-dashboard: backlog
+
+  # 10.5 Employee detail full-page view (profile + all project allocations + % time)
+  # Backlog: B9 | Personas: Neha
+  10-5-employee-detail-full-page-view: backlog
+
+  # 10.6 DM project list filtered to "MY projects" by default
+  # Backlog: B14 | Personas: Vikram
+  10-6-dm-project-list-my-projects-filter: backlog
+
+  # 10.7 Upload History filtered by role (each user sees own type uploads)
+  # Backlog: B15 | Personas: Priya, Neha
+  10-7-upload-history-role-filtered: backlog
+
+  # 10.8 Project Role ↔ Department consolidation review
+  # Backlog: B6 | Personas: Rajesh
+  10-8-project-role-department-consolidation: backlog
+
+  epic-10-retrospective: optional
+
+  # Epic 11: Missing Features — Complete the Brief
+  # Goal: All dashboard requirements from original brief are met.
+  # Exit criteria: Full persona UAT pass. Brief requirements checklist 100% complete.
+  epic-11: backlog
+
+  # 11.1 Upload record detail view — click row → view records → filter success/fail → download failures with reasons
+  # Backlog: B10 | Personas: Priya, Neha
+  11-1-upload-record-detail-view-and-failure-download: backlog
+
+  # 11.2 Month-over-month comparison on Department Dashboard
+  # Backlog: B16 | Personas: Arjun
+  11-2-department-dashboard-month-over-month: backlog
+
+  # 11.3 Department Dashboard drill-down (dept → employees → projects)
+  # Backlog: B17 | Personas: Arjun
+  11-3-department-dashboard-drill-down: backlog
+
+  # 11.4 Burn rate on Project Dashboard
+  # Backlog: B19 | Personas: Vikram
+  11-4-project-dashboard-burn-rate: backlog
+
+  # 11.5 Budget vs Actual for Fixed Cost projects
+  # Backlog: B24 | Personas: Vikram, Priya
+  11-5-budget-vs-actual-fixed-cost-projects: backlog
+
+  # 11.6 Employee Profitability Rank on Employee Dashboard
+  # Backlog: B25 | Personas: Neha
+  11-6-employee-profitability-rank: backlog
+
+  # 11.7 Client-wise profitability view
+  # Backlog: B26 | Personas: Priya
+  11-7-client-wise-profitability-view: backlog
+
+  # 11.8 Overhead cost configurable + standard hours default alignment (160 per brief)
+  # Backlog: B27, B28 | Personas: Rajesh
+  11-8-overhead-cost-configurable-standard-hours: backlog
+
+  epic-11-retrospective: optional

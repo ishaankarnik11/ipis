@@ -9,6 +9,7 @@ async function main() {
   console.log('Seeding dev database with comprehensive data...');
 
   // ── Clean existing data (order matters for foreign keys) ──
+  await prisma.sharedReportToken.deleteMany();
   await prisma.calculationSnapshot.deleteMany();
   await prisma.recalculationRun.deleteMany();
   await prisma.billingRecord.deleteMany();

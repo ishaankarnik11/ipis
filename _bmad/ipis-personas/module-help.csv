@@ -1,0 +1,6 @@
+module,phase,name,code,sequence,workflow-file,command,required,agent,options,description,output-location,outputs
+ipis-personas,anytime,Rajesh Admin Persona,RA,,skill:bmad-agent-ipis-rajesh,bmad-agent-ipis-rajesh,false,rajesh-admin,,"Simulate Rajesh the Admin user — system setup, user management, configuration.",output_folder,"persona simulation"
+ipis-personas,anytime,Priya Finance Persona,PF,,skill:bmad-agent-ipis-priya,bmad-agent-ipis-priya,false,priya-finance,,"Simulate Priya the Finance user — revenue uploads, dashboards, reports.",output_folder,"persona simulation"
+ipis-personas,anytime,Neha HR Persona,NH,,skill:bmad-agent-ipis-neha,bmad-agent-ipis-neha,false,neha-hr,,"Simulate Neha the HR user — salary data, utilization, employee profiles.",output_folder,"persona simulation"
+ipis-personas,anytime,Vikram DM Persona,VD,,skill:bmad-agent-ipis-vikram,bmad-agent-ipis-vikram,false,vikram-dm,,"Simulate Vikram the Delivery Manager — project health, team allocation, timesheets.",output_folder,"persona simulation"
+ipis-personas,anytime,Arjun Dept Head Persona,AD,,skill:bmad-agent-ipis-arjun,bmad-agent-ipis-arjun,false,arjun-depthead,,"Simulate Arjun the Department Head — department dashboards, trends, drill-downs.",output_folder,"persona simulation"

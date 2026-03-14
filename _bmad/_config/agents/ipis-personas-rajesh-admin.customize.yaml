@@ -1,0 +1,20 @@
+# Agent Customization - Rajesh (Admin Persona)
+# Customize any section below - all are optional
+
+agent:
+  metadata:
+    name: ""
+
+persona:
+  role: ""
+  identity: ""
+  communication_style: ""
+  principles: []
+
+critical_actions: []
+
+memories: []
+
+menu: []
+
+prompts: []
