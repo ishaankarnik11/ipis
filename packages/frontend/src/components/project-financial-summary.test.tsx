@@ -8,6 +8,12 @@ describe('ProjectFinancialSummary', () => {
     costPaise: 500000,
     profitPaise: 500000,
     marginPercent: 0.25,
+    burnRatePaise: null as number | null,
+    plannedBurnRatePaise: null as number | null,
+    budgetPaise: null as number | null,
+    actualCostPaise: null as number | null,
+    variancePaise: null as number | null,
+    consumedPercent: null as number | null,
   };
 
   it('renders 4 Statistic cards with formatted values', () => {
@@ -78,7 +84,7 @@ describe('ProjectFinancialSummary', () => {
   it('shows dash for null individual values', () => {
     render(
       <ProjectFinancialSummary
-        financials={{ revenuePaise: null, costPaise: null, profitPaise: null, marginPercent: null }}
+        financials={{ revenuePaise: null, costPaise: null, profitPaise: null, marginPercent: null, burnRatePaise: null, plannedBurnRatePaise: null, budgetPaise: null, actualCostPaise: null, variancePaise: null, consumedPercent: null }}
       />,
     );
 

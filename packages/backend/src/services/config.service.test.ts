@@ -20,6 +20,7 @@ describe('config.service', () => {
         standardMonthlyHours: 160,
         healthyMarginThreshold: 0.2,
         atRiskMarginThreshold: 0.05,
+        annualOverheadPerEmployee: 18000000,
       });
     });
 
@@ -40,6 +41,7 @@ describe('config.service', () => {
         standardMonthlyHours: 176,
         healthyMarginThreshold: 0.25,
         atRiskMarginThreshold: 0.1,
+        annualOverheadPerEmployee: 18000000,
       });
     });
   });
@@ -65,7 +67,17 @@ describe('config.service', () => {
         standardMonthlyHours: 176,
         healthyMarginThreshold: 0.25,
         atRiskMarginThreshold: 0.1,
+        annualOverheadPerEmployee: 18000000,
       });
+    });
+
+    it('should update annualOverheadPerEmployee', async () => {
+      await configService.updateConfig({
+        annualOverheadPerEmployee: 20000000,
+      });
+
+      const result = await configService.getConfig();
+      expect(result.annualOverheadPerEmployee).toBe(20000000);
     });
   });
 });

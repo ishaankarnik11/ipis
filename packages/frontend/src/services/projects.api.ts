@@ -4,11 +4,12 @@ import type { DataResponse, ListResponse, SuccessResponse } from './types';
 
 export const projectKeys = {
   all: ['projects'] as const,
+  list: (scope?: string) => ['projects', 'list', scope ?? 'default'] as const,
   detail: (id: string) => ['projects', id] as const,
   teamMembers: (id: string) => ['projects', id, 'team-members'] as const,
 };
 
-export type ProjectStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'COMPLETED';
+export type ProjectStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 export type EngagementModel = 'TIME_AND_MATERIALS' | 'FIXED_COST' | 'AMC' | 'INFRASTRUCTURE';
 
 export interface ProjectFinancials {
@@ -16,6 +17,12 @@ export interface ProjectFinancials {
   costPaise: number | null;
   profitPaise: number | null;
   marginPercent: number | null;
+  burnRatePaise: number | null;
+  plannedBurnRatePaise: number | null;
+  budgetPaise: number | null;
+  actualCostPaise: number | null;
+  variancePaise: number | null;
+  consumedPercent: number | null;
 }
 
 export interface Project {
@@ -45,15 +52,20 @@ export interface Project {
 export interface TeamMember {
   employeeId: string;
   name: string;
-  designation: string;
-  roleId: string;
-  roleName: string;
+  employeeDesignation: string;
+  designationId: string;
+  designationName: string;
   billingRatePaise: number | null;
+  monthlyCostPaise?: number;
+  allocationPercent: number;
   assignedAt: string;
+  overAllocated?: boolean;
+  totalAllocation?: number;
 }
 
-export function getProjects(): Promise<ListResponse<Project>> {
-  return get<ListResponse<Project>>('/projects');
+export function getProjects(scope?: string): Promise<ListResponse<Project>> {
+  const qs = scope ? `?scope=${scope}` : '';
+  return get<ListResponse<Project>>(`/projects${qs}`);
 }
 
 export function getProject(id: string): Promise<DataResponse<Project>> {

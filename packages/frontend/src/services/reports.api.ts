@@ -2,7 +2,7 @@ import { message } from 'antd';
 
 export interface PdfExportParams {
   reportType: string;
-  entityId: string;
+  entityId?: string;
   period: string;
 }
 
@@ -27,10 +27,11 @@ export async function exportPdf(params: PdfExportParams): Promise<void> {
     const a = document.createElement('a');
     a.href = url;
 
-    // Extract filename from Content-Disposition header
+    // Extract filename from Content-Disposition header (sanitized)
     const disposition = res.headers.get('Content-Disposition');
-    const filenameMatch = disposition?.match(/filename=(.+)/);
-    a.download = filenameMatch?.[1] ?? 'report.pdf';
+    const filenameMatch = disposition?.match(/filename="?([^";\n]+)"?/);
+    const rawFilename = filenameMatch?.[1]?.trim() ?? 'report.pdf';
+    a.download = /^[\w\-.]+$/.test(rawFilename) ? rawFilename : 'report.pdf';
 
     document.body.appendChild(a);
     a.click();

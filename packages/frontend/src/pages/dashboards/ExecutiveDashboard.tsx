@@ -15,7 +15,8 @@ import MarginHealthBadge from '../../components/MarginHealthBadge';
 import AtRiskKPITile from '../../components/AtRiskKPITile';
 import DataPeriodIndicator from '../../components/DataPeriodIndicator';
 import { exportPdf } from '../../services/reports.api';
-import { shareReport } from '../../services/share.api';
+import { createShareUrl } from '../../services/share.api';
+import ShareLinkModal from '../../components/ShareLinkModal';
 import { useAuth } from '../../hooks/useAuth';
 
 const { Title, Text } = Typography;
@@ -25,6 +26,7 @@ export default function ExecutiveDashboard() {
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareData, setShareData] = useState<{ url: string; expiresAt: string } | null>(null);
   const { user } = useAuth();
   const canShare = user?.role === 'FINANCE' || user?.role === 'ADMIN';
 
@@ -87,7 +89,8 @@ export default function ExecutiveDashboard() {
                 try {
                   const now = new Date();
                   const period = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-                  await shareReport({ reportType: 'executive', entityId: NIL_UUID, period });
+                  const result = await createShareUrl({ reportType: 'executive', entityId: NIL_UUID, period });
+                  setShareData(result);
                 } catch {
                   message.error('Failed to create share link');
                 } finally {
@@ -223,6 +226,7 @@ export default function ExecutiveDashboard() {
           </Space>
         )}
       </Card>
+      <ShareLinkModal open={!!shareData} shareUrl={shareData?.url ?? ''} expiresAt={shareData?.expiresAt} onClose={() => setShareData(null)} />
     </div>
   );
 }

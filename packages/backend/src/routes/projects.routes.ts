@@ -26,7 +26,9 @@ router.get(
   authMiddleware,
   rbacMiddleware(['ADMIN', 'FINANCE', 'DELIVERY_MANAGER', 'DEPT_HEAD']),
   asyncHandler(async (req, res) => {
-    const projects = await projectService.getAll(req.user!);
+    const rawScope = req.query['scope'] as string | undefined;
+    const scope = rawScope === 'all' ? 'all' : undefined;
+    const projects = await projectService.getAll(req.user!, { scope });
     res.json({ data: projects, meta: { total: projects.length } });
   }),
 );

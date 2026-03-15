@@ -59,10 +59,16 @@ const pendingProject = {
   deliveryManagerName: 'John DM',
   rejectionComment: null,
   completionPercent: null,
+  slaDescription: null,
+  vendorCostPaise: null,
+  manpowerCostPaise: null,
+  budgetPaise: null,
+  infraCostMode: null,
   startDate: '2026-03-01T00:00:00.000Z',
   endDate: '2026-12-31T00:00:00.000Z',
   createdAt: '2026-02-20T10:00:00.000Z',
   updatedAt: '2026-02-20T10:00:00.000Z',
+  financials: null,
 };
 
 const pendingProject2 = {
@@ -77,10 +83,16 @@ const pendingProject2 = {
   deliveryManagerName: 'John DM',
   rejectionComment: null,
   completionPercent: null,
+  slaDescription: null,
+  vendorCostPaise: null,
+  manpowerCostPaise: null,
+  budgetPaise: null,
+  infraCostMode: null,
   startDate: '2026-04-01T00:00:00.000Z',
   endDate: '2027-03-31T00:00:00.000Z',
   createdAt: '2026-02-21T10:00:00.000Z',
   updatedAt: '2026-02-21T10:00:00.000Z',
+  financials: null,
 };
 
 const activeProject = {
@@ -95,10 +107,40 @@ const activeProject = {
   deliveryManagerName: 'John DM',
   rejectionComment: null,
   completionPercent: null,
+  slaDescription: null,
+  vendorCostPaise: null,
+  manpowerCostPaise: null,
+  budgetPaise: null,
+  infraCostMode: null,
   startDate: '2026-01-01T00:00:00.000Z',
   endDate: '2026-12-31T00:00:00.000Z',
   createdAt: '2026-01-01T10:00:00.000Z',
   updatedAt: '2026-01-01T10:00:00.000Z',
+  financials: null,
+};
+
+const resubmittedProject = {
+  id: 'p4',
+  name: 'Resubmitted Project',
+  client: 'Delta Corp',
+  vertical: 'Retail',
+  engagementModel: 'AMC' as const,
+  status: 'PENDING_APPROVAL' as const,
+  contractValuePaise: 30000000,
+  deliveryManagerId: 'dm1',
+  deliveryManagerName: 'John DM',
+  rejectionComment: 'Budget exceeded threshold. Please revise.',
+  completionPercent: null,
+  slaDescription: '99.9% uptime SLA',
+  vendorCostPaise: null,
+  manpowerCostPaise: null,
+  budgetPaise: null,
+  infraCostMode: null,
+  startDate: '2026-05-01T00:00:00.000Z',
+  endDate: '2027-04-30T00:00:00.000Z',
+  createdAt: '2026-02-25T10:00:00.000Z',
+  updatedAt: '2026-02-25T10:00:00.000Z',
+  financials: null,
 };
 
 function renderPendingApprovals() {
@@ -249,6 +291,66 @@ describe('PendingApprovals', () => {
       expect(mockNotificationSuccess).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Project Test Project Alpha rejected' }),
       );
+    });
+  });
+
+  it('should show project details when row is expanded', async () => {
+    renderPendingApprovals();
+    const user = userEvent.setup({ delay: null });
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Project Alpha')).toBeInTheDocument();
+    });
+
+    // Click the row to expand it
+    await user.click(screen.getByText('Test Project Alpha'));
+
+    // Expanded section should show project details
+    await waitFor(() => {
+      expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    });
+    // Vertical is shown
+    expect(screen.getAllByText('IT').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should show rejection comment for resubmitted projects', async () => {
+    mockGetProjects.mockResolvedValue({
+      data: [resubmittedProject],
+      meta: { total: 1 },
+    });
+
+    renderPendingApprovals();
+    const user = userEvent.setup({ delay: null });
+
+    await waitFor(() => {
+      expect(screen.getByText('Resubmitted Project')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Resubmitted Project'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Previously Rejected')).toBeInTheDocument();
+      expect(screen.getByText('Budget exceeded threshold. Please revise.')).toBeInTheDocument();
+    });
+  });
+
+  it('should show SLA description for AMC projects in expanded view', async () => {
+    mockGetProjects.mockResolvedValue({
+      data: [resubmittedProject],
+      meta: { total: 1 },
+    });
+
+    renderPendingApprovals();
+    const user = userEvent.setup({ delay: null });
+
+    await waitFor(() => {
+      expect(screen.getByText('Resubmitted Project')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('Resubmitted Project'));
+
+    await waitFor(() => {
+      expect(screen.getByText('99.9% uptime SLA')).toBeInTheDocument();
     });
   });
 

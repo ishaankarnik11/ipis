@@ -54,6 +54,7 @@ function tmProjectResult(overrides?: Partial<ProjectResult>): ProjectResult {
         billingRatePaise: 62_500,
         billableHours: 160,
         availableHours: 176,
+        isBillable: true,
       },
     ],
     ...overrides,
@@ -83,6 +84,7 @@ function amcProjectResultMultiEmployee(
         billingRatePaise: null,
         billableHours: 120,
         availableHours: 176,
+        isBillable: true,
       },
       {
         employeeId: 'emp-3',
@@ -95,6 +97,7 @@ function amcProjectResultMultiEmployee(
         billingRatePaise: null,
         billableHours: 140,
         availableHours: 176,
+        isBillable: true,
       },
     ],
     ...overrides,
@@ -124,6 +127,7 @@ function fixedCostProjectResult(
         billingRatePaise: null,
         billableHours: 120,
         availableHours: 176,
+        isBillable: true,
       },
       {
         employeeId: 'emp-5',
@@ -136,6 +140,7 @@ function fixedCostProjectResult(
         billingRatePaise: null,
         billableHours: 140,
         availableHours: 176,
+        isBillable: true,
       },
     ],
     ...overrides,
@@ -185,6 +190,7 @@ function infraDetailedProjectResult(
         billingRatePaise: null,
         billableHours: 160,
         availableHours: 176,
+        isBillable: true,
       },
     ],
     ...overrides,
@@ -194,12 +200,14 @@ function infraDetailedProjectResult(
 function makeInput(
   runId: string,
   projectResults: ProjectResult[],
+  standardMonthlyHours = 176,
 ): PersistSnapshotsInput {
   return {
     recalculationRunId: runId,
     periodMonth: 3,
     periodYear: 2026,
     projectResults,
+    standardMonthlyHours,
   };
 }
 
@@ -231,8 +239,8 @@ describe('snapshot.service', () => {
       });
 
       // 3 PROJECT + 3 PRACTICE (1 designation) + 3 DEPARTMENT (1 dept)
-      // + 3 COMPANY + 5 EMPLOYEE (1 emp) = 17
-      expect(snapshots).toHaveLength(17);
+      // + 4 COMPANY (incl UTILIZATION_PERCENT) + 5 EMPLOYEE (1 emp) = 18
+      expect(snapshots).toHaveLength(18);
     });
 
     it('should stamp all rows with ENGINE_VERSION and correct period', async () => {
@@ -324,7 +332,7 @@ describe('snapshot.service', () => {
 
   // 4.5 — COMPANY rollup (AC 5)
   describe('COMPANY rollup (AC 5)', () => {
-    it('should produce exactly 3 COMPANY rows', async () => {
+    it('should produce exactly 4 COMPANY rows (including UTILIZATION_PERCENT)', async () => {
       const run = await createTestRun();
       await persistSnapshots(makeInput(run.id, [tmProjectResult()]));
 
@@ -332,8 +340,10 @@ describe('snapshot.service', () => {
         where: { recalculationRunId: run.id, entityType: 'COMPANY' },
       });
 
-      expect(companyRows).toHaveLength(3);
+      expect(companyRows).toHaveLength(4);
       expect(companyRows.every((r) => r.entityId === 'COMPANY')).toBe(true);
+      const figureTypes = companyRows.map((r) => r.figureType).sort();
+      expect(figureTypes).toEqual(['EMPLOYEE_COST', 'MARGIN_PERCENT', 'REVENUE_CONTRIBUTION', 'UTILIZATION_PERCENT']);
     });
 
     it('should aggregate revenue across all projects', async () => {
@@ -658,8 +668,8 @@ describe('snapshot.service', () => {
       });
 
       // 3 PROJECT + 0 PRACTICE (no employees) + 3 DEPARTMENT (via projectDepartmentId)
-      // + 3 COMPANY + 0 EMPLOYEE = 9
-      expect(allRows).toHaveLength(9);
+      // + 4 COMPANY (incl UTILIZATION_PERCENT) + 0 EMPLOYEE = 10
+      expect(allRows).toHaveLength(10);
     });
   });
 
@@ -703,8 +713,8 @@ describe('snapshot.service', () => {
       const allSnapshots = await prisma.calculationSnapshot.findMany({
         where: { recalculationRunId: run.id },
       });
-      // buildCompanyRows always produces 3 rows (zero-valued) even with no projects
-      expect(allSnapshots).toHaveLength(3);
+      // buildCompanyRows always produces 4 rows (zero-valued, incl UTILIZATION_PERCENT) even with no projects
+      expect(allSnapshots).toHaveLength(4);
       expect(allSnapshots.every((s) => s.entityType === 'COMPANY')).toBe(true);
       expect(allSnapshots.every((s) => Number(s.valuePaise) === 0)).toBe(true);
     });
@@ -729,6 +739,184 @@ describe('snapshot.service', () => {
       expect(breakdown).toHaveProperty('billableHours');
       expect(breakdown).toHaveProperty('availableHours');
       expect(breakdown.availableHours).toBe(176);
+    });
+  });
+
+  // Story 9.5 — Company-level billable utilisation (UTILIZATION_PERCENT snapshot)
+  describe('COMPANY UTILIZATION_PERCENT (Story 9.5)', () => {
+    it('10 billable employees, 880 billable hours, 176 std hours → 50.0%', async () => {
+      const run = await createTestRun();
+      const employees = Array.from({ length: 10 }, (_, i) => ({
+        employeeId: `emp-util-${i}`,
+        name: `Employee ${i}`,
+        designation: 'Developer',
+        departmentId: 'dept-eng',
+        hours: 88,
+        costPerHourPaise: 30_000,
+        contributionPaise: 88 * 30_000,
+        billingRatePaise: null,
+        billableHours: 88, // 10 employees × 88 = 880 total billable
+        availableHours: 176,
+        isBillable: true,
+      }));
+
+      const project: ProjectResult = {
+        projectId: 'proj-util-test',
+        engagementModel: 'TIME_AND_MATERIALS',
+        infraCostMode: null,
+        revenuePaise: 50_000_000,
+        costPaise: 26_400_000,
+        profitPaise: 23_600_000,
+        marginPercent: 0.472,
+        employees,
+      };
+
+      await persistSnapshots(makeInput(run.id, [project], 176));
+
+      const utilRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'COMPANY',
+          figureType: 'UTILIZATION_PERCENT',
+        },
+      });
+
+      // 880 / (10 × 176) = 880 / 1760 = 0.5 → 5000 basis points
+      expect(Number(utilRow!.valuePaise)).toBe(5000);
+    });
+
+    it('0 timesheet data (no employees) → 0.0%', async () => {
+      const run = await createTestRun();
+      await persistSnapshots(makeInput(run.id, [], 176));
+
+      const utilRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'COMPANY',
+          figureType: 'UTILIZATION_PERCENT',
+        },
+      });
+
+      expect(Number(utilRow!.valuePaise)).toBe(0);
+    });
+
+    it('only non-billable employees → 0.0%', async () => {
+      const run = await createTestRun();
+      const project: ProjectResult = {
+        projectId: 'proj-nonbillable',
+        engagementModel: 'TIME_AND_MATERIALS',
+        infraCostMode: null,
+        revenuePaise: 5_000_000,
+        costPaise: 3_000_000,
+        profitPaise: 2_000_000,
+        marginPercent: 0.4,
+        employees: [
+          {
+            employeeId: 'emp-nb-1',
+            name: 'HR Person',
+            designation: 'HR Manager',
+            departmentId: 'dept-hr',
+            hours: 160,
+            costPerHourPaise: 25_000,
+            contributionPaise: 4_000_000,
+            billingRatePaise: null,
+            billableHours: 0,
+            availableHours: 176,
+            isBillable: false,
+          },
+        ],
+      };
+
+      await persistSnapshots(makeInput(run.id, [project], 176));
+
+      const utilRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'COMPANY',
+          figureType: 'UTILIZATION_PERCENT',
+        },
+      });
+
+      expect(Number(utilRow!.valuePaise)).toBe(0);
+    });
+
+    it('system config standard hours change → recalculated utilisation changes', async () => {
+      const run1 = await createTestRun();
+      const employees = [
+        {
+          employeeId: 'emp-cfg-1',
+          name: 'Alice',
+          designation: 'Developer',
+          departmentId: 'dept-eng',
+          hours: 88,
+          costPerHourPaise: 30_000,
+          contributionPaise: 88 * 30_000,
+          billingRatePaise: null,
+          billableHours: 88,
+          availableHours: 176,
+          isBillable: true,
+        },
+      ];
+
+      const project: ProjectResult = {
+        projectId: 'proj-cfg-test',
+        engagementModel: 'TIME_AND_MATERIALS',
+        infraCostMode: null,
+        revenuePaise: 5_000_000,
+        costPaise: 2_640_000,
+        profitPaise: 2_360_000,
+        marginPercent: 0.472,
+        employees,
+      };
+
+      // With 176 std hours: 88 / 176 = 50.0%
+      await persistSnapshots(makeInput(run1.id, [project], 176));
+
+      const utilRow176 = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run1.id,
+          entityType: 'COMPANY',
+          figureType: 'UTILIZATION_PERCENT',
+        },
+      });
+      expect(Number(utilRow176!.valuePaise)).toBe(5000);
+
+      // With 160 std hours: 88 / 160 = 55.0%
+      const uploadEvent2 = await prisma.uploadEvent.create({
+        data: { type: 'TIMESHEET', status: 'SUCCESS', uploadedBy: (await prisma.user.findFirst())!.id, periodMonth: 3, periodYear: 2026, rowCount: 10 },
+      });
+      const run2 = await prisma.recalculationRun.create({
+        data: { uploadEventId: uploadEvent2.id, projectsProcessed: 1, completedAt: new Date() },
+      });
+      await persistSnapshots(makeInput(run2.id, [project], 160));
+
+      const utilRow160 = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run2.id,
+          entityType: 'COMPANY',
+          figureType: 'UTILIZATION_PERCENT',
+        },
+      });
+      expect(Number(utilRow160!.valuePaise)).toBe(5500);
+    });
+
+    it('snapshot is persisted during recalculation (company entity)', async () => {
+      const run = await createTestRun();
+      await persistSnapshots(makeInput(run.id, [tmProjectResult()], 176));
+
+      const utilRow = await prisma.calculationSnapshot.findFirst({
+        where: {
+          recalculationRunId: run.id,
+          entityType: 'COMPANY',
+          entityId: 'COMPANY',
+          figureType: 'UTILIZATION_PERCENT',
+        },
+      });
+
+      expect(utilRow).not.toBeNull();
+      expect(utilRow!.periodMonth).toBe(3);
+      expect(utilRow!.periodYear).toBe(2026);
+      expect(utilRow!.engineVersion).toBe(ENGINE_VERSION);
     });
   });
 });

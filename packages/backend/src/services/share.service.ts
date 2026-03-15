@@ -18,8 +18,11 @@ interface ShareLinkResult {
   expiresAt: string;
 }
 
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
 /**
  * Fetches the current dashboard data for the given report type to use as snapshot.
+ * Filters to the specific entity (entityId) when not the NIL UUID.
  */
 async function fetchSnapshotData(
   reportType: ReportType,
@@ -27,8 +30,15 @@ async function fetchSnapshotData(
   user: RequestUser,
 ): Promise<unknown> {
   switch (reportType) {
-    case 'project':
-      return dashboardService.getProjectDashboard(user, {});
+    case 'project': {
+      const allProjects = await dashboardService.getProjectDashboard(user, {});
+      // If entityId is a specific project (not NIL), filter to just that project
+      if (entityId && entityId !== NIL_UUID) {
+        const filtered = allProjects.filter((p: { projectId: string }) => p.projectId === entityId);
+        return filtered;
+      }
+      return allProjects;
+    }
     case 'executive':
       return dashboardService.getExecutiveDashboard();
     case 'company':
@@ -87,14 +97,14 @@ export async function createShareLink(
     },
   });
 
-  void logAuditEvent({
+  logAuditEvent({
     actorId: user.id,
     action: AUDIT_ACTIONS.SHARE_LINK_CREATED,
     entityType: 'SharedReportToken',
     entityId: token.id,
     ipAddress: ipAddress ?? null,
     metadata: { reportType, entityId, period },
-  });
+  }).catch((err) => logger.warn({ err }, 'Failed to log share link audit event'));
 
   logger.info({ tokenId: token.id, expiresAt: token.expiresAt }, 'Share link created');
 
@@ -156,14 +166,14 @@ export async function revokeShareLink(tokenId: string, actorId?: string, ipAddre
     data: { revokedAt: new Date() },
   });
 
-  void logAuditEvent({
+  logAuditEvent({
     actorId: actorId ?? null,
     action: AUDIT_ACTIONS.SHARE_LINK_REVOKED,
     entityType: 'SharedReportToken',
     entityId: tokenId,
     ipAddress: ipAddress ?? null,
     metadata: { tokenId },
-  });
+  }).catch((err) => logger.warn({ err }, 'Failed to log share link revoke audit event'));
 
   logger.info({ tokenId }, 'Share link revoked');
 }

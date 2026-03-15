@@ -13,7 +13,8 @@ import {
 import MarginHealthBadge from '../../components/MarginHealthBadge';
 import DataPeriodIndicator from '../../components/DataPeriodIndicator';
 import { exportPdf } from '../../services/reports.api';
-import { shareReport } from '../../services/share.api';
+import { createShareUrl } from '../../services/share.api';
+import ShareLinkModal from '../../components/ShareLinkModal';
 import { useAuth } from '../../hooks/useAuth';
 
 const { Title } = Typography;
@@ -23,6 +24,7 @@ export default function CompanyDashboard() {
   const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareData, setShareData] = useState<{ url: string; expiresAt: string } | null>(null);
   const { user } = useAuth();
   const canShare = user?.role === 'FINANCE' || user?.role === 'ADMIN';
 
@@ -87,12 +89,15 @@ export default function CompanyDashboard() {
       dataIndex: 'marginPercent',
       key: 'marginPercent',
       align: 'right',
-      render: (val: number) => (
-        <Space>
-          <span>{formatPercent(val)}</span>
-          <MarginHealthBadge marginPercent={val} />
-        </Space>
-      ),
+      render: (val: number | null) =>
+        val == null ? (
+          <span style={{ color: '#999' }}>N/A</span>
+        ) : (
+          <Space>
+            <span>{formatPercent(val)}</span>
+            <MarginHealthBadge marginPercent={val} />
+          </Space>
+        ),
     },
   ];
 
@@ -114,7 +119,8 @@ export default function CompanyDashboard() {
                 try {
                   const now = new Date();
                   const period = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-                  await shareReport({ reportType: 'company', entityId: NIL_UUID, period });
+                  const result = await createShareUrl({ reportType: 'company', entityId: NIL_UUID, period });
+                  setShareData(result);
                 } catch {
                   message.error('Failed to create share link');
                 } finally {
@@ -183,6 +189,7 @@ export default function CompanyDashboard() {
         })}
         locale={{ emptyText: <Empty description="No department data" /> }}
       />
+      <ShareLinkModal open={!!shareData} shareUrl={shareData?.url ?? ''} expiresAt={shareData?.expiresAt} onClose={() => setShareData(null)} />
     </div>
   );
 }

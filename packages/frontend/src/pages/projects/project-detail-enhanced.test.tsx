@@ -101,18 +101,18 @@ const teamMembers = [
   {
     employeeId: 'emp-1',
     name: 'Alice Dev',
-    designation: 'Senior Developer',
-    roleId: 'role-1',
-    roleName: 'Lead Engineer',
+    employeeDesignation: 'Senior Developer',
+    designationId: 'role-1',
+    designationName: 'Lead Engineer',
     billingRatePaise: 500000,
     assignedAt: '2026-03-05T00:00:00.000Z',
   },
   {
     employeeId: 'emp-2',
     name: 'Bob QA',
-    designation: 'QA Engineer',
-    roleId: 'role-2',
-    roleName: 'Tester',
+    employeeDesignation: 'QA Engineer',
+    designationId: 'role-2',
+    designationName: 'Tester',
     billingRatePaise: null,
     assignedAt: '2026-03-10T00:00:00.000Z',
   },
@@ -195,7 +195,7 @@ describe('ProjectDetail — Enhanced (Story 8.5)', () => {
       expect(screen.getByText('2026-03-10')).toBeInTheDocument();
     });
 
-    it('renders role names from roleName field', async () => {
+    it('renders designation names from designationName field', async () => {
       mockGetProject.mockResolvedValue({ data: projectWithFinancials });
       renderComponent();
 
@@ -216,8 +216,8 @@ describe('ProjectDetail — Enhanced (Story 8.5)', () => {
 
       // 500000 paise → ₹5,000
       expect(screen.getByText('₹5,000')).toBeInTheDocument();
-      // null → "—"
-      expect(screen.getByText('—')).toBeInTheDocument();
+      // null → "—" (may appear in multiple columns)
+      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     });
   });
 

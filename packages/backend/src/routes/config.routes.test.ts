@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app.js';
 import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import { signToken } from '../lib/jwt.js';
 
 describe('Config Routes', () => {
   const app = createApp();
@@ -17,10 +18,9 @@ describe('Config Routes', () => {
 
   async function loginAs(role: string, overrides = {}) {
     const user = await createTestUser(role as any, overrides);
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
+    const token = await signToken({ sub: user.id, role: user.role, email: user.email });
+    const cookies = [`ipis_token=${token}`];
+    return { cookies, user };
   }
 
   describe('GET /api/v1/config', () => {
@@ -37,6 +37,7 @@ describe('Config Routes', () => {
         standardMonthlyHours: 160,
         healthyMarginThreshold: 0.2,
         atRiskMarginThreshold: 0.05,
+        annualOverheadPerEmployee: 18000000,
       });
     });
   });
@@ -51,7 +52,7 @@ describe('Config Routes', () => {
         .send({ standardMonthlyHours: 176 });
 
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ success: true });
+      expect(res.body.success).toBe(true);
 
       // Verify the update persisted
       const getRes = await request(app)

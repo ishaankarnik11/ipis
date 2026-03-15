@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth, useLogout } from '../hooks/useAuth';
 import { getNavItemsForRole } from '../config/navigation';
 import { projectKeys, getProjects } from '../services/projects.api';
+import type { Project } from '../services/projects.api';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -32,12 +33,12 @@ export default function AppLayout() {
 
   const { data: projectsData } = useQuery({
     queryKey: projectKeys.all,
-    queryFn: getProjects,
+    queryFn: () => getProjects(),
     enabled: isAdmin,
   });
 
   const pendingCount = isAdmin
-    ? (projectsData?.data ?? []).filter((p) => p.status === 'PENDING_APPROVAL').length
+    ? (projectsData?.data ?? []).filter((p: Project) => p.status === 'PENDING_APPROVAL').length
     : 0;
 
   const navItems = user ? getNavItemsForRole(user.role) : [];
@@ -46,8 +47,8 @@ export default function AppLayout() {
     key: item.path,
     icon: item.icon,
     label:
-      item.key === 'admin-pending' && pendingCount > 0 ? (
-        <Badge count={pendingCount} size="small" offset={[8, 0]}>
+      item.key === 'admin-pending' ? (
+        <Badge count={pendingCount} size="small" offset={[8, 0]} overflowCount={99}>
           {item.label}
         </Badge>
       ) : (

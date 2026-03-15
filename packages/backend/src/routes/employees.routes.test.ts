@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { createApp } from '../app.js';
 import { prisma } from '../lib/prisma.js';
 import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import { signToken } from '../lib/jwt.js';
 import type { UserRole } from '@prisma/client';
 
 function createExcelBuffer(rows: Record<string, unknown>[]): Buffer {
@@ -28,10 +29,9 @@ describe('Employee Routes', () => {
 
   async function loginAs(role: UserRole, overrides: Record<string, unknown> = {}) {
     const user = await createTestUser(role, overrides as Parameters<typeof createTestUser>[1]);
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
+    const token = await signToken({ sub: user.id, role: user.role, email: user.email });
+    const cookies = [`ipis_token=${token}`];
+    return { cookies, user };
   }
 
   // 7.2: HR uploads valid file — all rows imported, response shape correct

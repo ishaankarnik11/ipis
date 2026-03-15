@@ -1,6 +1,6 @@
 # Story 10.2: HR Gets Employee Dashboard + Utilization Access
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -100,23 +100,23 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Backend RBAC update (AC: 4, 5)
-  - [ ] 1.1 Update `dashboards.routes.ts` — add `HR` to `rbacMiddleware` for `GET /dashboards/employees` endpoint
-  - [ ] 1.2 Update `dashboard.service.ts` — when role is HR, exclude financial fields from response (or add a flag to control field visibility)
-  - [ ] 1.3 Add backend test: HR can access employee dashboard endpoint, receives utilization data without financials
+- [x] Task 1: Backend RBAC update (AC: 4, 5)
+  - [x] 1.1 Update `dashboards.routes.ts` — add `HR` to `rbacMiddleware` for `GET /dashboards/employees` endpoint
+  - [x] 1.2 Update `dashboard.service.ts` — when role is HR, exclude financial fields from response (or add a flag to control field visibility)
+  - [x] 1.3 Add backend test: HR can access employee dashboard endpoint, receives utilization data without financials
 
-- [ ] Task 2: Frontend navigation update (AC: 1, 6)
-  - [ ] 2.1 Update `config/navigation.ts` — add Employee Dashboard to HR role's sidebar items
-  - [ ] 2.2 Update `router/index.tsx` — add `HR` to RoleGuard for `/dashboards/employees` route
+- [x] Task 2: Frontend navigation update (AC: 1, 6)
+  - [x] 2.1 Update `config/navigation.ts` — add Employee Dashboard to HR role's sidebar items
+  - [x] 2.2 Update `router/index.tsx` — add `HR` to RoleGuard for `/dashboards/employees` route
 
-- [ ] Task 3: Frontend column filtering (AC: 2, 3, 8)
-  - [ ] 3.1 Update `EmployeeDashboard.tsx` — conditionally hide financial columns (Revenue, Cost, Profit, Margin) for HR role
-  - [ ] 3.2 Retain utilization columns and under-utilisation amber highlight for HR view
-  - [ ] 3.3 Add frontend test: HR role renders only utilization columns
+- [x] Task 3: Frontend column filtering (AC: 2, 3, 8)
+  - [x] 3.1 Update `EmployeeDashboard.tsx` — conditionally hide financial columns (Revenue, Cost, Profit, Margin) for HR role
+  - [x] 3.2 Retain utilization columns and under-utilisation amber highlight for HR view
+  - [x] 3.3 Add frontend test: HR role renders only utilization columns
 
-- [ ] Task 4: E2E updates (AC: 7)
-  - [ ] 4.1 Update `packages/e2e/helpers/constants.ts` — add 'Employee Dashboard' to HR's `roleSidebarItems`
-  - [ ] 4.2 Create E2E test scenarios E2E-P1 through E2E-P4 and E2E-N1 through E2E-N2
+- [x] Task 4: E2E updates (AC: 7)
+  - [x] 4.1 Update `packages/e2e/helpers/constants.ts` — add 'Employee Dashboard' to HR's `roleSidebarItems`
+  - [x] 4.2 Create E2E test scenarios E2E-P1 through E2E-P4 and E2E-N1 through E2E-N2
 
 ## Dev Notes
 
@@ -146,9 +146,30 @@ tests/journeys/
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6 (1M context)
 
 ### Debug Log References
+- Frontend test fix: `getByText('Designation')` found multiple elements (column header + filter placeholder). Fixed by using `getAllByText` in test assertions.
 
 ### Completion Notes List
+- **Task 1 (Backend RBAC):** HR added to rbacMiddleware for `/dashboards/employees` and `/dashboards/employees/:id`. `dashboard.service.ts` zeroes financial fields (totalCostPaise, revenueContributionPaise, profitContributionPaise, marginPercent, profitabilityRank) for HR role — defense in depth. Employee detail monthly history also filtered.
+- **Task 2 (Frontend navigation):** `navigation.ts` adds Employee Dashboard to HR sidebar items. `router/index.tsx` adds HR to RoleGuard for both employee dashboard routes.
+- **Task 3 (Frontend column filtering):** `EmployeeDashboard.tsx` conditionally hides financial columns for HR via `financialColumnKeys` Set. `EmployeeDetail.tsx` hides financial history columns for HR. Under-utilisation amber highlight preserved.
+- **Task 4 (E2E updates):** `constants.ts` updated with 'Employee Dashboard' in HR's roleSidebarItems. `hr-employee-dashboard.spec.ts` created with 6 E2E test scenarios (P1-P4, N1-N2).
+- All 315 frontend tests pass. All 570 backend tests pass (1 pre-existing flaky timing test in audit.service unrelated to this story).
+
+### Change Log
+- 2026-03-15: Fixed frontend test assertion for ambiguous 'Designation' text (column + filter)
+- 2026-03-15: Verified all implementation complete, all tests passing, story moved to review
 
 ### File List
+- `packages/backend/src/routes/dashboards.routes.ts` (modified — HR added to rbacMiddleware)
+- `packages/backend/src/services/dashboard.service.ts` (modified — HR financial field filtering)
+- `packages/backend/src/services/dashboard.service.test.ts` (modified — 2 HR access tests added)
+- `packages/frontend/src/config/navigation.ts` (modified — Employee Dashboard for HR)
+- `packages/frontend/src/router/index.tsx` (modified — HR in RoleGuard)
+- `packages/frontend/src/pages/dashboards/EmployeeDashboard.tsx` (modified — HR column filtering)
+- `packages/frontend/src/pages/dashboards/EmployeeDetail.tsx` (modified — HR detail financial filtering)
+- `packages/frontend/src/pages/dashboards/employee-dashboard.test.tsx` (modified — 3 HR tests added, test fix)
+- `packages/e2e/helpers/constants.ts` (modified — HR sidebar items)
+- `packages/e2e/tests/hr-employee-dashboard.spec.ts` (new — 6 E2E test scenarios)

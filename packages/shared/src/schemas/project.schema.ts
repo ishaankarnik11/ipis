@@ -14,8 +14,9 @@ const isoDateString = z.string().min(1).refine(
 
 const memberInputSchema = z.object({
   employeeId: z.string().uuid('employeeId must be a valid UUID'),
-  roleId: z.string().uuid('roleId must be a valid UUID'),
+  designationId: z.string().uuid('designationId must be a valid UUID'),
   billingRatePaise: z.number().int().positive('billingRatePaise must be positive').optional(),
+  allocationPercent: z.number().int().min(1).max(100).default(100).optional(),
 });
 
 export type MemberInput = z.infer<typeof memberInputSchema>;
@@ -96,8 +97,9 @@ export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 
 export const addTeamMemberSchema = z.object({
   employeeId: z.string().uuid('employeeId must be a valid UUID'),
-  roleId: z.string().uuid('roleId must be a valid UUID'),
+  designationId: z.string().uuid('designationId must be a valid UUID'),
   billingRatePaise: z.number().int().positive('billingRatePaise must be positive').optional(),
+  allocationPercent: z.number().int().min(1).max(100).default(100).optional(),
 });
 
 export type AddTeamMemberInput = z.infer<typeof addTeamMemberSchema>;

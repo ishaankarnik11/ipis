@@ -192,9 +192,9 @@ describe('dashboard.service — getProjectDashboard', () => {
 
   // ── DEPT_HEAD sees department projects ──
 
-  it('DEPT_HEAD sees projects from own department', async () => {
-    // dmUser is in Delivery department, same as deptHeadUser
-    await seedProjectWithSnapshot({
+  it('DEPT_HEAD sees projects with team members from own department', async () => {
+    // Create a project with a Delivery department employee assigned
+    const deliveryProject = await seedProjectWithSnapshot({
       name: 'Delivery Project',
       deliveryManagerId: dmUser.id,
       engagementModel: 'TIME_AND_MATERIALS',
@@ -204,7 +204,7 @@ describe('dashboard.service — getProjectDashboard', () => {
       profit: 1200000,
     });
 
-    // dm2User is in Engineering department
+    // Create a project with no Delivery department employees
     await seedProjectWithSnapshot({
       name: 'Engineering Project',
       deliveryManagerId: dm2User.id,
@@ -215,9 +215,91 @@ describe('dashboard.service — getProjectDashboard', () => {
       profit: 300000,
     });
 
+    // Assign a Delivery department employee to the first project
+    const deliveryEmp = await prisma.employee.create({
+      data: {
+        employeeCode: 'DEL001',
+        name: 'Delivery Employee',
+        departmentId: depts.get('Delivery')!,
+        designation: 'Dev',
+        annualCtcPaise: BigInt(1500000),
+      },
+    });
+    const role = await prisma.designation.create({ data: { name: 'Developer' } });
+    await prisma.employeeProject.create({
+      data: { projectId: deliveryProject.id, employeeId: deliveryEmp.id, designationId: role.id },
+    });
+
     const result = await getProjectDashboard(deptHeadUser, {});
     expect(result).toHaveLength(1);
     expect(result[0]!.projectName).toBe('Delivery Project');
+  });
+
+  // ── DEPT_HEAD gets deptTeamCount per project ──
+
+  it('DEPT_HEAD project dashboard returns deptTeamCount with department employee counts', async () => {
+    const project = await seedProjectWithSnapshot({
+      name: 'Mixed Team Project',
+      deliveryManagerId: dmUser.id,
+      engagementModel: 'TIME_AND_MATERIALS',
+      marginBasisPoints: 2500,
+      revenue: 5000000,
+      cost: 3500000,
+      profit: 1500000,
+    });
+
+    const role = await prisma.designation.create({ data: { name: 'Developer' } });
+
+    // Create 3 Delivery department employees on the project
+    for (let i = 0; i < 3; i++) {
+      const emp = await prisma.employee.create({
+        data: {
+          employeeCode: `DEL-DTC-${i}`,
+          name: `Delivery Employee ${i}`,
+          departmentId: depts.get('Delivery')!,
+          designation: 'Developer',
+          annualCtcPaise: BigInt(1500000),
+        },
+      });
+      await prisma.employeeProject.create({
+        data: { projectId: project.id, employeeId: emp.id, designationId: role.id },
+      });
+    }
+
+    // Create 1 Engineering department employee on the same project
+    const engEmp = await prisma.employee.create({
+      data: {
+        employeeCode: 'ENG-DTC-0',
+        name: 'Engineering Employee',
+        departmentId: depts.get('Engineering')!,
+        designation: 'Developer',
+        annualCtcPaise: BigInt(1500000),
+      },
+    });
+    await prisma.employeeProject.create({
+      data: { projectId: project.id, employeeId: engEmp.id, designationId: role.id },
+    });
+
+    // Dept head is in Delivery — should see count of 3 (Delivery employees only)
+    const result = await getProjectDashboard(deptHeadUser, {});
+    expect(result).toHaveLength(1);
+    expect(result[0]!.deptTeamCount).toBe(3);
+  });
+
+  it('non-DEPT_HEAD roles do not get deptTeamCount', async () => {
+    await seedProjectWithSnapshot({
+      name: 'Finance View Project',
+      deliveryManagerId: dmUser.id,
+      engagementModel: 'TIME_AND_MATERIALS',
+      marginBasisPoints: 2000,
+      revenue: 4000000,
+      cost: 3200000,
+      profit: 800000,
+    });
+
+    const result = await getProjectDashboard(financeUser, {});
+    expect(result).toHaveLength(1);
+    expect(result[0]!.deptTeamCount).toBeUndefined();
   });
 
   // ── Empty when no snapshots ──
@@ -625,23 +707,52 @@ describe('dashboard.service — getExecutiveDashboard', () => {
     expect(result!.bottom5Projects[4]!.marginPercent).toBe(0.35);
   });
 
-  it('calculates billable utilisation from EMPLOYEE snapshots', async () => {
+  it('reads billable utilisation from COMPANY UTILIZATION_PERCENT snapshot', async () => {
     const run = await createRunForSnapshots(financeUser.id);
     await seedEntitySnapshots(run.id, 'COMPANY', 'COMPANY', { revenue: 10000000, cost: 7000000, marginBasisPoints: 3000 });
 
-    // Seed EMPLOYEE snapshots with known hours
-    await seedEntitySnapshots(run.id, 'EMPLOYEE', 'emp-1', {
-      revenue: 5000000, cost: 3000000, marginBasisPoints: 0,
-      breakdownJson: { totalHours: 160, billableHours: 120, availableHours: 176 },
-    });
-    await seedEntitySnapshots(run.id, 'EMPLOYEE', 'emp-2', {
-      revenue: 5000000, cost: 4000000, marginBasisPoints: 0,
-      breakdownJson: { totalHours: 160, billableHours: 80, availableHours: 176 },
+    // Seed COMPANY UTILIZATION_PERCENT snapshot: 50% = 5000 basis points
+    await prisma.calculationSnapshot.create({
+      data: {
+        recalculationRunId: run.id,
+        entityType: 'COMPANY',
+        entityId: 'COMPANY',
+        figureType: 'UTILIZATION_PERCENT',
+        periodMonth: 2,
+        periodYear: 2026,
+        valuePaise: BigInt(5000), // 50.0%
+        breakdownJson: {},
+        engineVersion: '1.0.0',
+        calculatedAt: new Date(),
+      },
     });
 
     const result = await getExecutiveDashboard();
-    // Total billable = 120 + 80 = 200, Total available = 176 + 176 = 352
-    expect(result!.billableUtilisationPercent).toBeCloseTo(200 / 352, 5);
+    expect(result!.billableUtilisationPercent).toBeCloseTo(0.5, 5);
+  });
+
+  it('returns 0 utilisation when no UTILIZATION_PERCENT snapshot exists', async () => {
+    const run = await createRunForSnapshots(financeUser.id);
+    await seedEntitySnapshots(run.id, 'COMPANY', 'COMPANY', { revenue: 10000000, cost: 7000000, marginBasisPoints: 3000 });
+
+    // Need at least one PROJECT snapshot
+    const project = await prisma.project.create({
+      data: {
+        name: 'Test', client: 'C', vertical: 'IT', engagementModel: 'TIME_AND_MATERIALS',
+        status: 'ACTIVE', deliveryManagerId: dmUser.id, startDate: new Date('2026-01-01'), endDate: new Date('2026-12-31'),
+      },
+    });
+    await prisma.calculationSnapshot.create({
+      data: {
+        recalculationRunId: run.id, entityType: 'PROJECT', entityId: project.id,
+        figureType: 'MARGIN_PERCENT', periodMonth: 2, periodYear: 2026,
+        valuePaise: BigInt(3000), breakdownJson: { revenue: 10000000, cost: 7000000, profit: 3000000, employees: [] },
+        engineVersion: '1.0.0', calculatedAt: new Date(),
+      },
+    });
+
+    const result = await getExecutiveDashboard();
+    expect(result!.billableUtilisationPercent).toBe(0);
   });
 });
 
@@ -740,19 +851,41 @@ describe('dashboard.service — getDepartmentDashboard', () => {
     deptHeadUser = { id: deptHead.id, role: deptHead.role, email: deptHead.email };
   });
 
-  it('returns empty array when no snapshots exist', async () => {
+  it('returns all departments with zeroed values when no snapshots exist', async () => {
     const result = await getDepartmentDashboard(financeUser);
-    expect(result).toEqual([]);
+    // All 5 standard departments should appear even with no snapshots
+    expect(result).toHaveLength(5);
+    for (const row of result) {
+      expect(row.revenuePaise).toBe(0);
+      expect(row.costPaise).toBe(0);
+      expect(row.profitPaise).toBe(0);
+      expect(row.marginPercent).toBeNull(); // zero revenue → null margin (cost center)
+    }
   });
 
-  it('FINANCE sees all departments', async () => {
+  it('FINANCE sees all departments including those without snapshots', async () => {
     const run = await createRunForSnapshots(financeUser.id);
     await seedEntitySnapshots(run.id, 'DEPARTMENT', depts.get('Delivery')!, { revenue: 8000000, cost: 5000000, marginBasisPoints: 3750 });
     await seedEntitySnapshots(run.id, 'DEPARTMENT', depts.get('Engineering')!, { revenue: 6000000, cost: 4000000, marginBasisPoints: 3333 });
 
     const result = await getDepartmentDashboard(financeUser);
-    expect(result).toHaveLength(2);
-    expect(result.map((r) => r.departmentName).sort()).toEqual(['Delivery', 'Engineering']);
+    // All 5 departments should appear, not just the 2 with snapshots
+    expect(result).toHaveLength(5);
+    expect(result.map((r) => r.departmentName).sort()).toEqual([
+      'Delivery', 'Engineering', 'Finance', 'HR', 'Operations',
+    ]);
+
+    // Departments with snapshots show correct values
+    const delivery = result.find((r) => r.departmentName === 'Delivery')!;
+    expect(delivery.revenuePaise).toBe(8000000);
+    expect(delivery.costPaise).toBe(5000000);
+
+    // Departments without snapshots show zeroed values, null margin
+    const hr = result.find((r) => r.departmentName === 'HR')!;
+    expect(hr.revenuePaise).toBe(0);
+    expect(hr.costPaise).toBe(0);
+    expect(hr.profitPaise).toBe(0);
+    expect(hr.marginPercent).toBeNull();
   });
 
   it('DEPT_HEAD sees only own department', async () => {
@@ -771,8 +904,27 @@ describe('dashboard.service — getDepartmentDashboard', () => {
     await seedEntitySnapshots(run.id, 'DEPARTMENT', depts.get('Delivery')!, { revenue: 10000000, cost: 7000000, marginBasisPoints: 3000 });
 
     const result = await getDepartmentDashboard(financeUser);
-    expect(result[0]!.profitPaise).toBe(3000000);
-    expect(result[0]!.marginPercent).toBe(0.3);
+    const delivery = result.find((r) => r.departmentName === 'Delivery')!;
+    expect(delivery.profitPaise).toBe(3000000);
+    expect(delivery.marginPercent).toBe(0.3);
+  });
+
+  it('newly created department appears without recalculation', async () => {
+    const run = await createRunForSnapshots(financeUser.id);
+    await seedEntitySnapshots(run.id, 'DEPARTMENT', depts.get('Delivery')!, { revenue: 8000000, cost: 5000000, marginBasisPoints: 3750 });
+
+    // Create a new department after snapshots exist
+    await prisma.department.create({ data: { name: 'Data Science' } });
+
+    const result = await getDepartmentDashboard(financeUser);
+    // Should include all 5 standard + 1 new = 6 departments
+    expect(result).toHaveLength(6);
+    const dataSci = result.find((r) => r.departmentName === 'Data Science')!;
+    expect(dataSci).toBeDefined();
+    expect(dataSci.revenuePaise).toBe(0);
+    expect(dataSci.costPaise).toBe(0);
+    expect(dataSci.profitPaise).toBe(0);
+    expect(dataSci.marginPercent).toBeNull();
   });
 });
 
@@ -796,13 +948,13 @@ describe('dashboard.service — getCompanyDashboard', () => {
     expect(result).toBeNull();
   });
 
-  it('returns company rollup with department breakdown', async () => {
+  it('returns company rollup with all departments including those without snapshots', async () => {
     const run = await createRunForSnapshots(financeUser.id);
 
     // Company totals
     await seedEntitySnapshots(run.id, 'COMPANY', 'COMPANY', { revenue: 20000000, cost: 14000000, marginBasisPoints: 3000 });
 
-    // Department breakdown
+    // Department breakdown — only 2 of 5 departments have snapshots
     await seedEntitySnapshots(run.id, 'DEPARTMENT', depts.get('Delivery')!, { revenue: 12000000, cost: 8000000, marginBasisPoints: 3333 });
     await seedEntitySnapshots(run.id, 'DEPARTMENT', depts.get('Engineering')!, { revenue: 8000000, cost: 6000000, marginBasisPoints: 2500 });
 
@@ -812,11 +964,21 @@ describe('dashboard.service — getCompanyDashboard', () => {
     expect(result!.costPaise).toBe(14000000);
     expect(result!.profitPaise).toBe(6000000);
     expect(result!.marginPercent).toBe(0.3);
-    expect(result!.departments).toHaveLength(2);
+    // All 5 departments should appear, not just 2
+    expect(result!.departments).toHaveLength(5);
 
-    // Sorted by revenue descending
-    expect(result!.departments[0]!.departmentName).toBe('Delivery');
-    expect(result!.departments[1]!.departmentName).toBe('Engineering');
+    // Departments with snapshots show correct values (sorted by revenue desc)
+    const delivery = result!.departments.find((d) => d.departmentName === 'Delivery')!;
+    expect(delivery.revenuePaise).toBe(12000000);
+    const engineering = result!.departments.find((d) => d.departmentName === 'Engineering')!;
+    expect(engineering.revenuePaise).toBe(8000000);
+
+    // Departments without snapshots show zeroed values, null margin
+    const hr = result!.departments.find((d) => d.departmentName === 'HR')!;
+    expect(hr.revenuePaise).toBe(0);
+    expect(hr.costPaise).toBe(0);
+    expect(hr.profitPaise).toBe(0);
+    expect(hr.marginPercent).toBeNull();
   });
 });
 
@@ -895,6 +1057,7 @@ describe('dashboard.service — getEmployeeDashboard', () => {
   let financeUser: { id: string; role: string; email: string };
   let adminUser: { id: string; role: string; email: string };
   let deptHeadUser: { id: string; role: string; email: string };
+  let hrUser: { id: string; role: string; email: string };
   let runId: string;
 
   beforeEach(async () => {
@@ -909,6 +1072,9 @@ describe('dashboard.service — getEmployeeDashboard', () => {
 
     const deptHead = await createTestUser('DEPT_HEAD', { departmentId: depts.get('Delivery') });
     deptHeadUser = { id: deptHead.id, role: deptHead.role, email: deptHead.email };
+
+    const hr = await createTestUser('HR', { departmentId: depts.get('Finance') });
+    hrUser = { id: hr.id, role: hr.role, email: hr.email };
 
     const run = await createRunForSnapshots(financeUser.id);
     runId = run.id;
@@ -1183,6 +1349,33 @@ describe('dashboard.service — getEmployeeDashboard', () => {
     const result = await getEmployeeDashboard(financeUser, {});
     expect(result).toEqual([]);
   });
+
+  it('HR sees all employees but with financial fields zeroed out', async () => {
+    await seedEmployeeWithSnapshots(runId, {
+      name: 'HR Visible Emp',
+      designation: 'Senior Developer',
+      departmentId: depts.get('Delivery')!,
+      revenue: 5000000,
+      cost: 3000000,
+      billableHours: 120,
+      totalHours: 160,
+      availableHours: 176,
+    });
+
+    const result = await getEmployeeDashboard(hrUser, {});
+    expect(result).toHaveLength(1);
+    expect(result[0]!.name).toBe('HR Visible Emp');
+    // Utilization fields present
+    expect(result[0]!.billableHours).toBe(120);
+    expect(result[0]!.totalHours).toBe(160);
+    expect(result[0]!.billableUtilisationPercent).toBe(120 / 160);
+    // Financial fields zeroed
+    expect(result[0]!.totalCostPaise).toBe(0);
+    expect(result[0]!.revenueContributionPaise).toBe(0);
+    expect(result[0]!.profitContributionPaise).toBe(0);
+    expect(result[0]!.marginPercent).toBe(0);
+    expect(result[0]!.profitabilityRank).toBe(0);
+  });
 });
 
 // =========================================================================
@@ -1193,6 +1386,7 @@ describe('dashboard.service — getEmployeeDetail', () => {
   let depts: Map<string, string>;
   let financeUser: { id: string; role: string; email: string };
   let deptHeadUser: { id: string; role: string; email: string };
+  let hrUser: { id: string; role: string; email: string };
   let runId: string;
 
   beforeEach(async () => {
@@ -1204,6 +1398,9 @@ describe('dashboard.service — getEmployeeDetail', () => {
 
     const deptHead = await createTestUser('DEPT_HEAD', { departmentId: depts.get('Delivery') });
     deptHeadUser = { id: deptHead.id, role: deptHead.role, email: deptHead.email };
+
+    const hr = await createTestUser('HR', { departmentId: depts.get('Finance') });
+    hrUser = { id: hr.id, role: hr.role, email: hr.email };
 
     const run = await createRunForSnapshots(financeUser.id);
     runId = run.id;
@@ -1273,7 +1470,7 @@ describe('dashboard.service — getEmployeeDetail', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null for resigned employee', async () => {
+  it('returns resigned employee with isResigned flag (Story 10.5 — status badge)', async () => {
     const emp = await seedEmployeeWithSnapshots(runId, {
       name: 'Resigned Emp',
       designation: 'Developer',
@@ -1288,7 +1485,9 @@ describe('dashboard.service — getEmployeeDetail', () => {
     await prisma.employee.update({ where: { id: emp.id }, data: { isResigned: true } });
 
     const result = await getEmployeeDetail(financeUser, emp.id);
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.isResigned).toBe(true);
+    expect(result!.name).toBe('Resigned Emp');
   });
 
   it('returns project assignments', async () => {
@@ -1319,13 +1518,13 @@ describe('dashboard.service — getEmployeeDetail', () => {
       },
     });
 
-    const projectRole = await prisma.projectRole.create({ data: { name: 'Developer' } });
+    const projectRole = await prisma.designation.create({ data: { name: 'Developer' } });
 
     await prisma.employeeProject.create({
       data: {
         employeeId: emp.id,
         projectId: project.id,
-        roleId: projectRole.id,
+        designationId: projectRole.id,
         billingRatePaise: BigInt(500000),
       },
     });
@@ -1334,6 +1533,38 @@ describe('dashboard.service — getEmployeeDetail', () => {
     expect(result).not.toBeNull();
     expect(result!.projectAssignments).toHaveLength(1);
     expect(result!.projectAssignments[0]!.projectName).toBe('Test Project');
-    expect(result!.projectAssignments[0]!.roleName).toBe('Developer');
+    expect(result!.projectAssignments[0]!.designationName).toBe('Developer');
+    expect(result!.projectAssignments[0]!.sellingRatePaise).toBe(500000);
+    expect(result!.projectAssignments[0]!.assignedAt).toBeDefined();
+  });
+
+  it('HR sees employee detail with financial fields zeroed in monthly history', async () => {
+    const emp = await seedEmployeeWithSnapshots(runId, {
+      name: 'HR Detail Emp',
+      designation: 'Developer',
+      departmentId: depts.get('Delivery')!,
+      revenue: 5000000,
+      cost: 3000000,
+      billableHours: 120,
+      totalHours: 160,
+      availableHours: 176,
+    });
+
+    const result = await getEmployeeDetail(hrUser, emp.id);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('HR Detail Emp');
+    // HR: annualCtcPaise visible (salary is core HR data per Story 12.6)
+    expect(result!.annualCtcPaise).toBeGreaterThan(0);
+    expect(result!.monthlyHistory).toHaveLength(1);
+    // Utilization fields present
+    expect(result!.monthlyHistory[0]!.billableHours).toBe(120);
+    expect(result!.monthlyHistory[0]!.totalHours).toBe(160);
+    // Financial fields zeroed
+    expect(result!.monthlyHistory[0]!.totalCostPaise).toBe(0);
+    expect(result!.monthlyHistory[0]!.revenueContributionPaise).toBe(0);
+    expect(result!.monthlyHistory[0]!.profitContributionPaise).toBe(0);
+    // Utilisation summary present
+    expect(result!.utilisationSummary).not.toBeNull();
+    expect(result!.utilisationSummary!.billableHours).toBe(120);
   });
 });

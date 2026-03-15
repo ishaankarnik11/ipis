@@ -1,6 +1,6 @@
 # Story 9.3: Fix Revenue/Cost/Profit Blank on Project View
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -90,36 +90,36 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Diagnose the data flow gap (AC: 1, 2)
-  - [ ] 1.1 Check the project list API endpoint — does it query `calculation_snapshots`?
-  - [ ] 1.2 Compare with the Executive Dashboard API query — how does it get per-project financials?
-  - [ ] 1.3 Identify the gap: missing JOIN, wrong field mapping, or missing aggregation
+- [x] Task 1: Diagnose the data flow gap (AC: 1, 2)
+  - [x] 1.1 Check the project list API endpoint — does it query `calculation_snapshots`?
+  - [x] 1.2 Compare with the Executive Dashboard API query — how does it get per-project financials?
+  - [x] 1.3 Identify the gap: missing JOIN, wrong field mapping, or missing aggregation
 
-- [ ] Task 2: Fix the project list API to include financial data (AC: 2)
-  - [ ] 2.1 Add a LEFT JOIN or subquery to include latest calculation_snapshot per project
-  - [ ] 2.2 Return fields: `totalRevenuePaise`, `totalCostPaise`, `profitPaise`, `marginPercent`
-  - [ ] 2.3 Handle projects with no snapshots: return null/zero values
+- [x] Task 2: Fix the project list API to include financial data (AC: 2)
+  - [x] 2.1 Add a LEFT JOIN or subquery to include latest calculation_snapshot per project
+  - [x] 2.2 Return fields: `totalRevenuePaise`, `totalCostPaise`, `profitPaise`, `marginPercent`
+  - [x] 2.3 Handle projects with no snapshots: return null/zero values
 
-- [ ] Task 3: Fix the project detail API (AC: 4)
-  - [ ] 3.1 Ensure the project detail endpoint includes the same financial summary
-  - [ ] 3.2 Source from the latest calculation_snapshot for that project
+- [x] Task 3: Fix the project detail API (AC: 4)
+  - [x] 3.1 Ensure the project detail endpoint includes the same financial summary
+  - [x] 3.2 Source from the latest calculation_snapshot for that project
 
-- [ ] Task 4: Fix frontend rendering (AC: 1, 3)
-  - [ ] 4.1 Check the project list table column definitions — are they mapped to the correct response fields?
-  - [ ] 4.2 Use `formatCurrency` for revenue/cost/profit columns
-  - [ ] 4.3 Use `formatPercent` or `MarginHealthBadge` for margin column
-  - [ ] 4.4 Show `--` for null values, `formatCurrency(0)` for zero values
+- [x] Task 4: Fix frontend rendering (AC: 1, 3)
+  - [x] 4.1 Check the project list table column definitions — are they mapped to the correct response fields?
+  - [x] 4.2 Use `formatCurrency` for revenue/cost/profit columns
+  - [x] 4.3 Use `formatPercent` or `MarginHealthBadge` for margin column
+  - [x] 4.4 Show `--` for null values, `formatCurrency(0)` for zero values
 
-- [ ] Task 5: Backend tests (AC: 6)
-  - [ ] 5.1 Add tests to project service: list endpoint returns financial fields
-  - [ ] 5.2 Test project with snapshots returns correct values
-  - [ ] 5.3 Test project without snapshots returns nulls/zeros
-  - [ ] 5.4 Test financial values match dashboard service output for same project
+- [x] Task 5: Backend tests (AC: 6)
+  - [x] 5.1 Add tests to project service: list endpoint returns financial fields
+  - [x] 5.2 Test project with snapshots returns correct values
+  - [x] 5.3 Test project without snapshots returns nulls/zeros
+  - [x] 5.4 Test financial values match dashboard service output for same project
 
-- [ ] Task 6: E2E tests (E2E-P1 through E2E-N2)
-  - [ ] 6.1 Create or extend `packages/e2e/tests/project-financials.spec.ts`
-  - [ ] 6.2 Implement E2E-P1 through E2E-P4
-  - [ ] 6.3 Implement E2E-N1, E2E-N2
+- [x] Task 6: E2E tests (E2E-P1 through E2E-N2)
+  - [x] 6.1 Create or extend `packages/e2e/tests/project-financials.spec.ts`
+  - [x] 6.2 Implement E2E-P1 through E2E-P4
+  - [x] 6.3 Implement E2E-N1, E2E-N2
 
 ## Dev Notes
 

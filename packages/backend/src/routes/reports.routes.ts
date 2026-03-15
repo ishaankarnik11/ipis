@@ -50,11 +50,11 @@ router.post(
   }),
 );
 
-// POST /api/v1/reports/share — Create a shareable link (Finance, Admin)
+// POST /api/v1/reports/share — Create a shareable link (Finance, Admin, Dept Head)
 router.post(
   '/share',
   authMiddleware,
-  rbacMiddleware(['FINANCE', 'ADMIN']),
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD']),
   validate(shareRequestSchema),
   asyncHandler(async (req, res) => {
     const { reportType, entityId, period } = req.body;

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp } from '../app.js';
 import { prisma } from '../lib/prisma.js';
 import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import { signToken } from '../lib/jwt.js';
 
 describe('Audit Routes', () => {
   const app = createApp();
@@ -18,10 +19,9 @@ describe('Audit Routes', () => {
 
   async function loginAs(role: string, overrides = {}) {
     const user = await createTestUser(role as any, overrides);
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
+    const token = await signToken({ sub: user.id, role: user.role, email: user.email });
+    const cookies = [`ipis_token=${token}`];
+    return { cookies, user };
   }
 
   async function seedAuditEvents(actorId: string, count: number, action = 'USER_CREATED') {

@@ -11,6 +11,7 @@ import ledgerRoutes from './ledger.routes.js';
 import dashboardRoutes from './dashboards.routes.js';
 import reportsRoutes from './reports.routes.js';
 import projectRolesRoutes from './project-roles.routes.js';
+import designationsRoutes from './designations.routes.js';
 
 const router: RouterType = Router();
 
@@ -52,7 +53,10 @@ router.use('/api/v1/reports', dashboardRoutes);
 // PDF export routes (Finance, Admin, DM)
 router.use('/api/v1/reports', reportsRoutes);
 
-// Project role routes (Admin manages, all authenticated can read)
+// Legacy project role routes (backwards compat — use /designations instead)
 router.use('/api/v1/project-roles', projectRolesRoutes);
+
+// Designation routes (Admin manages, all authenticated can read)
+router.use('/api/v1/designations', designationsRoutes);
 
 export default router;

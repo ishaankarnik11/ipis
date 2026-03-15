@@ -1,61 +1,72 @@
 import { Router, type Router as RouterType } from 'express';
 import rateLimit from 'express-rate-limit';
-import { loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from '@ipis/shared';
-import { validate } from '../middleware/validate.middleware.js';
+import { z } from 'zod';
 import { authMiddleware, getCookieName, getCookieOptions } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import * as authService from '../services/auth.service.js';
-import { signToken } from '../lib/jwt.js';
+import * as otpService from '../services/otp.service.js';
+import * as invitationService from '../services/invitation.service.js';
 import { config } from '../lib/config.js';
 
 const router: RouterType = Router();
 
-// Rate limiter for login endpoint only
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 10, // 10 attempts per IP
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  skipSuccessfulRequests: true,
-  message: {
-    error: {
-      code: 'TOO_MANY_REQUESTS',
-      message: 'Too many login attempts. Try again later.',
-    },
-  },
+const requestOtpSchema = z.object({
+  email: z.string().email(),
 });
 
-// Rate limiter for forgot-password endpoint
-const forgotPasswordLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  limit: 5, // 5 attempts per IP
+const verifyOtpSchema = z.object({
+  email: z.string().email(),
+  otp: z.string().length(6, 'OTP must be 6 digits'),
+});
+
+// Rate limiter for OTP requests
+const otpRequestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  limit: 10, // 10 attempts per IP (service-level per-user limit is 5)
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: {
-    error: {
-      code: 'TOO_MANY_REQUESTS',
-      message: 'Too many password reset requests. Try again later.',
-    },
+    error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests. Try again later.' },
   },
 });
 
-// POST /api/v1/auth/login
+// POST /api/v1/auth/request-otp
 router.post(
-  '/login',
-  loginLimiter,
-  validate(loginSchema),
+  '/request-otp',
+  otpRequestLimiter,
+  validate(requestOtpSchema),
   asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
-    const user = await authService.login(email, password);
+    const result = await otpService.requestOtp(req.body.email);
+    if (result.success) {
+      res.json({ success: true, message: result.message });
+    } else {
+      res.status(result.error === 'RATE_LIMITED' ? 429 : 400).json({
+        success: false,
+        error: { code: result.error, message: result.message },
+        retryAfterSeconds: result.retryAfterSeconds,
+      });
+    }
+  }),
+);
 
-    const token = await signToken({
-      sub: user.id,
-      role: user.role,
-      email: user.email,
-    });
-
-    res.cookie(getCookieName(), token, getCookieOptions(config.nodeEnv));
-    res.json({ data: { id: user.id, name: user.name, role: user.role, email: user.email } });
+// POST /api/v1/auth/verify-otp
+router.post(
+  '/verify-otp',
+  otpRequestLimiter,
+  validate(verifyOtpSchema),
+  asyncHandler(async (req, res) => {
+    const result = await otpService.verifyOtp(req.body.email, req.body.otp, req.ip);
+    if (result.success && result.token) {
+      res.cookie(getCookieName(), result.token, getCookieOptions(config.nodeEnv));
+      res.json({ data: result.data });
+    } else {
+      res.status(401).json({
+        success: false,
+        error: { code: result.error, message: result.message },
+        attemptsRemaining: result.attemptsRemaining,
+      });
+    }
   }),
 );
 
@@ -75,52 +86,37 @@ router.post('/logout', (_req, res) => {
   res.json({ success: true });
 });
 
-// POST /api/v1/auth/forgot-password
-router.post(
-  '/forgot-password',
-  forgotPasswordLimiter,
-  validate(forgotPasswordSchema),
-  asyncHandler(async (req, res) => {
-    const { email } = req.body;
-    await authService.requestPasswordReset(email);
-    // Always return success regardless of whether email exists
-    res.json({ success: true });
-  }),
-);
-
-// GET /api/v1/auth/validate-reset-token
+// GET /api/v1/auth/validate-invitation?token=xxx
 router.get(
-  '/validate-reset-token',
+  '/validate-invitation',
   asyncHandler(async (req, res) => {
     const token = typeof req.query['token'] === 'string' ? req.query['token'] : '';
-    if (!token) {
-      res.json({ data: { valid: false } });
-      return;
+    const result = await invitationService.validateInvitation(token);
+    res.json(result);
+  }),
+);
+
+const completeProfileSchema = z.object({
+  token: z.string().min(1),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(255),
+  departmentId: z.string().uuid().nullable().optional(),
+});
+
+// POST /api/v1/auth/complete-profile
+router.post(
+  '/complete-profile',
+  validate(completeProfileSchema),
+  asyncHandler(async (req, res) => {
+    const result = await invitationService.completeProfile(req.body, req.ip);
+    if (result.success && result.jwtToken) {
+      res.cookie(getCookieName(), result.jwtToken, getCookieOptions(config.nodeEnv));
+      res.json({ data: result.data });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: { code: result.error, message: result.message },
+      });
     }
-    const valid = await authService.validateResetToken(token);
-    res.json({ data: { valid } });
-  }),
-);
-
-// POST /api/v1/auth/reset-password
-router.post(
-  '/reset-password',
-  validate(resetPasswordSchema),
-  asyncHandler(async (req, res) => {
-    const { token, newPassword } = req.body;
-    await authService.resetPassword(token, newPassword);
-    res.json({ success: true });
-  }),
-);
-
-// POST /api/v1/auth/change-password (protected)
-router.post(
-  '/change-password',
-  authMiddleware,
-  validate(changePasswordSchema),
-  asyncHandler(async (req, res) => {
-    await authService.changePassword(req.user!.id, req.body.newPassword);
-    res.json({ success: true });
   }),
 );
 

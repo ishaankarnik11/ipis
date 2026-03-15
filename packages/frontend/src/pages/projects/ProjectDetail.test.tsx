@@ -106,18 +106,18 @@ const teamMembers = [
   {
     employeeId: 'emp-1',
     name: 'Alice Dev',
-    designation: 'Senior Developer',
-    roleId: 'role-1',
-    roleName: 'Developer',
+    employeeDesignation: 'Senior Developer',
+    designationId: 'role-1',
+    designationName: 'Developer',
     billingRatePaise: 500000,
     assignedAt: '2026-03-05T00:00:00.000Z',
   },
   {
     employeeId: 'emp-2',
     name: 'Bob QA',
-    designation: 'QA Engineer',
-    roleId: 'role-2',
-    roleName: 'Tester',
+    employeeDesignation: 'QA Engineer',
+    designationId: 'role-2',
+    designationName: 'Tester',
     billingRatePaise: null,
     assignedAt: '2026-03-10T00:00:00.000Z',
   },
@@ -310,6 +310,46 @@ describe('ProjectDetail', () => {
       expect(projectsLink).toHaveAttribute('href', '/projects');
       // Project name appears in breadcrumb
       expect(screen.getAllByText('Alpha Project').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('Financial summary (P0-1 fix)', () => {
+    it('renders all 4 financial cards with real values when financials are provided', async () => {
+      const projectWithFinancials = {
+        ...tmProject,
+        financials: {
+          revenuePaise: 4100000,
+          costPaise: 2850000,
+          profitPaise: 1250000,
+          marginPercent: 0.28,
+        },
+      };
+      mockGetProject.mockResolvedValue({ data: projectWithFinancials });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('financial-summary')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Revenue')).toBeInTheDocument();
+      expect(screen.getByText('Cost')).toBeInTheDocument();
+      expect(screen.getByText('Profit')).toBeInTheDocument();
+      expect(screen.getByText('Margin')).toBeInTheDocument();
+      // Verify no dashes — all values should be formatted currency, not '—'
+      expect(screen.getByText('28.0%')).toBeInTheDocument();
+      expect(screen.getByTestId('margin-health-badge')).toBeInTheDocument();
+    });
+
+    it('renders empty state when financials is null', async () => {
+      mockGetProject.mockResolvedValue({ data: tmProject });
+      renderComponent();
+
+      await waitFor(() => {
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('financial-empty-state')).toBeInTheDocument();
+      expect(screen.queryByTestId('financial-summary')).not.toBeInTheDocument();
     });
   });
 

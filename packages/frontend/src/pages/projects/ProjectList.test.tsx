@@ -22,6 +22,7 @@ const mockGetProjects = vi.fn();
 vi.mock('../../services/projects.api', () => ({
   projectKeys: {
     all: ['projects'],
+    list: (scope?: string) => ['projects', 'list', scope ?? 'default'],
     detail: (id: string) => ['projects', id],
     teamMembers: (id: string) => ['projects', id, 'team-members'],
   },
@@ -215,7 +216,17 @@ describe('ProjectList', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/projects/proj-1');
   });
 
-  it('shows empty state when no projects', async () => {
+  it('shows DM-specific empty state for "My Projects" scope', async () => {
+    mockGetProjects.mockResolvedValue({ data: [], meta: { total: 0 } });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText('No projects assigned to you')).toBeInTheDocument();
+    });
+  });
+
+  it('shows generic empty state for non-DM role', async () => {
+    mockUser = { role: 'ADMIN', name: 'Admin User' };
     mockGetProjects.mockResolvedValue({ data: [], meta: { total: 0 } });
     renderComponent();
 
@@ -231,5 +242,65 @@ describe('ProjectList', () => {
     await waitFor(() => {
       expect(screen.getByText(/failed to load projects/i)).toBeInTheDocument();
     });
+  });
+
+  // ── Story 10.6: DM "My Projects" Toggle ──
+
+  it('DM: shows scope toggle with "My Projects" default (AC: 1, 2)', async () => {
+    mockGetProjects.mockResolvedValue({ data: [dmProject], meta: { total: 1 } });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('scope-toggle')).toBeInTheDocument();
+    });
+    expect(screen.getByText('My Projects')).toBeInTheDocument();
+    expect(screen.getByText('All Projects')).toBeInTheDocument();
+  });
+
+  it('DM: default scope calls API without scope=all (AC: 4)', async () => {
+    mockGetProjects.mockResolvedValue({ data: [], meta: { total: 0 } });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(mockGetProjects).toHaveBeenCalledWith(undefined);
+    });
+  });
+
+  it('DM: toggling to "All Projects" calls API with scope=all (AC: 3, 5)', async () => {
+    mockGetProjects.mockResolvedValue({ data: [], meta: { total: 0 } });
+    const user = userEvent.setup({ delay: null });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText('All Projects')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('All Projects'));
+
+    await waitFor(() => {
+      expect(mockGetProjects).toHaveBeenCalledWith('all');
+    });
+  });
+
+  it('Admin: does NOT show scope toggle (AC: 6)', async () => {
+    mockUser = { role: 'ADMIN', name: 'Admin User' };
+    mockGetProjects.mockResolvedValue({ data: [dmProject], meta: { total: 1 } });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha Project')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('scope-toggle')).not.toBeInTheDocument();
+  });
+
+  it('Finance: does NOT show scope toggle (AC: 6)', async () => {
+    mockUser = { role: 'FINANCE', name: 'Finance User' };
+    mockGetProjects.mockResolvedValue({ data: [dmProject], meta: { total: 1 } });
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha Project')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('scope-toggle')).not.toBeInTheDocument();
   });
 });

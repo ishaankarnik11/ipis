@@ -16,27 +16,24 @@ describe('user.service', () => {
   });
 
   describe('createUser', () => {
-    it('should create a user with hashed password and mustChangePassword true', async () => {
+    it('should create a user with status INVITED (no password)', async () => {
       const result = await userService.createUser({
-        name: 'Jane Doe',
         email: 'jane@example.com',
         role: 'FINANCE',
+        name: 'Jane Doe',
       });
 
       expect(result).toHaveProperty('id');
-      expect(result).toHaveProperty('temporaryPassword');
       expect(result.name).toBe('Jane Doe');
       expect(result.email).toBe('jane@example.com');
       expect(result.role).toBe('FINANCE');
-      expect(result.isActive).toBe(true);
+      expect(result.status).toBe('INVITED');
       expect(result.departmentName).toBeNull();
 
-      // Verify the DB record has a real bcrypt hash
+      // Verify the DB record
       const dbUser = await prisma.user.findUnique({ where: { email: 'jane@example.com' } });
       expect(dbUser).not.toBeNull();
-      expect(dbUser!.passwordHash).toMatch(/^\$2[aby]?\$/);
-      expect(dbUser!.mustChangePassword).toBe(true);
-      expect(dbUser!.isActive).toBe(true);
+      expect(dbUser!.status).toBe('INVITED');
     });
 
     it('should throw ConflictError when email already exists', async () => {
@@ -44,9 +41,9 @@ describe('user.service', () => {
 
       await expect(
         userService.createUser({
-          name: 'Jane Doe',
           email: 'jane@example.com',
           role: 'ADMIN',
+          name: 'Jane Doe',
         }),
       ).rejects.toThrow('A user with this email already exists');
     });
@@ -55,9 +52,9 @@ describe('user.service', () => {
       const engDeptId = departments.get('Engineering')!;
 
       const result = await userService.createUser({
-        name: 'John',
         email: 'john@example.com',
         role: 'DEPT_HEAD',
+        name: 'John',
         departmentId: engDeptId,
       });
 
@@ -66,24 +63,13 @@ describe('user.service', () => {
       const dbUser = await prisma.user.findUnique({ where: { email: 'john@example.com' } });
       expect(dbUser!.departmentId).toBe(engDeptId);
     });
-
-    it('should return temporaryPassword in the result', async () => {
-      const result = await userService.createUser({
-        name: 'Test',
-        email: 'test@example.com',
-        role: 'HR',
-      });
-
-      expect(typeof result.temporaryPassword).toBe('string');
-      expect(result.temporaryPassword.length).toBeGreaterThan(0);
-    });
   });
 
   describe('getAll', () => {
-    it('should return all users with correct fields including departmentName', async () => {
+    it('should return all users with correct fields including departmentName and status', async () => {
       await createTestUser('ADMIN', { email: 'a@test.com', name: 'A' });
       const engDeptId = departments.get('Engineering')!;
-      await createTestUser('HR', { email: 'b@test.com', name: 'B', departmentId: engDeptId, isActive: false });
+      await createTestUser('HR', { email: 'b@test.com', name: 'B', departmentId: engDeptId, status: 'DEACTIVATED' });
 
       const result = await userService.getAll();
 
@@ -91,11 +77,11 @@ describe('user.service', () => {
 
       const userA = result.find((u) => u.email === 'a@test.com')!;
       expect(userA.departmentName).toBeNull();
-      expect(userA.isActive).toBe(true);
+      expect(userA.status).toBe('ACTIVE');
 
       const userB = result.find((u) => u.email === 'b@test.com')!;
       expect(userB.departmentName).toBe('Engineering');
-      expect(userB.isActive).toBe(false);
+      expect(userB.status).toBe('DEACTIVATED');
     });
   });
 
@@ -109,21 +95,68 @@ describe('user.service', () => {
       expect(result.departmentName).toBeNull();
     });
 
-    it('should handle deactivation via isActive: false', async () => {
+    it('should handle deactivation via status: DEACTIVATED', async () => {
+      // Create two admins so the last-admin guard doesn't block
+      await createTestUser('ADMIN', { email: 'other-admin@test.com' });
       const user = await createTestUser('ADMIN', { email: 'a@test.com' });
 
-      const result = await userService.updateUser(user.id, { isActive: false });
+      const result = await userService.updateUser(user.id, { status: 'DEACTIVATED' });
 
-      expect(result.isActive).toBe(false);
+      expect(result.status).toBe('DEACTIVATED');
+    });
+
+    it('should prevent self-deactivation', async () => {
+      const user = await createTestUser('ADMIN', { email: 'a@test.com' });
+
+      await expect(
+        userService.updateUser(user.id, { status: 'DEACTIVATED' }, user.id),
+      ).rejects.toThrow('You cannot deactivate your own account');
+    });
+
+    it('should prevent deactivating the last active admin', async () => {
+      const user = await createTestUser('ADMIN', { email: 'a@test.com' });
+      const otherUser = await createTestUser('FINANCE', { email: 'other@test.com' });
+
+      await expect(
+        userService.updateUser(user.id, { status: 'DEACTIVATED' }, otherUser.id),
+      ).rejects.toThrow('Cannot deactivate the last active admin user');
+    });
+
+    it('should allow deactivating an admin when another active admin exists', async () => {
+      await createTestUser('ADMIN', { email: 'admin2@test.com' });
+      const user = await createTestUser('ADMIN', { email: 'a@test.com' });
+      const actor = await createTestUser('ADMIN', { email: 'actor@test.com' });
+
+      const result = await userService.updateUser(user.id, { status: 'DEACTIVATED' }, actor.id);
+
+      expect(result.status).toBe('DEACTIVATED');
     });
 
     it('should update role and departmentId together', async () => {
       const user = await createTestUser('ADMIN', { email: 'a@test.com' });
+      // Create a second admin so the last-admin guard doesn't block
+      await createTestUser('ADMIN', { email: 'admin2@test.com' });
       const finDeptId = departments.get('Finance')!;
 
       const result = await userService.updateUser(user.id, { role: 'DEPT_HEAD', departmentId: finDeptId });
 
       expect(result.departmentName).toBe('Finance');
+    });
+
+    it('should prevent changing the role of the last active admin', async () => {
+      const user = await createTestUser('ADMIN', { email: 'a@test.com' });
+
+      await expect(
+        userService.updateUser(user.id, { role: 'FINANCE' }),
+      ).rejects.toThrow('Cannot change the role of the last active admin user');
+    });
+
+    it('should allow changing admin role when another active admin exists', async () => {
+      const user = await createTestUser('ADMIN', { email: 'a@test.com' });
+      await createTestUser('ADMIN', { email: 'admin2@test.com' });
+
+      const result = await userService.updateUser(user.id, { role: 'FINANCE' });
+      expect(result.role).toBe('FINANCE');
     });
 
     it('should throw NotFoundError when user does not exist', async () => {

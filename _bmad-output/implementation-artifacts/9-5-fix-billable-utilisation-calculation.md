@@ -1,6 +1,6 @@
 # Story 9.5: Fix Billable Utilisation Calculation
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -92,39 +92,39 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Diagnose the utilisation calculation (AC: 1, 2)
-  - [ ] 1.1 Read the utilisation calculation in `dashboard.service.ts` — find where billable utilisation is computed
-  - [ ] 1.2 Check if the calculation queries timesheet data correctly (SUM of billable hours)
-  - [ ] 1.3 Check if the denominator uses the correct employee count (billable employees only) and standard hours
-  - [ ] 1.4 Check if the utilisation value is persisted in `calculation_snapshots` at the company level
-  - [ ] 1.5 Check if the frontend reads the correct field from the API response
+- [x] Task 1: Diagnose the utilisation calculation (AC: 1, 2)
+  - [x] 1.1 Read the utilisation calculation in `dashboard.service.ts` — find where billable utilisation is computed
+  - [x] 1.2 Check if the calculation queries timesheet data correctly (SUM of billable hours)
+  - [x] 1.3 Check if the denominator uses the correct employee count (billable employees only) and standard hours
+  - [x] 1.4 Check if the utilisation value is persisted in `calculation_snapshots` at the company level
+  - [x] 1.5 Check if the frontend reads the correct field from the API response
 
-- [ ] Task 2: Fix the calculation (AC: 2, 3)
-  - [ ] 2.1 Fix the numerator: ensure SUM(billable_hours) from timesheet_entries is correct
-  - [ ] 2.2 Fix the denominator: COUNT of employees WHERE isBillable = true * standardWorkingHours from system_config
-  - [ ] 2.3 Handle edge cases: zero billable employees (return 0%), zero timesheets (return 0%)
-  - [ ] 2.4 Round to 1 decimal place
+- [x] Task 2: Fix the calculation (AC: 2, 3)
+  - [x] 2.1 Fix the numerator: ensure SUM(billable_hours) from timesheet_entries is correct
+  - [x] 2.2 Fix the denominator: COUNT of employees WHERE isBillable = true * standardWorkingHours from system_config
+  - [x] 2.3 Handle edge cases: zero billable employees (return 0%), zero timesheets (return 0%)
+  - [x] 2.4 Round to 1 decimal place
 
-- [ ] Task 3: Fix snapshot persistence (AC: 5)
-  - [ ] 3.1 Ensure the recalculation service creates/updates a company-level utilisation snapshot
-  - [ ] 3.2 Verify the snapshot field name matches what the dashboard API returns
+- [x] Task 3: Fix snapshot persistence (AC: 5)
+  - [x] 3.1 Ensure the recalculation service creates/updates a company-level utilisation snapshot
+  - [x] 3.2 Verify the snapshot field name matches what the dashboard API returns
 
-- [ ] Task 4: Fix frontend field mapping (AC: 1)
-  - [ ] 4.1 Verify the Executive Dashboard reads the correct field for utilisation from the API response
-  - [ ] 4.2 Ensure `formatPercent` is used for display
-  - [ ] 4.3 KPI tile should show "Billable Utilisation" with the percentage value
+- [x] Task 4: Fix frontend field mapping (AC: 1)
+  - [x] 4.1 Verify the Executive Dashboard reads the correct field for utilisation from the API response
+  - [x] 4.2 Ensure `formatPercent` is used for display
+  - [x] 4.3 KPI tile should show "Billable Utilisation" with the percentage value
 
-- [ ] Task 5: Backend tests (AC: 6)
-  - [ ] 5.1 Test: 10 billable employees, 880 billable hours, 176 std hours → 50.0%
-  - [ ] 5.2 Test: 0 timesheet data → 0.0%
-  - [ ] 5.3 Test: only non-billable employees → 0.0%
-  - [ ] 5.4 Test: system config standard hours change → recalculated utilisation changes
-  - [ ] 5.5 Test: snapshot is persisted during recalculation
+- [x] Task 5: Backend tests (AC: 6)
+  - [x] 5.1 Test: 10 billable employees, 880 billable hours, 176 std hours → 50.0%
+  - [x] 5.2 Test: 0 timesheet data → 0.0%
+  - [x] 5.3 Test: only non-billable employees → 0.0%
+  - [x] 5.4 Test: system config standard hours change → recalculated utilisation changes
+  - [x] 5.5 Test: snapshot is persisted during recalculation
 
-- [ ] Task 6: E2E tests (E2E-P1 through E2E-N2)
-  - [ ] 6.1 Create or extend `packages/e2e/tests/utilisation-calculation.spec.ts`
-  - [ ] 6.2 Implement E2E-P1 through E2E-P3
-  - [ ] 6.3 Implement E2E-N1, E2E-N2
+- [x] Task 6: E2E tests (E2E-P1 through E2E-N2)
+  - [x] 6.1 Create or extend `packages/e2e/tests/utilisation-calculation.spec.ts`
+  - [x] 6.2 Implement E2E-P1 through E2E-P3
+  - [x] 6.3 Implement E2E-N1, E2E-N2
 
 ## Dev Notes
 

@@ -139,8 +139,8 @@ describe('getTeamMembers', () => {
 
 describe('addTeamMember', () => {
   it('calls POST /projects/:id/team-members with body', async () => {
-    const input = { employeeId: 'e1', roleId: '00000000-0000-0000-0000-000000000001' };
-    const response = { data: { employeeId: 'e1', name: 'Alice', roleId: '00000000-0000-0000-0000-000000000001' } };
+    const input = { employeeId: 'e1', designationId: '00000000-0000-0000-0000-000000000001' };
+    const response = { data: { employeeId: 'e1', name: 'Alice', designationId: '00000000-0000-0000-0000-000000000001' } };
     mockPost.mockResolvedValue(response);
 
     const result = await addTeamMember('p1', input as AddTeamMemberInput);

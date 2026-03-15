@@ -24,14 +24,14 @@ export default function TeamMemberList({ value, onChange, engagementModel }: Tea
   };
 
   const handleAdd = () => {
-    onChange([...value, { employeeId: null, roleId: null, sellingRate: null }]);
+    onChange([...value, { employeeId: null, designationId: null, sellingRate: null, allocationPercent: null }]);
   };
 
   return (
     <div>
       {value.map((row, index) => (
         <TeamMemberRow
-          key={index}
+          key={row.employeeId ?? `new-${index}`}
           value={row}
           onChange={(updated) => handleRowChange(index, updated)}
           onRemove={() => handleRemove(index)}

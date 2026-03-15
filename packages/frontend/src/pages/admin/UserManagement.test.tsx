@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConfigProvider, Modal } from 'antd';
+import { ConfigProvider } from 'antd';
 import { MemoryRouter } from 'react-router';
 import UserManagement from './UserManagement';
 import type { User } from '../../services/users.api';
@@ -12,6 +12,7 @@ const mockGetUsers = vi.fn();
 const mockUpdateUser = vi.fn();
 const mockCreateUser = vi.fn();
 const mockGetDepartments = vi.fn();
+const mockResendInvitation = vi.fn();
 
 vi.mock('../../services/users.api', () => ({
   userKeys: { all: ['users'] as const, departments: ['departments'] as const },
@@ -19,6 +20,7 @@ vi.mock('../../services/users.api', () => ({
   createUser: (...args: unknown[]) => mockCreateUser(...args),
   updateUser: (...args: unknown[]) => mockUpdateUser(...args),
   getDepartments: (...args: unknown[]) => mockGetDepartments(...args),
+  resendInvitation: (...args: unknown[]) => mockResendInvitation(...args),
 }));
 
 vi.mock('./constants', () => ({
@@ -29,6 +31,13 @@ vi.mock('./constants', () => ({
     DELIVERY_MANAGER: 'Delivery Manager',
     DEPT_HEAD: 'Department Head',
   },
+}));
+
+// Mock useAuth to return the logged-in admin
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: '1', name: 'Alice Admin', role: 'ADMIN', email: 'alice@test.com', departmentId: null, status: 'ACTIVE' }, isLoading: false, isAuthenticated: true }),
+  useLogout: () => ({ mutate: vi.fn(), isPending: false }),
+  getRoleLandingPage: () => '/admin',
 }));
 
 // Mock antd message
@@ -42,9 +51,9 @@ vi.mock('antd', async () => {
 });
 
 const testUsers: User[] = [
-  { id: '1', name: 'Alice Admin', email: 'alice@test.com', role: 'ADMIN', departmentId: null, departmentName: null, isActive: true },
-  { id: '2', name: 'Bob Finance', email: 'bob@test.com', role: 'FINANCE', departmentId: 'dept-1', departmentName: 'Engineering', isActive: true },
-  { id: '3', name: 'Carol Inactive', email: 'carol@test.com', role: 'HR', departmentId: null, departmentName: null, isActive: false },
+  { id: '1', name: 'Alice Admin', email: 'alice@test.com', role: 'ADMIN', departmentId: null, departmentName: null, status: 'ACTIVE' },
+  { id: '2', name: 'Bob Finance', email: 'bob@test.com', role: 'FINANCE', departmentId: 'dept-1', departmentName: 'Engineering', status: 'ACTIVE' },
+  { id: '3', name: 'Carol Inactive', email: 'carol@test.com', role: 'HR', departmentId: null, departmentName: null, status: 'DEACTIVATED' },
 ];
 
 function renderUserManagement() {
@@ -73,8 +82,6 @@ describe('UserManagement', () => {
   });
 
   afterEach(() => {
-    // Destroy any lingering antd confirm modals to prevent async operations after teardown
-    Modal.destroyAll();
     cleanup();
   });
 
@@ -100,20 +107,20 @@ describe('UserManagement', () => {
     expect(screen.getByText('HR')).toBeInTheDocument();
   });
 
-  it('should display Active/Inactive status tags', async () => {
+  it('should display status tags', async () => {
     renderUserManagement();
 
     await waitFor(() => {
       expect(screen.getAllByText('Active')).toHaveLength(2);
     });
-    expect(screen.getByText('Inactive')).toBeInTheDocument();
+    expect(screen.getByText('Deactivated')).toBeInTheDocument();
   });
 
   it('should render Add User button', async () => {
     renderUserManagement();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /add user/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /invite user/i })).toBeInTheDocument();
     });
   });
 
@@ -122,32 +129,32 @@ describe('UserManagement', () => {
     const user = userEvent.setup({ delay: null });
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /add user/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /invite user/i })).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /add user/i }));
+    await user.click(screen.getByRole('button', { name: /invite user/i }));
 
-    // Modal should have form fields
+    // Simplified modal: only email + role (no name/department for new invites)
     await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     });
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
   });
 
-  it('should show Edit and Deactivate/Activate buttons for each row', async () => {
+  it('should show status-appropriate action buttons per row', async () => {
     renderUserManagement();
 
     await waitFor(() => {
       expect(screen.getByText('Alice Admin')).toBeInTheDocument();
     });
 
-    // Edit buttons exist for each user (hidden via opacity, but accessible)
-    const editButtons = screen.getAllByRole('button', { name: /edit/i });
-    expect(editButtons.length).toBe(3);
+    // Edit buttons only for ACTIVE users (Alice + Bob)
+    const editButtons = screen.getAllByRole('button', { name: /^edit$/i });
+    expect(editButtons.length).toBe(2);
 
-    // Active users show "Deactivate", inactive show "Activate"
-    expect(screen.getAllByRole('button', { name: /deactivate/i })).toHaveLength(2);
-    expect(screen.getByRole('button', { name: /^activate$/i })).toBeInTheDocument();
+    // Deactivate for non-self active users (Bob only — Alice is self)
+    expect(screen.getAllByRole('button', { name: /deactivate/i })).toHaveLength(1);
+    // Deactivated users show "Reactivate"
+    expect(screen.getByRole('button', { name: /reactivate/i })).toBeInTheDocument();
   });
 
   it('should open Edit modal pre-populated when clicking Edit', async () => {
@@ -169,21 +176,20 @@ describe('UserManagement', () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue('Alice Admin');
   });
 
-  it('should show deactivation confirmation when clicking Deactivate', async () => {
+  it('should show Popconfirm when clicking Deactivate', async () => {
     renderUserManagement();
     const user = userEvent.setup({ delay: null });
 
     await waitFor(() => {
-      expect(screen.getByText('Alice Admin')).toBeInTheDocument();
+      expect(screen.getByText('Bob Finance')).toBeInTheDocument();
     });
 
     const deactivateButtons = screen.getAllByRole('button', { name: /deactivate/i });
     await user.click(deactivateButtons[0]);
 
-    // Modal.confirm renders outside the React tree — check in document.body
+    // Popconfirm renders a tooltip with the confirmation message
     await waitFor(() => {
-      const confirmText = document.body.querySelector('.ant-modal-confirm-body');
-      expect(confirmText).toBeInTheDocument();
+      expect(screen.getByText(/deactivate.*\?/i)).toBeInTheDocument();
     });
   });
 

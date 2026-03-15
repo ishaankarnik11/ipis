@@ -229,8 +229,8 @@ describe('audit.service', () => {
     it('should use action strings from AUDIT_ACTIONS constants (no magic strings)', async () => {
       const allActions = Object.values(AUDIT_ACTIONS);
 
-      // Verify we have all 18 expected actions
-      expect(allActions.length).toBe(18);
+      // Verify we have all 20 expected actions
+      expect(allActions.length).toBe(20);
 
       for (const action of allActions) {
         await auditService.logAuditEvent({

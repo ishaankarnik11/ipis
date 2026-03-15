@@ -20,12 +20,12 @@ vi.mock('../services/employees.api', () => ({
   }),
 }));
 
-vi.mock('../services/project-roles.api', () => ({
-  projectRoleKeys: {
-    all: ['project-roles'],
-    active: ['project-roles', 'active'],
+vi.mock('../services/designations.api', () => ({
+  designationKeys: {
+    all: ['designations'],
+    active: ['designations', 'active'],
   },
-  getActiveProjectRoles: vi.fn().mockResolvedValue({
+  getActiveDesignations: vi.fn().mockResolvedValue({
     data: [
       { id: 'role-1', name: 'Senior Developer', isActive: true },
       { id: 'role-2', name: 'QA Lead', isActive: true },
@@ -69,13 +69,14 @@ describe('AddTeamMemberModal', () => {
 
   afterEach(() => cleanup());
 
-  it('renders the modal with TeamMemberRow fields', async () => {
+  it('renders the modal with all 4 fields', async () => {
     renderModal();
 
     expect(screen.getByText('Add Team Member')).toBeInTheDocument();
     expect(screen.getByTestId('employee-search')).toBeInTheDocument();
-    expect(screen.getByTestId('role-select')).toBeInTheDocument();
+    expect(screen.getByTestId('designation-select')).toBeInTheDocument();
     expect(screen.getByTestId('selling-rate')).toBeInTheDocument();
+    expect(screen.getByTestId('allocation-percent')).toBeInTheDocument();
   });
 
   describe('Form validation', () => {
@@ -86,7 +87,7 @@ describe('AddTeamMemberModal', () => {
       await user.click(screen.getByRole('button', { name: /add member/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Employee and role are required')).toBeInTheDocument();
+        expect(screen.getByText('Employee and designation are required')).toBeInTheDocument();
       });
 
       expect(defaultProps.onSubmit).not.toHaveBeenCalled();
@@ -102,7 +103,7 @@ describe('AddTeamMemberModal', () => {
 
       await waitFor(() => {
         // Should show employee/role required first
-        expect(screen.getByText('Employee and role are required')).toBeInTheDocument();
+        expect(screen.getByText('Employee and designation are required')).toBeInTheDocument();
       });
     });
   });

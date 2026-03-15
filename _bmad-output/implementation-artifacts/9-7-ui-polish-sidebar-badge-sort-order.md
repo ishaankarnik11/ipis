@@ -1,6 +1,6 @@
 # Story 9.7: UI Polish — Sidebar, Badge, Sort Order
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -99,33 +99,33 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Fix Pending Approvals sidebar styling (AC: 1)
-  - [ ] 1.1 Find the sidebar component and the "Pending Approvals" menu item
-  - [ ] 1.2 Replace the blue background styling with an antd `Badge` component
-  - [ ] 1.3 If a pending count is available, show it as `Badge count={pendingCount}`
-  - [ ] 1.4 If no count API exists, use `Badge dot` as a simple indicator
-  - [ ] 1.5 Style: red badge for count > 0, hidden or grey for count = 0
+- [x] Task 1: Fix Pending Approvals sidebar styling (AC: 1)
+  - [x] 1.1 Find the sidebar component and the "Pending Approvals" menu item
+  - [x] 1.2 Replace the blue background styling with an antd `Badge` component
+  - [x] 1.3 If a pending count is available, show it as `Badge count={pendingCount}`
+  - [x] 1.4 If no count API exists, use `Badge dot` as a simple indicator
+  - [x] 1.5 Style: red badge for count > 0, hidden or grey for count = 0
 
-- [ ] Task 2: Fix Department Dashboard sidebar label (AC: 2)
-  - [ ] 2.1 Change the sidebar label from "Department Dashboard" to "Dept Dashboard" or "Departments"
-  - [ ] 2.2 Alternatively, increase sidebar width or use CSS `text-overflow: ellipsis` with a tooltip on hover
-  - [ ] 2.3 Verify no other sidebar labels are truncated
+- [x] Task 2: Fix Department Dashboard sidebar label (AC: 2)
+  - [x] 2.1 Change the sidebar label from "Department Dashboard" to "Dept Dashboard" or "Departments"
+  - [x] 2.2 Alternatively, increase sidebar width or use CSS `text-overflow: ellipsis` with a tooltip on hover
+  - [x] 2.3 Verify no other sidebar labels are truncated
 
-- [ ] Task 3: Add default sort order to project list (AC: 3, 4)
-  - [ ] 3.1 Define a status priority map: `{ ACTIVE: 1, PENDING_APPROVAL: 2, ON_HOLD: 3, COMPLETED: 4, REJECTED: 5 }`
-  - [ ] 3.2 Add ORDER BY clause in the project list backend query using a CASE WHEN for status priority
-  - [ ] 3.3 Secondary sort: name ASC within each status group
-  - [ ] 3.4 Alternatively, sort on the frontend if the backend returns all projects (for small datasets)
+- [x] Task 3: Add default sort order to project list (AC: 3, 4)
+  - [x] 3.1 Define a status priority map: `{ ACTIVE: 1, PENDING_APPROVAL: 2, ON_HOLD: 3, COMPLETED: 4, REJECTED: 5 }`
+  - [x] 3.2 Add ORDER BY clause in the project list backend query using a CASE WHEN for status priority
+  - [x] 3.3 Secondary sort: name ASC within each status group
+  - [x] 3.4 Alternatively, sort on the frontend if the backend returns all projects (for small datasets)
 
-- [ ] Task 4: Frontend tests (AC: 6)
-  - [ ] 4.1 Test: sidebar Pending Approvals renders antd Badge, not a highlighted div
-  - [ ] 4.2 Test: sidebar Department Dashboard label is not truncated (full text visible)
-  - [ ] 4.3 Test: project list renders in correct status priority order
+- [x] Task 4: Frontend tests (AC: 6)
+  - [x] 4.1 Test: sidebar Pending Approvals renders antd Badge, not a highlighted div
+  - [x] 4.2 Test: sidebar Department Dashboard label is not truncated (full text visible)
+  - [x] 4.3 Test: project list renders in correct status priority order
 
-- [ ] Task 5: E2E tests (E2E-P1 through E2E-N1)
-  - [ ] 5.1 Create or extend `packages/e2e/tests/ui-polish.spec.ts`
-  - [ ] 5.2 Implement E2E-P1 through E2E-P4
-  - [ ] 5.3 Implement E2E-N1
+- [x] Task 5: E2E tests (E2E-P1 through E2E-N1)
+  - [x] 5.1 Create or extend `packages/e2e/tests/ui-polish.spec.ts`
+  - [x] 5.2 Implement E2E-P1 through E2E-P4
+  - [x] 5.3 Implement E2E-N1
 
 ## Dev Notes
 

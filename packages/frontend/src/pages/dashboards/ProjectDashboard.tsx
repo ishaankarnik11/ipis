@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useSearchParams, useNavigate } from 'react-router';
 import { Typography, Table, Select, Space, Empty, Button, message } from 'antd';
-import { FilePdfOutlined, ShareAltOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, ShareAltOutlined, TeamOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { formatCurrency, formatPercent } from '@ipis/shared';
@@ -17,7 +17,8 @@ import MarginHealthBadge from '../../components/MarginHealthBadge';
 import AtRiskKPITile from '../../components/AtRiskKPITile';
 import type { ProjectStatus } from '../../services/projects.api';
 import { exportPdf } from '../../services/reports.api';
-import { shareReport } from '../../services/share.api';
+import { createShareUrl } from '../../services/share.api';
+import ShareLinkModal from '../../components/ShareLinkModal';
 import { useAuth } from '../../hooks/useAuth';
 
 const { Title } = Typography;
@@ -39,10 +40,13 @@ const modelOptions = [
 
 export default function ProjectDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareData, setShareData] = useState<{ url: string; expiresAt: string } | null>(null);
   const { user } = useAuth();
   const canShare = user?.role === 'FINANCE' || user?.role === 'ADMIN';
+  const canCreate = user?.role === 'DELIVERY_MANAGER';
 
   const filters: DashboardFilters = {
     department: searchParams.get('department') || undefined,
@@ -82,6 +86,8 @@ export default function ProjectDashboard() {
     });
   }
 
+  const isDeptHead = user?.role === 'DEPT_HEAD';
+
   const columns: ColumnsType<ProjectDashboardItem> = [
     {
       title: 'Project Name',
@@ -104,6 +110,24 @@ export default function ProjectDashboard() {
       key: 'department',
       render: (dept: string | null) => dept ?? '—',
     },
+    ...(isDeptHead
+      ? [
+          {
+            title: 'My Team',
+            dataIndex: 'deptTeamCount',
+            key: 'deptTeamCount',
+            align: 'center' as const,
+            sorter: (a: ProjectDashboardItem, b: ProjectDashboardItem) =>
+              (a.deptTeamCount ?? 0) - (b.deptTeamCount ?? 0),
+            render: (count: number | undefined) => (
+              <Space>
+                <TeamOutlined />
+                <span>{count ?? 0}</span>
+              </Space>
+            ),
+          },
+        ]
+      : []),
     {
       title: 'Status',
       dataIndex: 'status',
@@ -153,13 +177,58 @@ export default function ProjectDashboard() {
         </Space>
       ),
     },
+    {
+      title: 'Burn Rate',
+      dataIndex: 'burnRatePaise',
+      key: 'burnRatePaise',
+      align: 'right',
+      sorter: (a, b) => a.burnRatePaise - b.burnRatePaise,
+      render: (val: number) => val > 0 ? `${formatCurrency(val)}/mo` : '—',
+    },
+    {
+      title: 'Budget',
+      dataIndex: 'budgetPaise',
+      key: 'budgetPaise',
+      align: 'right',
+      render: (val: number | null) => val != null ? formatCurrency(val) : '—',
+    },
+    {
+      title: 'Variance',
+      dataIndex: 'variancePaise',
+      key: 'variancePaise',
+      align: 'right',
+      render: (val: number | null) => {
+        if (val == null) return '—';
+        const formatted = formatCurrency(Math.abs(val));
+        return val < 0
+          ? <span style={{ color: '#f5222d' }}>-{formatted}</span>
+          : <span style={{ color: '#52c41a' }}>{formatted}</span>;
+      },
+    },
+    {
+      title: '% Consumed',
+      dataIndex: 'consumedPercent',
+      key: 'consumedPercent',
+      align: 'right',
+      sorter: (a, b) => (a.consumedPercent ?? -1) - (b.consumedPercent ?? -1),
+      render: (val: number | null) => {
+        if (val == null) return '—';
+        const color = val > 100 ? '#f5222d' : val >= 80 ? '#fa8c16' : '#52c41a';
+        return <span style={{ color, fontWeight: 600 }}>{val.toFixed(1)}%</span>;
+      },
+    },
   ];
 
   return (
     <div data-testid="project-dashboard">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Title level={3} style={{ margin: 0 }}>Project Dashboard</Title>
+        <Title level={3} style={{ margin: 0 }}>Projects</Title>
         <Space>
+          {canCreate && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/projects/new')}>
+              Create Project
+            </Button>
+          )}
           {canShare && (
             <Button
               icon={<ShareAltOutlined />}
@@ -170,7 +239,8 @@ export default function ProjectDashboard() {
                 try {
                   const now = new Date();
                   const period = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-                  await shareReport({ reportType: 'project', entityId: NIL_UUID, period });
+                  const result = await createShareUrl({ reportType: 'project', entityId: NIL_UUID, period });
+                  setShareData(result);
                 } catch {
                   message.error('Failed to create share link');
                 } finally {
@@ -189,8 +259,10 @@ export default function ProjectDashboard() {
               setExporting(true);
               try {
                 const now = new Date();
-                const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const period = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
                 await exportPdf({ reportType: 'project', entityId: NIL_UUID, period });
+              } catch {
+                message.error('Failed to export PDF');
               } finally {
                 setExporting(false);
               }
@@ -259,6 +331,7 @@ export default function ProjectDashboard() {
         locale={{ emptyText: <Empty description="No project data available" /> }}
       />
 
+      <ShareLinkModal open={!!shareData} shareUrl={shareData?.url ?? ''} expiresAt={shareData?.expiresAt} onClose={() => setShareData(null)} />
     </div>
   );
 }

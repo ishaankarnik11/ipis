@@ -28,11 +28,17 @@ vi.mock('../../services/dashboards.api', () => ({
     executive: ['reports', 'executive'] as const,
     practice: ['reports', 'practice'] as const,
     department: ['reports', 'department'] as const,
+    departmentComparison: (...months: string[]) =>
+      ['reports', 'department', 'comparison', ...months] as const,
+    departmentDrilldown: (id: string) =>
+      ['reports', 'department', 'drilldown', id] as const,
   },
   getProjectDashboard: (...args: unknown[]) => mockGetProjectDashboard(...args),
   getExecutiveDashboard: (...args: unknown[]) => mockGetExecutiveDashboard(...args),
   getPracticeDashboard: (...args: unknown[]) => mockGetPracticeDashboard(...args),
   getDepartmentDashboard: (...args: unknown[]) => mockGetDepartmentDashboard(...args),
+  getDepartmentComparison: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, mode: 'comparison' } }),
+  getDepartmentDrilldown: vi.fn().mockResolvedValue({ data: { departmentId: 'd1', departmentName: 'Engineering', employees: [], projects: [] } }),
 }));
 
 // Mock useNavigate
@@ -222,26 +228,29 @@ describe('Dashboard Click-Through Navigation', () => {
     });
   });
 
-  describe('DepartmentDashboard — row click preserves existing filter navigation', () => {
+  describe('DepartmentDashboard — row click opens drill-down drawer', () => {
     beforeEach(() => {
       mockGetDepartmentDashboard.mockResolvedValue({
         data: [makeDepartmentItem({ departmentName: 'Engineering' })],
       });
     });
 
-    it('department row click navigates to project dashboard filtered by department', async () => {
+    it('department row click opens drill-down drawer (Story 11.3)', async () => {
       renderWithProviders(<DepartmentDashboard />);
 
       await waitFor(() => {
         expect(screen.getByText('Engineering')).toBeInTheDocument();
       });
 
-      // Click the department row
+      // Click the department row — should open drawer, not navigate
       const row = screen.getByText('Engineering').closest('tr');
       expect(row).toBeTruthy();
       fireEvent.click(row!);
 
-      expect(mockNavigate).toHaveBeenCalledWith('/dashboards/projects?department=Engineering');
+      // Drawer should open (renders "Department Drill-Down" title)
+      await waitFor(() => {
+        expect(screen.getByText(/Department Drill-Down/)).toBeInTheDocument();
+      });
     });
   });
 

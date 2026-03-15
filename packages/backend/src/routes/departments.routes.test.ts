@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app.js';
 import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import { signToken } from '../lib/jwt.js';
 
 describe('Department Routes', () => {
   const app = createApp();
@@ -17,10 +18,9 @@ describe('Department Routes', () => {
 
   async function loginAs(role: string, overrides = {}) {
     const user = await createTestUser(role as any, overrides);
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
+    const token = await signToken({ sub: user.id, role: user.role, email: user.email });
+    const cookies = [`ipis_token=${token}`];
+    return { cookies, user };
   }
 
   describe('GET /api/v1/departments', () => {
@@ -67,15 +67,15 @@ describe('Department Routes', () => {
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should return 403 for unauthorized roles', async () => {
+    it('should return 200 for DELIVERY_MANAGER (all authenticated users can read departments)', async () => {
       const { cookies } = await loginAs('DELIVERY_MANAGER');
 
       const res = await request(app)
         .get('/api/v1/departments')
         .set('Cookie', cookies);
 
-      expect(res.status).toBe(403);
-      expect(res.body.error.code).toBe('FORBIDDEN');
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

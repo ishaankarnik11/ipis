@@ -43,4 +43,15 @@ router.patch(
   }),
 );
 
+// POST /api/v1/users/:id/resend-invitation — Resend invitation email (Admin only)
+router.post(
+  '/:id/resend-invitation',
+  authMiddleware,
+  rbacMiddleware(['ADMIN']),
+  asyncHandler(async (req, res) => {
+    await userService.resendInvitation(req.params.id as string);
+    res.json({ success: true });
+  }),
+);
+
 export default router;

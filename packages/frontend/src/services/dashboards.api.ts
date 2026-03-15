@@ -12,6 +12,13 @@ export interface ProjectDashboardItem {
   costPaise: number;
   profitPaise: number;
   marginPercent: number;
+  deptTeamCount?: number;
+  burnRatePaise: number;
+  plannedBurnRatePaise?: number;
+  budgetPaise: number | null;
+  actualCostPaise: number;
+  variancePaise: number | null;
+  consumedPercent: number | null;
 }
 
 export interface DashboardFilters {
@@ -53,7 +60,49 @@ export interface DepartmentDashboardItem {
   revenuePaise: number;
   costPaise: number;
   profitPaise: number;
-  marginPercent: number;
+  marginPercent: number | null;
+}
+
+// ── Department Drill-Down ──
+
+export interface DepartmentDrilldownEmployee {
+  employeeId: string;
+  name: string;
+  designation: string;
+  billableUtilisationPercent: number;
+  revenueContributionPaise: number;
+  costPaise: number;
+}
+
+export interface DepartmentDrilldownProject {
+  projectId: string;
+  projectName: string;
+  employeeCount: number;
+  revenueContributionPaise: number;
+}
+
+export interface DepartmentDrilldownData {
+  departmentId: string;
+  departmentName: string;
+  employees: DepartmentDrilldownEmployee[];
+  projects: DepartmentDrilldownProject[];
+}
+
+// ── Department Comparison (month-over-month) ──
+
+export interface DepartmentMonthData {
+  periodMonth: number;
+  periodYear: number;
+  revenuePaise: number;
+  costPaise: number;
+  profitPaise: number;
+  marginPercent: number | null;
+}
+
+export interface DepartmentComparisonItem {
+  departmentId: string;
+  departmentName: string;
+  months: DepartmentMonthData[];
 }
 
 // ── Company Dashboard ──
@@ -102,16 +151,52 @@ export interface EmployeeMonthlyHistory {
 export interface EmployeeProjectAssignment {
   projectId: string;
   projectName: string;
-  role: string;
+  designationId: string;
+  designationName: string;
+  sellingRatePaise: number | null;
+  assignedAt: string;
+}
+
+export interface EmployeeUtilisationSummary {
+  billableHours: number;
+  totalHours: number;
+  utilisationPercent: number;
 }
 
 export interface EmployeeDetailData {
   employeeId: string;
+  employeeCode: string;
   name: string;
   designation: string;
   department: string;
+  annualCtcPaise: number;
+  isBillable: boolean;
+  isResigned: boolean;
+  utilisationSummary: EmployeeUtilisationSummary | null;
   monthlyHistory: EmployeeMonthlyHistory[];
   projectAssignments: EmployeeProjectAssignment[];
+}
+
+// ── Client Dashboard ──
+
+export interface ClientDashboardItem {
+  clientName: string;
+  totalRevenuePaise: number;
+  totalCostPaise: number;
+  profitPaise: number;
+  marginPercent: number | null;
+  activeProjectCount: number;
+}
+
+export interface ClientProjectItem {
+  projectId: string;
+  projectName: string;
+  engagementModel: string;
+  status: string;
+  revenuePaise: number;
+  costPaise: number;
+  profitPaise: number;
+  marginPercent: number;
 }
 
 // ── Query Keys ──
@@ -123,6 +208,13 @@ export const reportKeys = {
   executive: ['reports', 'executive'] as const,
   practice: ['reports', 'practice'] as const,
   department: ['reports', 'department'] as const,
+  departmentComparison: (months: string[]) =>
+    ['reports', 'department', 'comparison', ...months] as const,
+  departmentDrilldown: (id: string) =>
+    ['reports', 'department', 'drilldown', id] as const,
+  clients: ['reports', 'clients'] as const,
+  clientProjects: (name: string) =>
+    ['reports', 'clients', name, 'projects'] as const,
   company: ['reports', 'company'] as const,
   employees: (filters?: EmployeeDashboardFilters) =>
     ['reports', 'employees', filters ?? {}] as const,
@@ -159,6 +251,22 @@ export function getDepartmentDashboard(): Promise<ListResponse<DepartmentDashboa
   return get<ListResponse<DepartmentDashboardItem>>('/reports/dashboards/department');
 }
 
+export function getDepartmentComparison(
+  months: string[],
+): Promise<ListResponse<DepartmentComparisonItem>> {
+  return get<ListResponse<DepartmentComparisonItem>>(
+    `/reports/dashboards/department?months=${months.join(',')}`,
+  );
+}
+
+export function getDepartmentDrilldown(
+  departmentId: string,
+): Promise<DataResponse<DepartmentDrilldownData>> {
+  return get<DataResponse<DepartmentDrilldownData>>(
+    `/reports/dashboards/department/${departmentId}/drilldown`,
+  );
+}
+
 export function getCompanyDashboard(): Promise<DataResponse<CompanyDashboardData | null>> {
   return get<DataResponse<CompanyDashboardData | null>>('/reports/dashboards/company');
 }
@@ -184,4 +292,16 @@ export function getEmployeeDetail(
   id: string,
 ): Promise<DataResponse<EmployeeDetailData>> {
   return get<DataResponse<EmployeeDetailData>>(`/reports/dashboards/employees/${id}`);
+}
+
+export function getClientDashboard(): Promise<ListResponse<ClientDashboardItem>> {
+  return get<ListResponse<ClientDashboardItem>>('/reports/dashboards/clients');
+}
+
+export function getClientProjects(
+  clientName: string,
+): Promise<ListResponse<ClientProjectItem>> {
+  return get<ListResponse<ClientProjectItem>>(
+    `/reports/dashboards/clients/${encodeURIComponent(clientName)}/projects`,
+  );
 }

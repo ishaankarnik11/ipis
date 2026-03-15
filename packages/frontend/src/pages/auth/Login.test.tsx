@@ -1,144 +1,124 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ConfigProvider } from 'antd';
 import { MemoryRouter } from 'react-router';
 import Login from './Login';
 
-// Mock useAuth hooks
-const mockMutateAsync = vi.fn();
-const mockLoginMutation = {
-  mutateAsync: mockMutateAsync,
-  isPending: false,
-  isError: false,
-  error: null as Error | null,
-};
+const mockRequestOtp = vi.fn();
+const mockVerifyOtp = vi.fn();
 
-const mockNavigate = vi.fn();
-
-vi.mock('../../hooks/useAuth', () => ({
-  useLogin: () => mockLoginMutation,
-  useAuth: () => ({ user: null, isAuthenticated: false, isLoading: false }),
-  getRoleLandingPage: (role: string) => {
-    const pages: Record<string, string> = {
-      ADMIN: '/admin',
-      FINANCE: '/dashboards/executive',
-    };
-    return pages[role] || '/';
-  },
+vi.mock('../../services/auth.api', () => ({
+  authKeys: { me: ['auth', 'me'] },
+  requestOtp: (...args: unknown[]) => mockRequestOtp(...args),
+  verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
 }));
 
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({ user: null, isLoading: false, isAuthenticated: false }),
+  useLogout: () => ({ mutate: vi.fn(), isPending: false }),
+  getRoleLandingPage: () => '/admin',
+}));
+
+const mockNavigate = vi.fn();
 vi.mock('react-router', async () => {
   const actual = await vi.importActual('react-router');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
+  return { ...actual, useNavigate: () => mockNavigate };
 });
 
-function renderLogin(initialEntry = '/login') {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
+function renderLogin() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <Login />
-      </MemoryRouter>
+      <ConfigProvider theme={{ hashed: false }} wave={{ disabled: true }}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </ConfigProvider>
     </QueryClientProvider>,
   );
 }
 
-describe('Login Page', () => {
-  beforeEach(() => {
+describe('Login Page — OTP Flow', () => {
+  afterEach(() => {
+    cleanup();
     vi.clearAllMocks();
-    mockLoginMutation.isPending = false;
-    mockLoginMutation.isError = false;
-    mockLoginMutation.error = null;
   });
 
-  it('should render email and password fields with labels', () => {
+  it('renders email screen with IPIS branding and Send OTP button', () => {
     renderLogin();
 
-    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument();
+    expect(screen.getByText('IPIS')).toBeInTheDocument();
+    expect(screen.getByText('Sign in to IPIS')).toBeInTheDocument();
+    expect(screen.getByText('Work email')).toBeInTheDocument();
+    expect(screen.getByTestId('send-otp-btn')).toBeDisabled();
   });
 
-  it('should call login mutation on valid form submission', async () => {
-    mockMutateAsync.mockResolvedValue({ data: { id: '1', name: 'Admin', role: 'ADMIN', email: 'a@b.com' } });
-
+  it('enables Send OTP when valid email is entered', async () => {
     renderLogin();
     const user = userEvent.setup({ delay: null });
 
-    await user.type(screen.getByLabelText(/email/i), 'admin@test.com');
-    await user.type(screen.getByLabelText(/password/i), 'password123');
-    await user.click(screen.getByRole('button', { name: /log in/i }));
+    await user.type(screen.getByTestId('email-input'), 'test@example.com');
+
+    expect(screen.getByTestId('send-otp-btn')).not.toBeDisabled();
+  });
+
+  it('transitions to OTP screen after successful request', async () => {
+    mockRequestOtp.mockResolvedValue({ success: true });
+    renderLogin();
+    const user = userEvent.setup({ delay: null });
+
+    await user.type(screen.getByTestId('email-input'), 'test@example.com');
+    await user.click(screen.getByTestId('send-otp-btn'));
 
     await waitFor(() => {
-      expect(mockMutateAsync).toHaveBeenCalledWith({
-        email: 'admin@test.com',
-        password: 'password123',
-      });
+      expect(screen.getByText('Enter verification code')).toBeInTheDocument();
+    });
+    expect(screen.getByText('test@example.com')).toBeInTheDocument();
+  });
+
+  it('shows error when OTP request fails', async () => {
+    mockRequestOtp.mockResolvedValue({
+      success: false,
+      error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again in 5 minutes.' },
+    });
+    renderLogin();
+    const user = userEvent.setup({ delay: null });
+
+    await user.type(screen.getByTestId('email-input'), 'test@example.com');
+    await user.click(screen.getByTestId('send-otp-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/too many attempts/i)).toBeInTheDocument();
     });
   });
 
-  it('should redirect to role landing page on successful login', { timeout: 30000 }, async () => {
-    mockMutateAsync.mockResolvedValue({ data: { id: '1', name: 'Admin', role: 'ADMIN', email: 'a@b.com' } });
-
+  it('renders 6 OTP digit inputs on verify screen', async () => {
+    mockRequestOtp.mockResolvedValue({ success: true });
     renderLogin();
     const user = userEvent.setup({ delay: null });
 
-    await user.type(screen.getByLabelText(/email/i), 'admin@test.com');
-    await user.type(screen.getByLabelText(/password/i), 'password123');
-    await user.click(screen.getByRole('button', { name: /log in/i }));
+    await user.type(screen.getByTestId('email-input'), 'test@example.com');
+    await user.click(screen.getByTestId('send-otp-btn'));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/admin', { replace: true });
-    });
-  });
-
-  it('should display error alert on login failure', () => {
-    mockLoginMutation.isError = true;
-    mockLoginMutation.error = new Error('Invalid email or password');
-
-    renderLogin();
-
-    expect(screen.getByText('Invalid email or password')).toBeInTheDocument();
-  });
-
-  it('should display session expired alert when expired param is set', () => {
-    renderLogin('/login?expired=true');
-
-    expect(screen.getByText('Your session has expired. Please log in again.')).toBeInTheDocument();
-  });
-
-  it('should have correct tab order for keyboard accessibility', async () => {
-    renderLogin();
-    const user = userEvent.setup({ delay: null });
-
-    const emailInput = screen.getByLabelText(/email/i);
-    const passwordInput = screen.getByLabelText(/password/i);
-    const submitButton = screen.getByRole('button', { name: /log in/i });
-
-    // Focus the email input explicitly (autoFocus may not work in jsdom)
-    emailInput.focus();
-    expect(emailInput).toHaveFocus();
-
-    // Tab from email should reach password before submit
-    await user.tab();
-    expect(passwordInput).toHaveFocus();
-
-    // Subsequent tabs should eventually reach the submit button
-    let foundSubmit = false;
-    for (let i = 0; i < 5; i++) {
-      await user.tab();
-      if (document.activeElement === submitButton) {
-        foundSubmit = true;
-        break;
+      for (let i = 0; i < 6; i++) {
+        expect(screen.getByTestId(`otp-digit-${i}`)).toBeInTheDocument();
       }
-    }
-    expect(foundSubmit).toBe(true);
+    });
+  });
+
+  it('shows back link on OTP screen', async () => {
+    mockRequestOtp.mockResolvedValue({ success: true });
+    renderLogin();
+    const user = userEvent.setup({ delay: null });
+
+    await user.type(screen.getByTestId('email-input'), 'test@example.com');
+    await user.click(screen.getByTestId('send-otp-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('back-btn')).toBeInTheDocument();
+    });
   });
 });

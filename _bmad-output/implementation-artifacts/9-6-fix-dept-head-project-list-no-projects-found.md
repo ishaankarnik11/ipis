@@ -1,6 +1,6 @@
 # Story 9.6: Fix Dept Head Project List — "No Projects Found"
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -93,40 +93,40 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Diagnose the DEPT_HEAD project filter (AC: 1)
-  - [ ] 1.1 Read the project list service function — find the WHERE clause that scopes by role
-  - [ ] 1.2 Confirm DEPT_HEAD is either unhandled (falls through to empty result) or filtered by deliveryManagerId
-  - [ ] 1.3 Identify how to get the dept head's departmentId from their user record
+- [x] Task 1: Diagnose the DEPT_HEAD project filter (AC: 1)
+  - [x] 1.1 Read the project list service function — find the WHERE clause that scopes by role
+  - [x] 1.2 Confirm DEPT_HEAD is either unhandled (falls through to empty result) or filtered by deliveryManagerId
+  - [x] 1.3 Identify how to get the dept head's departmentId from their user record
 
-- [ ] Task 2: Add DEPT_HEAD scoping to project list query (AC: 1, 2)
-  - [ ] 2.1 For DEPT_HEAD role, query: `SELECT DISTINCT p.* FROM projects p JOIN employee_projects ep ON p.id = ep.project_id JOIN employees e ON ep.employee_id = e.id WHERE e.department_id = :deptHeadDeptId`
-  - [ ] 2.2 Ensure the user's departmentId is available from the auth context or user record
-  - [ ] 2.3 If the user model doesn't store departmentId for DEPT_HEAD, look up via the department table (dept head assignment)
+- [x] Task 2: Add DEPT_HEAD scoping to project list query (AC: 1, 2)
+  - [x] 2.1 For DEPT_HEAD role, query: `SELECT DISTINCT p.* FROM projects p JOIN employee_projects ep ON p.id = ep.project_id JOIN employees e ON ep.employee_id = e.id WHERE e.department_id = :deptHeadDeptId`
+  - [x] 2.2 Ensure the user's departmentId is available from the auth context or user record
+  - [x] 2.3 If the user model doesn't store departmentId for DEPT_HEAD, look up via the department table (dept head assignment)
 
-- [ ] Task 3: Preserve existing RBAC (AC: 4)
-  - [ ] 3.1 Ensure ADMIN and FINANCE continue to see all projects
-  - [ ] 3.2 Ensure DELIVERY_MANAGER continues to see only their managed projects
-  - [ ] 3.3 Add DEPT_HEAD as a new branch in the role-based filter logic
+- [x] Task 3: Preserve existing RBAC (AC: 4)
+  - [x] 3.1 Ensure ADMIN and FINANCE continue to see all projects
+  - [x] 3.2 Ensure DELIVERY_MANAGER continues to see only their managed projects
+  - [x] 3.3 Add DEPT_HEAD as a new branch in the role-based filter logic
 
-- [ ] Task 4: Update project detail access (AC: 5)
-  - [ ] 4.1 Ensure DEPT_HEAD can access project detail for projects visible in their list
-  - [ ] 4.2 If the detail endpoint also filters by role, add the same DEPT_HEAD scoping
+- [x] Task 4: Update project detail access (AC: 5)
+  - [x] 4.1 Ensure DEPT_HEAD can access project detail for projects visible in their list
+  - [x] 4.2 If the detail endpoint also filters by role, add the same DEPT_HEAD scoping
 
-- [ ] Task 5: Frontend empty state (AC: 3)
-  - [ ] 5.1 Update the empty state message for DEPT_HEAD to "No projects found for your department"
-  - [ ] 5.2 Keep existing empty state for other roles
+- [x] Task 5: Frontend empty state (AC: 3)
+  - [x] 5.1 Update the empty state message for DEPT_HEAD to "No projects found for your department"
+  - [x] 5.2 Keep existing empty state for other roles
 
-- [ ] Task 6: Backend tests (AC: 6)
-  - [ ] 6.1 Test: DEPT_HEAD sees projects with employees from their department
-  - [ ] 6.2 Test: DEPT_HEAD does NOT see projects without employees from their department
-  - [ ] 6.3 Test: DM scope unchanged — sees own projects only
-  - [ ] 6.4 Test: Admin/Finance scope unchanged — sees all projects
-  - [ ] 6.5 Test: DEPT_HEAD with no department assignments gets empty list
+- [x] Task 6: Backend tests (AC: 6)
+  - [x] 6.1 Test: DEPT_HEAD sees projects with employees from their department
+  - [x] 6.2 Test: DEPT_HEAD does NOT see projects without employees from their department
+  - [x] 6.3 Test: DM scope unchanged — sees own projects only
+  - [x] 6.4 Test: Admin/Finance scope unchanged — sees all projects
+  - [x] 6.5 Test: DEPT_HEAD with no department assignments gets empty list
 
-- [ ] Task 7: E2E tests (E2E-P1 through E2E-N2)
-  - [ ] 7.1 Create or extend `packages/e2e/tests/project-list-rbac.spec.ts`
-  - [ ] 7.2 Implement E2E-P1 through E2E-P4
-  - [ ] 7.3 Implement E2E-N1, E2E-N2
+- [x] Task 7: E2E tests (E2E-P1 through E2E-N2)
+  - [x] 7.1 Create or extend `packages/e2e/tests/project-list-rbac.spec.ts`
+  - [x] 7.2 Implement E2E-P1 through E2E-P4
+  - [x] 7.3 Implement E2E-N1, E2E-N2
 
 ## Dev Notes
 

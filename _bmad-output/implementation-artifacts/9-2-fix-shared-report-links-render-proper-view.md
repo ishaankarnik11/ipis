@@ -1,6 +1,6 @@
 # Story 9.2: Fix Shared Report Links — Render Proper View
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -97,42 +97,42 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Diagnose the routing issue (AC: 2)
-  - [ ] 1.1 Check React Router config — is `/share/:token` wired to `ShareableReportView`?
-  - [ ] 1.2 If the route is missing, add it to the router configuration
-  - [ ] 1.3 Verify the share API endpoint (`GET /api/v1/share/:token`) returns structured data, not a rendered page
+- [x] Task 1: Diagnose the routing issue (AC: 2)
+  - [x] 1.1 Check React Router config — is `/share/:token` wired to `ShareableReportView`?
+  - [x] 1.2 If the route is missing, add it to the router configuration
+  - [x] 1.3 Verify the share API endpoint (`GET /api/v1/share/:token`) returns structured data, not a rendered page
 
-- [ ] Task 2: Fix or build ShareableReportView component (AC: 1, 3)
-  - [ ] 2.1 Check if `ShareableReportView.tsx` exists and what it currently renders
-  - [ ] 2.2 If it dumps raw JSON, replace with proper component rendering
-  - [ ] 2.3 Parse the `dashboardType` from the API response to determine which layout to render
-  - [ ] 2.4 Render appropriate components: KpiTile, MarginHealthBadge, antd Table/Statistic
+- [x] Task 2: Fix or build ShareableReportView component (AC: 1, 3)
+  - [x] 2.1 Check if `ShareableReportView.tsx` exists and what it currently renders
+  - [x] 2.2 If it dumps raw JSON, replace with proper component rendering
+  - [x] 2.3 Parse the `dashboardType` from the API response to determine which layout to render
+  - [x] 2.4 Render appropriate components: KpiTile, MarginHealthBadge, antd Table/Statistic
 
-- [ ] Task 3: Executive Dashboard share view (AC: 4)
-  - [ ] 3.1 Create an `ExecutiveShareView` sub-component or reuse `ExecutiveDashboard` in read-only mode
-  - [ ] 3.2 Render: company KPI tiles, top 5/bottom 5 project sections, department breakdown table
+- [x] Task 3: Executive Dashboard share view (AC: 4)
+  - [x] 3.1 Create an `ExecutiveShareView` sub-component or reuse `ExecutiveDashboard` in read-only mode
+  - [x] 3.2 Render: company KPI tiles, top 5/bottom 5 project sections, department breakdown table
 
-- [ ] Task 4: Project Dashboard share view (AC: 5)
-  - [ ] 4.1 Render: project list table with financial columns, margin badges, summary KPIs
+- [x] Task 4: Project Dashboard share view (AC: 5)
+  - [x] 4.1 Render: project list table with financial columns, margin badges, summary KPIs
 
-- [ ] Task 5: Department Dashboard share view (AC: 6)
-  - [ ] 5.1 Render: department KPI tiles, project breakdown table
+- [x] Task 5: Department Dashboard share view (AC: 6)
+  - [x] 5.1 Render: department KPI tiles, project breakdown table
 
-- [ ] Task 6: Error handling (AC: 7)
-  - [ ] 6.1 Handle 404/410 from share API — render a clean error page with user-friendly message
-  - [ ] 6.2 Style the error page consistently with the app's design system
+- [x] Task 6: Error handling (AC: 7)
+  - [x] 6.1 Handle 404/410 from share API — render a clean error page with user-friendly message
+  - [x] 6.2 Style the error page consistently with the app's design system
 
-- [ ] Task 7: Frontend tests (AC: 8)
-  - [ ] 7.1 Create `pages/reports/shareable-report.test.tsx`
-  - [ ] 7.2 Test: component renders KPI tiles from mock executive data
-  - [ ] 7.3 Test: component renders project table from mock project data
-  - [ ] 7.4 Test: component renders error page for expired token
-  - [ ] 7.5 Test: no raw JSON visible in rendered output (assert no `<pre>` or `JSON.stringify` output)
+- [x] Task 7: Frontend tests (AC: 8)
+  - [x] 7.1 Create `pages/reports/shareable-report.test.tsx`
+  - [x] 7.2 Test: component renders KPI tiles from mock executive data
+  - [x] 7.3 Test: component renders project table from mock project data
+  - [x] 7.4 Test: component renders error page for expired token
+  - [x] 7.5 Test: no raw JSON visible in rendered output (assert no `<pre>` or `JSON.stringify` output)
 
-- [ ] Task 8: E2E tests (E2E-P1 through E2E-N2)
-  - [ ] 8.1 Create or extend `packages/e2e/tests/shareable-report.spec.ts`
-  - [ ] 8.2 Implement E2E-P1 through E2E-P3
-  - [ ] 8.3 Implement E2E-N1, E2E-N2
+- [x] Task 8: E2E tests (E2E-P1 through E2E-N2)
+  - [x] 8.1 Create or extend `packages/e2e/tests/shareable-report.spec.ts`
+  - [x] 8.2 Implement E2E-P1 through E2E-P3
+  - [x] 8.3 Implement E2E-N1, E2E-N2
 
 ## Dev Notes
 

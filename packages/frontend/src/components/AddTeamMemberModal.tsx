@@ -5,13 +5,13 @@ import TeamMemberRow, { type TeamMemberRowValue } from './TeamMemberRow';
 interface AddTeamMemberModalProps {
   open: boolean;
   onCancel: () => void;
-  onSubmit: (data: { employeeId: string; roleId: string; billingRatePaise?: number }) => Promise<void>;
+  onSubmit: (data: { employeeId: string; designationId: string; billingRatePaise?: number; allocationPercent?: number }) => Promise<void>;
   existingMemberIds: string[];
   isTm: boolean;
   loading: boolean;
 }
 
-const emptyRow: TeamMemberRowValue = { employeeId: null, roleId: null, sellingRate: null };
+const emptyRow: TeamMemberRowValue = { employeeId: null, designationId: null, sellingRate: null, allocationPercent: null };
 
 export default function AddTeamMemberModal({
   open,
@@ -25,8 +25,8 @@ export default function AddTeamMemberModal({
   const [error, setError] = useState<string | null>(null);
 
   const handleOk = async () => {
-    if (!value.employeeId || !value.roleId) {
-      setError('Employee and role are required');
+    if (!value.employeeId || !value.designationId) {
+      setError('Employee and designation are required');
       return;
     }
     if (isTm && !value.sellingRate) {
@@ -38,8 +38,9 @@ export default function AddTeamMemberModal({
       setError(null);
       await onSubmit({
         employeeId: value.employeeId,
-        roleId: value.roleId,
+        designationId: value.designationId,
         billingRatePaise: value.sellingRate != null ? Math.round(value.sellingRate * 100) : undefined,
+        allocationPercent: value.allocationPercent ?? undefined,
       });
       setValue({ ...emptyRow });
     } catch (err) {
@@ -64,7 +65,7 @@ export default function AddTeamMemberModal({
       okText="Add Member"
       confirmLoading={loading}
       destroyOnClose
-      width={700}
+      width={600}
     >
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} showIcon />}
       <TeamMemberRow

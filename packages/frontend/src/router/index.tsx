@@ -1,16 +1,14 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 import type { UserRole } from '@ipis/shared';
-import { AuthGuard, LoginGuard, RoleGuard, ChangePasswordGuard } from './guards';
+import { AuthGuard, LoginGuard, RoleGuard } from './guards';
 import AppLayout from '../layouts/AppLayout';
 import Login from '../pages/auth/Login';
-import ForgotPassword from '../pages/auth/ForgotPassword';
-import ResetPassword from '../pages/auth/ResetPassword';
-import ChangePassword from '../pages/auth/ChangePassword';
+import AcceptInvitation from '../pages/auth/AcceptInvitation';
 import UserManagement from '../pages/admin/UserManagement';
 import SystemConfig from '../pages/admin/SystemConfig';
 import AuditLog from '../pages/admin/AuditLog';
 import PendingApprovals from '../pages/admin/PendingApprovals';
-import EmployeeList from '../pages/employees/EmployeeList';
+import DepartmentManagement from '../pages/admin/DepartmentManagement';
 import UploadCenter from '../pages/upload/UploadCenter';
 import CreateEditProject from '../pages/projects/CreateEditProject';
 import ProjectList from '../pages/projects/ProjectList';
@@ -21,6 +19,7 @@ import DepartmentDashboard from '../pages/dashboards/DepartmentDashboard';
 import CompanyDashboard from '../pages/dashboards/CompanyDashboard';
 import EmployeeDashboard from '../pages/dashboards/EmployeeDashboard';
 import EmployeeDetail from '../pages/dashboards/EmployeeDetail';
+import ClientDashboard from '../pages/dashboards/ClientDashboard';
 import SharedReport from '../pages/reports/SharedReport';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
@@ -36,21 +35,14 @@ export const router = createBrowserRouter([
     element: <LoginGuard />,
     children: [
       { path: '/login', element: <Login /> },
-      { path: '/forgot-password', element: <ForgotPassword /> },
-      { path: '/reset-password', element: <ResetPassword /> },
     ],
   },
 
   // Public shared report page (no auth required)
   { path: '/reports/shared/:token', element: <SharedReport /> },
 
-  // Change password route (protected, but only accessible when mustChangePassword is true)
-  {
-    element: <ChangePasswordGuard />,
-    children: [
-      { path: '/change-password', element: <ChangePassword /> },
-    ],
-  },
+  // Public invitation acceptance page (no auth required)
+  { path: '/accept-invitation/:token', element: <AcceptInvitation /> },
 
   // Protected routes (auth guard redirects unauthenticated users to login)
   {
@@ -68,23 +60,19 @@ export const router = createBrowserRouter([
             children: [
               { path: '/admin', element: <Navigate to="/admin/users" replace /> },
               { path: '/admin/users', element: <UserManagement /> },
+              { path: '/admin/departments', element: <DepartmentManagement /> },
               { path: '/admin/config', element: <SystemConfig /> },
               { path: '/admin/pending-approvals', element: <PendingApprovals /> },
               { path: '/admin/audit-log', element: <AuditLog /> },
             ],
           },
 
-          // Employee management (HR, Admin, Finance)
-          {
-            element: <RoleGuard allowedRoles={['HR', 'ADMIN', 'FINANCE']} />,
-            children: [
-              { path: '/employees', element: <EmployeeList /> },
-            ],
-          },
+          // Legacy /employees redirect → unified Employee Dashboard
+          { path: '/employees', element: <Navigate to="/dashboards/employees" replace /> },
 
-          // Upload Center (HR, Finance, Admin)
+          // Upload Center (HR, Finance, Admin, DM)
           {
-            element: <RoleGuard allowedRoles={['HR', 'FINANCE', 'ADMIN']} />,
+            element: <RoleGuard allowedRoles={['HR', 'FINANCE', 'ADMIN', 'DELIVERY_MANAGER']} />,
             children: [
               { path: '/uploads', element: <UploadCenter /> },
             ],
@@ -97,10 +85,11 @@ export const router = createBrowserRouter([
               { path: '/projects/:id/edit', element: <CreateEditProject /> },
             ],
           },
+          // Legacy /projects redirect → unified Project Dashboard
+          { path: '/projects', element: <Navigate to="/dashboards/projects" replace /> },
           {
             element: <RoleGuard allowedRoles={['ADMIN', 'FINANCE', 'DELIVERY_MANAGER', 'DEPT_HEAD']} />,
             children: [
-              { path: '/projects', element: <ProjectList /> },
               { path: '/projects/:id', element: <ProjectDetail /> },
             ],
           },
@@ -115,16 +104,17 @@ export const router = createBrowserRouter([
             children: [
               { path: '/dashboards/executive', element: <ExecutiveDashboard /> },
               { path: '/dashboards/company', element: <CompanyDashboard /> },
+              { path: '/dashboards/clients', element: <ClientDashboard /> },
             ],
           },
           {
-            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER']} />,
+            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER', 'HR']} />,
             children: [
               { path: '/dashboards/department', element: <DepartmentDashboard /> },
             ],
           },
           {
-            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DEPT_HEAD']} />,
+            element: <RoleGuard allowedRoles={['FINANCE', 'ADMIN', 'DEPT_HEAD', 'HR']} />,
             children: [
               { path: '/dashboards/employees', element: <EmployeeDashboard /> },
               { path: '/dashboards/employees/:id', element: <EmployeeDetail /> },

@@ -6,7 +6,17 @@ import { sendEmail } from '../lib/email.js';
 import { logger } from '../lib/logger.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js';
 import { logAuditEvent } from './audit.service.js';
-import { validateRoleId } from './project-role.service.js';
+import { validateDesignationId } from './designation.service.js';
+import { triggerRecalculationForLatestPeriod } from './upload.service.js';
+
+/** Status priority for default project list sort order: lower = higher priority */
+export const STATUS_PRIORITY: Record<string, number> = {
+  ACTIVE: 1,
+  PENDING_APPROVAL: 2,
+  ON_HOLD: 3,
+  COMPLETED: 4,
+  REJECTED: 5,
+};
 
 interface RequestUser {
   id: string;
@@ -64,7 +74,7 @@ function serializeProject(project: ProjectRow) {
 
 async function getAdminEmails(): Promise<string[]> {
   const admins = await prisma.user.findMany({
-    where: { role: 'ADMIN', isActive: true },
+    where: { role: 'ADMIN', status: 'ACTIVE' },
     select: { email: true },
   });
   return admins.map((a) => a.email);
@@ -87,7 +97,7 @@ async function atomicStatusTransition(
   id: string,
   expectedStatus: string,
   data: Prisma.ProjectUpdateInput,
-): Promise<{ id: string; name: string; deliveryManagerId: string }> {
+): Promise<{ id: string; name: string; deliveryManagerId: string | null }> {
   try {
     const updated = await prisma.project.update({
       where: { id, status: expectedStatus as Prisma.EnumProjectStatusFilter['equals'] },
@@ -186,21 +196,22 @@ export async function createProject(data: CreateProjectInput, user: RequestUser,
         throw new ValidationError(`Cannot assign resigned employee ${employee.name} to a project`);
       }
 
-      // Validate role is active
-      const role = await tx.projectRole.findUnique({
-        where: { id: member.roleId },
+      // Validate designation is active
+      const desig = await tx.designation.findUnique({
+        where: { id: member.designationId },
         select: { isActive: true },
       });
-      if (!role || !role.isActive) {
-        throw new ValidationError('Invalid or inactive project role');
+      if (!desig || !desig.isActive) {
+        throw new ValidationError('Invalid or inactive designation');
       }
 
       await tx.employeeProject.create({
         data: {
           projectId: created.id,
           employeeId: member.employeeId,
-          roleId: member.roleId,
+          designationId: member.designationId,
           billingRatePaise: member.billingRatePaise ?? null,
+          allocationPercent: member.allocationPercent ?? 100,
         },
       });
     }
@@ -233,34 +244,107 @@ export async function createProject(data: CreateProjectInput, user: RequestUser,
   return serializeProject(project);
 }
 
-export async function getAll(user: RequestUser) {
+interface ProjectFinancials {
+  revenuePaise: number | null;
+  costPaise: number | null;
+  profitPaise: number | null;
+  marginPercent: number | null;
+}
+
+/**
+ * Fetches per-project financial data from calculation_snapshots.
+ * Uses the latest MARGIN_PERCENT snapshot per project (same approach as Executive Dashboard)
+ * with breakdownJson for revenue/cost/profit values, plus individual figureType queries
+ * for projects that may have partial snapshots.
+ */
+async function getProjectFinancialsMap(
+  projectIds: string[],
+): Promise<Map<string, ProjectFinancials>> {
+  if (projectIds.length === 0) return new Map();
+
+  // Fetch MARGIN_PERCENT snapshots — extract revenue/cost/profit from breakdownJson
+  // (same approach as dashboard.service.ts — single source of truth)
+  const snapshots = await prisma.calculationSnapshot.findMany({
+    where: {
+      entityType: 'PROJECT',
+      entityId: { in: projectIds },
+      figureType: 'MARGIN_PERCENT',
+    },
+    orderBy: { calculatedAt: 'desc' },
+    select: {
+      entityId: true,
+      valuePaise: true,
+      breakdownJson: true,
+    },
+  });
+
+  // Deduplicate: keep latest per entityId (already sorted desc)
+  const result = new Map<string, ProjectFinancials>();
+  for (const snap of snapshots) {
+    if (result.has(snap.entityId)) continue;
+    const breakdown = (snap.breakdownJson as Record<string, unknown>) ?? {};
+    const revenuePaise = (breakdown.revenue as number) ?? null;
+    const costPaise = (breakdown.cost as number) ?? null;
+    const profitPaise = (breakdown.profit as number) ?? (revenuePaise != null && costPaise != null ? revenuePaise - costPaise : null);
+    const marginPercent = Number(snap.valuePaise) / 10000;
+    result.set(snap.entityId, { revenuePaise, costPaise, profitPaise, marginPercent });
+  }
+
+  return result;
+}
+
+export async function getAll(user: RequestUser, options?: { scope?: string }) {
   let where: Prisma.ProjectWhereInput = {};
+  const scope = options?.scope;
 
   if (user.role === 'ADMIN' || user.role === 'FINANCE') {
     where = {};
   } else if (user.role === 'DEPT_HEAD') {
-    // DEPT_HEAD sees projects whose delivery manager shares the same department
+    // DEPT_HEAD sees projects that have at least one team member from their department
     const deptHead = await prisma.user.findUnique({
       where: { id: user.id },
       select: { departmentId: true },
     });
     if (deptHead?.departmentId) {
-      where = { deliveryManager: { departmentId: deptHead.departmentId } };
+      where = {
+        employeeProjects: {
+          some: {
+            employee: { departmentId: deptHead.departmentId },
+          },
+        },
+      };
     } else {
-      where = { deliveryManagerId: user.id };
+      where = { id: 'NO_MATCH' }; // No department → no projects
     }
+  } else if (user.role === 'DELIVERY_MANAGER' && scope === 'all') {
+    // DM with scope=all — show all projects (cross-project visibility)
+    where = {};
   } else {
-    // DELIVERY_MANAGER — own projects only
+    // DELIVERY_MANAGER default — own projects only
     where = { deliveryManagerId: user.id };
   }
 
   const projects = await prisma.project.findMany({
     where,
     select: PROJECT_SELECT,
-    orderBy: { createdAt: 'desc' },
   });
 
-  return projects.map(serializeProject);
+  // Sort by status priority (ACTIVE first), then name ASC within each group
+  projects.sort((a, b) => {
+    const aPriority = STATUS_PRIORITY[a.status] ?? 99;
+    const bPriority = STATUS_PRIORITY[b.status] ?? 99;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Fetch financial data from calculation_snapshots (same source as Executive Dashboard)
+  const projectIds = projects.map((p) => p.id);
+  const financialsMap = await getProjectFinancialsMap(projectIds);
+
+  return projects.map((p) => ({
+    ...serializeProject(p),
+    financials: financialsMap.get(p.id) ?? null,
+  }));
 }
 
 export async function getById(id: string, user: RequestUser) {
@@ -273,48 +357,111 @@ export async function getById(id: string, user: RequestUser) {
     throw new NotFoundError('Project not found');
   }
 
-  // Ownership check for DM
-  if (
-    user.role === 'DELIVERY_MANAGER' &&
-    project.deliveryManagerId !== user.id
-  ) {
-    throw new ForbiddenError('Access denied');
+  // DM: read-only access to all projects (cross-project visibility per Story 10.6)
+  // Write operations (update, resubmit) have their own ownership checks
+
+  // DEPT_HEAD: can only access projects with team members from their department
+  if (user.role === 'DEPT_HEAD') {
+    const deptHead = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { departmentId: true },
+    });
+    if (!deptHead?.departmentId) {
+      throw new ForbiddenError('Access denied');
+    }
+    const hasDeptMember = await prisma.employeeProject.findFirst({
+      where: {
+        projectId: id,
+        employee: { departmentId: deptHead.departmentId },
+      },
+    });
+    if (!hasDeptMember) {
+      throw new ForbiddenError('Access denied');
+    }
   }
 
-  // Query latest calculation snapshots for project financials
-  const snapshots = await prisma.calculationSnapshot.findMany({
+  // Query latest MARGIN_PERCENT snapshot — extract revenue/cost/profit from breakdownJson
+  // (same approach as dashboard.service.ts — single source of truth)
+  const marginSnap = await prisma.calculationSnapshot.findFirst({
     where: {
       entityType: 'PROJECT',
       entityId: id,
-      figureType: { in: ['MARGIN_PERCENT', 'EMPLOYEE_COST', 'REVENUE_CONTRIBUTION'] },
+      figureType: 'MARGIN_PERCENT',
     },
     orderBy: { calculatedAt: 'desc' },
-    select: { figureType: true, valuePaise: true },
+    select: { valuePaise: true, breakdownJson: true },
   });
 
-  // Deduplicate: keep latest per figureType (already sorted desc)
-  const seen = new Set<string>();
-  let revenuePaise: number | null = null;
-  let costPaise: number | null = null;
-  let marginBasisPoints: number | null = null;
+  let financials: {
+    revenuePaise: number | null;
+    costPaise: number | null;
+    profitPaise: number | null;
+    marginPercent: number | null;
+    burnRatePaise: number | null;
+    plannedBurnRatePaise: number | null;
+    budgetPaise: number | null;
+    actualCostPaise: number | null;
+    variancePaise: number | null;
+    consumedPercent: number | null;
+  } | null = null;
+  if (marginSnap) {
+    const breakdown = marginSnap.breakdownJson as Record<string, unknown>;
+    const revenuePaise = (breakdown.revenue as number) ?? null;
+    const costPaise = (breakdown.cost as number) ?? null;
+    const profitPaise = (breakdown.profit as number) ?? (revenuePaise != null && costPaise != null ? revenuePaise - costPaise : null);
+    const marginPercent = Number(marginSnap.valuePaise) / 10000;
 
-  for (const snap of snapshots) {
-    if (seen.has(snap.figureType)) continue;
-    seen.add(snap.figureType);
-    if (snap.figureType === 'REVENUE_CONTRIBUTION') revenuePaise = Number(snap.valuePaise);
-    else if (snap.figureType === 'EMPLOYEE_COST') costPaise = Number(snap.valuePaise);
-    else if (snap.figureType === 'MARGIN_PERCENT') marginBasisPoints = Number(snap.valuePaise);
-  }
+    // Compute burn rate
+    let burnRatePaise: number | null = null;
+    let plannedBurnRatePaise: number | null = null;
 
-  const hasFinancials = revenuePaise !== null || costPaise !== null || marginBasisPoints !== null;
-  const financials = hasFinancials
-    ? {
-        revenuePaise,
-        costPaise,
-        profitPaise: revenuePaise != null && costPaise != null ? revenuePaise - costPaise : null,
-        marginPercent: marginBasisPoints != null ? marginBasisPoints / 10000 : null,
+    // Count distinct periods with snapshot data for this project
+    const allSnaps = await prisma.calculationSnapshot.findMany({
+      where: { entityType: 'PROJECT', entityId: id, figureType: 'MARGIN_PERCENT' },
+      select: { periodMonth: true, periodYear: true, breakdownJson: true, calculatedAt: true },
+      orderBy: { calculatedAt: 'desc' },
+    });
+    const seenPeriods = new Set<string>();
+    let totalCost = 0;
+    for (const s of allSnaps) {
+      const pKey = `${s.periodYear}-${s.periodMonth}`;
+      if (seenPeriods.has(pKey)) continue;
+      seenPeriods.add(pKey);
+      const bd = s.breakdownJson as Record<string, number>;
+      totalCost += bd.cost ?? 0;
+    }
+
+    if (totalCost > 0) {
+      if (project.engagementModel === 'FIXED_COST') {
+        const now = new Date();
+        const start = new Date(project.startDate);
+        const monthsElapsed = Math.max(1,
+          (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1,
+        );
+        burnRatePaise = Math.round(totalCost / monthsElapsed);
+
+        if (project.contractValuePaise && project.endDate) {
+          const end = new Date(project.endDate);
+          const plannedMonths = Math.max(1,
+            (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1,
+          );
+          plannedBurnRatePaise = Math.round(Number(project.contractValuePaise) / plannedMonths);
+        }
+      } else {
+        const months = Math.max(1, seenPeriods.size);
+        burnRatePaise = Math.round(totalCost / months);
       }
-    : null;
+    }
+
+    // Budget vs Actual (Fixed Cost only)
+    const isFixedCost = project.engagementModel === 'FIXED_COST';
+    const budgetPaise = isFixedCost && project.contractValuePaise ? Number(project.contractValuePaise) : null;
+    const actualCostPaise = totalCost;
+    const variancePaise = budgetPaise != null ? budgetPaise - actualCostPaise : null;
+    const consumedPercent = budgetPaise != null && budgetPaise > 0 ? (actualCostPaise / budgetPaise) * 100 : null;
+
+    financials = { revenuePaise, costPaise, profitPaise, marginPercent, burnRatePaise, plannedBurnRatePaise, budgetPaise, actualCostPaise, variancePaise, consumedPercent };
+  }
 
   return { ...serializeProject(project), financials };
 }
@@ -334,7 +481,7 @@ export async function approveProject(id: string, actorId?: string, ipAddress?: s
   });
 
   // Fire-and-forget email to DM
-  getDmEmail(project.deliveryManagerId)
+  if (project.deliveryManagerId) getDmEmail(project.deliveryManagerId)
     .then((email) => {
       if (email) {
         return sendEmail({
@@ -363,7 +510,7 @@ export async function rejectProject(id: string, comment: string, actorId?: strin
   });
 
   // Fire-and-forget email to DM
-  getDmEmail(project.deliveryManagerId)
+  if (project.deliveryManagerId) getDmEmail(project.deliveryManagerId)
     .then((email) => {
       if (email) {
         return sendEmail({
@@ -554,24 +701,44 @@ export async function addTeamMember(
     throw new ValidationError('Cannot assign a resigned employee to a project');
   }
 
-  // Validate roleId references an active ProjectRole
-  await validateRoleId(data.roleId);
+  // Validate designationId references an active Designation
+  await validateDesignationId(data.designationId);
+
+  // Check total allocation across all projects
+  const existingAllocations = await prisma.employeeProject.findMany({
+    where: { employeeId: data.employeeId },
+    select: { allocationPercent: true },
+  });
+  const currentTotal = existingAllocations.reduce((sum, a) => sum + a.allocationPercent, 0);
+  const newAllocation = data.allocationPercent ?? 100;
+  const overAllocated = currentTotal + newAllocation > 100;
 
   try {
     const record = await prisma.employeeProject.create({
       data: {
         projectId,
         employeeId: data.employeeId,
-        roleId: data.roleId,
+        designationId: data.designationId,
         billingRatePaise: data.billingRatePaise ?? null,
+        allocationPercent: newAllocation,
       },
     });
 
+    // Trigger recalculation for this project
+    try {
+      await triggerRecalculationForLatestPeriod();
+    } catch (recalcError) {
+      logger.error({ recalcError, projectId }, 'Recalculation failed after adding team member');
+    }
+
     return {
       employeeId: record.employeeId,
-      roleId: record.roleId,
+      designationId: record.designationId,
       billingRatePaise: record.billingRatePaise != null ? Number(record.billingRatePaise) : null,
+      allocationPercent: record.allocationPercent,
       assignedAt: record.assignedAt,
+      overAllocated,
+      totalAllocation: currentTotal + newAllocation,
     };
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
@@ -588,9 +755,9 @@ export async function getTeamMembers(projectId: string, user: RequestUser) {
     where: { projectId },
     include: {
       employee: {
-        select: { name: true, designation: true },
+        select: { name: true, designation: true, annualCtcPaise: true },
       },
-      projectRole: {
+      designation: {
         select: { name: true },
       },
     },
@@ -600,10 +767,12 @@ export async function getTeamMembers(projectId: string, user: RequestUser) {
   return members.map((m) => ({
     employeeId: m.employeeId,
     name: m.employee.name,
-    designation: m.employee.designation,
-    roleId: m.roleId,
-    roleName: m.projectRole.name,
+    employeeDesignation: m.employee.designation,
+    designationId: m.designationId,
+    designationName: m.designation.name,
     billingRatePaise: m.billingRatePaise != null ? Number(m.billingRatePaise) : null,
+    monthlyCostPaise: Number(m.employee.annualCtcPaise) / 12,
+    allocationPercent: m.allocationPercent,
     assignedAt: m.assignedAt,
   }));
 }
@@ -621,6 +790,13 @@ export async function removeTeamMember(
         projectId_employeeId: { projectId, employeeId },
       },
     });
+
+    // Trigger recalculation for this project
+    try {
+      await triggerRecalculationForLatestPeriod();
+    } catch (recalcError) {
+      logger.error({ recalcError, projectId }, 'Recalculation failed after removing team member');
+    }
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
       throw new NotFoundError('Team member not found');

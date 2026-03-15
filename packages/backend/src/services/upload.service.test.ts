@@ -402,13 +402,13 @@ describe('upload.service — processBillingUpload', () => {
     });
     employeeId = emp.id;
 
-    const devRole = await prisma.projectRole.create({ data: { name: 'Developer' } });
+    const devRole = await prisma.designation.create({ data: { name: 'Developer' } });
 
     await prisma.employeeProject.create({
       data: {
         projectId,
         employeeId,
-        roleId: devRole.id,
+        designationId: devRole.id,
         billingRatePaise: BigInt(5000_00), // 5000 rupees/hr in paise
       },
     });

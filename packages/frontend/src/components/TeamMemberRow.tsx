@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Select, InputNumber, Button } from 'antd';
+import { Select, InputNumber, Button, Row, Col } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { employeeKeys, searchEmployees } from '../services/employees.api';
-import { projectRoleKeys, getActiveProjectRoles } from '../services/project-roles.api';
+import { designationKeys, getActiveDesignations } from '../services/designations.api';
 
 export interface TeamMemberRowValue {
   employeeId: string | null;
-  roleId: string | null;
+  designationId: string | null;
   sellingRate: number | null; // rupees (user-facing)
+  allocationPercent: number | null;
 }
 
 interface TeamMemberRowProps {
@@ -44,35 +45,58 @@ export default function TeamMemberRow({
     enabled: debouncedQuery.length >= 2,
   });
 
-  const { data: rolesData } = useQuery({
-    queryKey: projectRoleKeys.active,
-    queryFn: getActiveProjectRoles,
+  const { data: designationsData } = useQuery({
+    queryKey: designationKeys.active,
+    queryFn: getActiveDesignations,
   });
 
   const isTm = engagementModel === 'TIME_AND_MATERIALS';
 
-  const employeeOptions = (searchResults?.data ?? [])
+  const employees = searchResults?.data ?? [];
+  const designations = designationsData?.data ?? [];
+
+  const employeeOptions = employees
     .filter((e) => !existingEmployeeIds.includes(e.id) || e.id === value.employeeId)
     .map((e) => ({
       value: e.id,
       label: `${e.name} (${e.employeeCode}) — ${e.designation}, ${e.departmentName}`,
     }));
 
-  const roleOptions = (rolesData?.data ?? []).map((r) => ({
+  const designationOptions = designations.map((r) => ({
     value: r.id,
     label: r.name,
   }));
 
+  // Auto-populate designation from employee designation (Story 10.8)
+  const handleEmployeeChange = (employeeId: string | null) => {
+    if (!employeeId) {
+      onChange({ ...value, employeeId: null });
+      return;
+    }
+    const employee = employees.find((e) => e.id === employeeId);
+    let matchedDesignationId: string | null = value.designationId;
+    if (employee?.designation && !value.designationId) {
+      const empDesignation = employee.designation.toLowerCase();
+      const match = designations.find((r) => r.name.toLowerCase() === empDesignation);
+      if (match) {
+        matchedDesignationId = match.id;
+      }
+    }
+    onChange({ ...value, employeeId, designationId: matchedDesignationId });
+  };
+
   return (
-    <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
-      <div style={{ flex: 2 }}>
+    <div style={{ marginBottom: 12 }}>
+      {/* Row 1: Employee (full width) */}
+      <div style={{ marginBottom: 8 }}>
+        <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Employee</label>
         <Select
           showSearch
           placeholder="Search employee (min 2 chars)"
           filterOption={false}
           onSearch={setSearchQuery}
           value={value.employeeId}
-          onChange={(employeeId) => onChange({ ...value, employeeId })}
+          onChange={handleEmployeeChange}
           options={employeeOptions}
           loading={isSearching}
           allowClear
@@ -81,40 +105,65 @@ export default function TeamMemberRow({
           data-testid="employee-search"
         />
       </div>
-      <div style={{ flex: 1 }}>
+
+      {/* Row 2: Designation (full width) */}
+      <div style={{ marginBottom: 8 }}>
+        <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Designation</label>
         <Select
           showSearch
-          placeholder="Select role"
+          placeholder="Select designation"
           optionFilterProp="label"
-          value={value.roleId}
-          onChange={(roleId) => onChange({ ...value, roleId })}
-          options={roleOptions}
+          value={value.designationId}
+          onChange={(designationId) => onChange({ ...value, designationId })}
+          options={designationOptions}
           allowClear
           style={{ width: '100%' }}
-          data-testid="role-select"
+          data-testid="designation-select"
         />
       </div>
-      <div style={{ flex: 1 }}>
-        <InputNumber
-          placeholder={isTm ? 'Rate (required)' : 'Rate (optional)'}
-          addonAfter="₹/hr"
-          min={1}
-          value={value.sellingRate}
-          onChange={(sellingRate) => onChange({ ...value, sellingRate: sellingRate ?? null })}
-          style={{ width: '100%' }}
-          status={isTm && value.employeeId && !value.sellingRate ? 'error' : ''}
-          data-testid="selling-rate"
-        />
-      </div>
+
+      {/* Row 3: Selling Rate + Allocation % (side by side) */}
+      <Row gutter={12}>
+        <Col span={12}>
+          <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+            Selling Rate {isTm ? '(required)' : '(optional)'}
+          </label>
+          <InputNumber
+            placeholder="₹/hr"
+            min={1}
+            value={value.sellingRate}
+            onChange={(sellingRate) => onChange({ ...value, sellingRate: sellingRate ?? null })}
+            style={{ width: '100%' }}
+            status={isTm && value.employeeId && !value.sellingRate ? 'error' : ''}
+            data-testid="selling-rate"
+          />
+        </Col>
+        <Col span={12}>
+          <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Allocation %</label>
+          <InputNumber
+            placeholder="100"
+            min={1}
+            max={100}
+            value={value.allocationPercent}
+            onChange={(allocationPercent) => onChange({ ...value, allocationPercent: allocationPercent ?? null })}
+            style={{ width: '100%' }}
+            data-testid="allocation-percent"
+          />
+        </Col>
+      </Row>
+
       {onRemove && (
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={onRemove}
-          aria-label="Remove team member"
-          style={{ marginTop: 4 }}
-        />
+        <div style={{ marginTop: 8, textAlign: 'right' }}>
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={onRemove}
+            aria-label="Remove team member"
+          >
+            Remove
+          </Button>
+        </div>
       )}
     </div>
   );

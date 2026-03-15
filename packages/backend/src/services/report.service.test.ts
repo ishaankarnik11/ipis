@@ -104,6 +104,20 @@ describe('report.service — exportPdf', () => {
     expect(result.filename).toBe(`IPIS-executive-${projectId}-2026-02.pdf`);
   });
 
+  it('generates PDF for entity-less report type (company) without entityId', async () => {
+    const result = await exportPdf('company', undefined, '2026-03', financeUser);
+
+    expect(result.buffer).toBeInstanceOf(Buffer);
+    expect(result.filename).toBe('IPIS-company-2026-03.pdf');
+  });
+
+  it('generates PDF for executive report without entityId', async () => {
+    const result = await exportPdf('executive', undefined, '2026-03', adminUser);
+
+    expect(result.buffer).toBeInstanceOf(Buffer);
+    expect(result.filename).toBe('IPIS-executive-2026-03.pdf');
+  });
+
   it('DM can export their own project', async () => {
     const result = await exportPdf('project', projectId, '2026-01', dmUser);
 
@@ -171,6 +185,12 @@ describe('report.service — exportPdf', () => {
     ).rejects.toThrow();
 
     expect(mockClose).toHaveBeenCalled();
+  });
+
+  it('DM without entityId gets ForbiddenError', async () => {
+    await expect(
+      exportPdf('project', undefined, '2026-01', dmUser),
+    ).rejects.toThrow('Delivery Managers must specify a project to export');
   });
 
   it('DM cannot export non-project report types — ForbiddenError (AC5)', async () => {

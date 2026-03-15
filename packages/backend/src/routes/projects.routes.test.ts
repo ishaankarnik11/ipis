@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp } from '../app.js';
 import { prisma } from '../lib/prisma.js';
 import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import { signToken } from '../lib/jwt.js';
 import type { UserRole } from '@prisma/client';
 
 describe('Project Routes', () => {
@@ -20,10 +21,9 @@ describe('Project Routes', () => {
 
   async function loginAs(role: UserRole, overrides: Record<string, unknown> = {}) {
     const user = await createTestUser(role, overrides as Parameters<typeof createTestUser>[1]);
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
+    const token = await signToken({ sub: user.id, role: user.role, email: user.email });
+    const cookies = [`ipis_token=${token}`];
+    return { cookies, user };
   }
 
   const validCreateBody = {
@@ -309,7 +309,7 @@ describe('Project Routes', () => {
       expect(res.body.data.name).toBe('Test Project');
     });
 
-    it('should return 403 for DM who does not own the project', async () => {
+    it('should allow DM read-only access to other DM projects (Story 10.6 cross-project visibility)', async () => {
       const { cookies: dmCookies } = await loginAs('DELIVERY_MANAGER', { email: 'dm1@test.com' });
       const createRes = await createProjectAs(dmCookies);
       const projectId = createRes.body.data.id;
@@ -320,8 +320,8 @@ describe('Project Routes', () => {
         .get(`/api/v1/projects/${projectId}`)
         .set('Cookie', otherDmCookies);
 
-      expect(res.status).toBe(403);
-      expect(res.body.error.code).toBe('FORBIDDEN');
+      expect(res.status).toBe(200);
+      expect(res.body.data.id).toBe(projectId);
     });
 
     it('should return project for Admin regardless of ownership', async () => {
@@ -551,8 +551,8 @@ describe('Project Routes', () => {
     });
   }
 
-  async function seedProjectRole(name: string = 'Developer'): Promise<string> {
-    const role = await prisma.projectRole.create({ data: { name } });
+  async function seedDesignation(name: string = 'Developer'): Promise<string> {
+    const role = await prisma.designation.create({ data: { name } });
     return role.id;
   }
 
@@ -562,16 +562,16 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(201);
       expect(res.body.data.employeeId).toBe(emp.id);
-      expect(res.body.data.roleId).toBe(roleId);
+      expect(res.body.data.designationId).toBe(designationId);
     });
 
     it('should add team member as Admin — 201 (Admin bypass)', async () => {
@@ -579,12 +579,12 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', adminCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(201);
       expect(res.body.data.employeeId).toBe(emp.id);
@@ -598,12 +598,12 @@ describe('Project Routes', () => {
         engagementModel: 'TIME_AND_MATERIALS' as const,
       });
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -618,12 +618,12 @@ describe('Project Routes', () => {
         engagementModel: 'TIME_AND_MATERIALS' as const,
       });
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId, billingRatePaise: 500000 });
+        .send({ employeeId: emp.id, designationId, billingRatePaise: 500000 });
 
       expect(res.status).toBe(201);
       expect(res.body.data.billingRatePaise).toBe(500000);
@@ -634,14 +634,14 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const { cookies: otherDmCookies } = await loginAs('DELIVERY_MANAGER', { email: 'dm2@test.com' });
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', otherDmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(403);
       expect(res.body.error.code).toBe('FORBIDDEN');
@@ -652,20 +652,20 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
-      const roleId2 = await seedProjectRole('Tester');
+      const designationId = await seedDesignation('Developer');
+      const designationId2 = await seedDesignation('Tester');
 
       // First assignment
       await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       // Duplicate assignment
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId: roleId2 });
+        .send({ employeeId: emp.id, designationId: designationId2 });
 
       expect(res.status).toBe(409);
       expect(res.body.error.code).toBe('CONFLICT');
@@ -676,14 +676,14 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const { cookies: hrCookies } = await loginAs('HR');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', hrCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(403);
       expect(res.body.error.code).toBe('FORBIDDEN');
@@ -694,14 +694,14 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const { cookies: finCookies } = await loginAs('FINANCE');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', finCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(403);
       expect(res.body.error.code).toBe('FORBIDDEN');
@@ -712,14 +712,14 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const { cookies: dhCookies } = await loginAs('DEPT_HEAD');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dhCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(403);
       expect(res.body.error.code).toBe('FORBIDDEN');
@@ -729,7 +729,7 @@ describe('Project Routes', () => {
       const { cookies: dmCookies } = await loginAs('DELIVERY_MANAGER');
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
       const emp = await prisma.employee.create({
         data: {
           employeeCode: 'EMP099',
@@ -744,7 +744,7 @@ describe('Project Routes', () => {
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
@@ -754,12 +754,12 @@ describe('Project Routes', () => {
       const { cookies: dmCookies } = await loginAs('DELIVERY_MANAGER');
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const res = await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: '00000000-0000-4000-8000-000000000001', roleId });
+        .send({ employeeId: '00000000-0000-4000-8000-000000000001', designationId });
 
       expect(res.status).toBe(404);
       expect(res.body.error.code).toBe('NOT_FOUND');
@@ -767,17 +767,17 @@ describe('Project Routes', () => {
   });
 
   describe('GET /api/v1/projects/:id/team-members', () => {
-    it('should return team members with employee details and roleName (AC: 3)', async () => {
+    it('should return team members with employee details and designationName (AC: 3)', async () => {
       const { cookies: dmCookies } = await loginAs('DELIVERY_MANAGER');
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       const res = await request(app)
         .get(`/api/v1/projects/${projectId}/team-members`)
@@ -786,9 +786,9 @@ describe('Project Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(1);
       expect(res.body.data[0].name).toBe('Employee EMP001');
-      expect(res.body.data[0].designation).toBe('Developer');
-      expect(res.body.data[0].roleId).toBe(roleId);
-      expect(res.body.data[0].roleName).toBe('Developer');
+      expect(res.body.data[0].employeeDesignation).toBe('Developer');
+      expect(res.body.data[0].designationId).toBe(designationId);
+      expect(res.body.data[0].designationName).toBe('Developer');
     });
 
     it('should return team members for Admin (Admin bypass)', async () => {
@@ -841,12 +841,12 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       const res = await request(app)
         .delete(`/api/v1/projects/${projectId}/team-members/${emp.id}`)
@@ -865,12 +865,12 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       const { cookies: otherDmCookies } = await loginAs('DELIVERY_MANAGER', { email: 'dm2@test.com' });
 
@@ -900,12 +900,12 @@ describe('Project Routes', () => {
       const { cookies: adminCookies } = await loginAs('ADMIN');
       const projectId = await createActiveProject(dmCookies, adminCookies);
       const emp = await seedEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await request(app)
         .post(`/api/v1/projects/${projectId}/team-members`)
         .set('Cookie', dmCookies)
-        .send({ employeeId: emp.id, roleId });
+        .send({ employeeId: emp.id, designationId });
 
       const res = await request(app)
         .delete(`/api/v1/projects/${projectId}/team-members/${emp.id}`)

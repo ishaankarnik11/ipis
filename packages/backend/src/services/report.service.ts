@@ -17,13 +17,15 @@ interface PdfExportResult {
   filename: string;
 }
 
-function buildReportUrl(reportType: ReportType, entityId: string, period: string): string {
+function buildReportUrl(reportType: ReportType, entityId: string | undefined, period: string): string {
   const base = config.frontendUrl;
 
   let url: string;
   switch (reportType) {
     case 'project':
-      url = `${base}/dashboards/projects?project=${entityId}`;
+      url = entityId
+        ? `${base}/dashboards/projects?project=${entityId}`
+        : `${base}/dashboards/projects`;
       break;
     case 'executive':
       url = `${base}/dashboards/executive`;
@@ -38,7 +40,9 @@ function buildReportUrl(reportType: ReportType, entityId: string, period: string
       url = `${base}/dashboards/employees`;
       break;
     case 'employee-detail':
-      url = `${base}/dashboards/employees/${entityId}`;
+      url = entityId
+        ? `${base}/dashboards/employees/${entityId}`
+        : `${base}/dashboards/employees`;
       break;
     default: {
       const _exhaustive: never = reportType;
@@ -53,7 +57,7 @@ function buildReportUrl(reportType: ReportType, entityId: string, period: string
 
 export async function exportPdf(
   reportType: ReportType,
-  entityId: string,
+  entityId: string | undefined,
   period: string,
   user: RequestUser,
 ): Promise<PdfExportResult> {
@@ -61,6 +65,9 @@ export async function exportPdf(
   if (user.role === 'DELIVERY_MANAGER') {
     if (reportType !== 'project') {
       throw new ForbiddenError('Delivery Managers can only export their own project reports');
+    }
+    if (!entityId) {
+      throw new ForbiddenError('Delivery Managers must specify a project to export');
     }
     const project = await prisma.project.findUnique({
       where: { id: entityId },
@@ -80,8 +87,10 @@ export async function exportPdf(
   const url = buildReportUrl(reportType, entityId, period);
   const buffer = await generatePdf(url, token);
 
-  // Build filename: IPIS-[type]-[id]-[period].pdf
-  const filename = `IPIS-${reportType}-${entityId}-${period}.pdf`;
+  // Build filename: IPIS-[type]-[id]-[period].pdf (omit id for entity-less reports)
+  const filename = entityId
+    ? `IPIS-${reportType}-${entityId}-${period}.pdf`
+    : `IPIS-${reportType}-${period}.pdf`;
 
   return { buffer, filename };
 }

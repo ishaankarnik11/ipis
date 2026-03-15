@@ -7,7 +7,7 @@ import SystemConfig from './SystemConfig';
 
 const mockGetConfig = vi.fn();
 const mockUpdateConfig = vi.fn();
-const mockGetProjectRoles = vi.fn();
+const mockGetDesignations = vi.fn();
 
 vi.mock('../../services/config.api', () => ({
   configKeys: { current: ['config'] as const },
@@ -15,14 +15,14 @@ vi.mock('../../services/config.api', () => ({
   updateConfig: (...args: unknown[]) => mockUpdateConfig(...args),
 }));
 
-vi.mock('../../services/project-roles.api', () => ({
-  projectRoleKeys: {
-    all: ['project-roles'] as const,
-    active: ['project-roles', 'active'] as const,
+vi.mock('../../services/designations.api', () => ({
+  designationKeys: {
+    all: ['designations'] as const,
+    active: ['designations', 'active'] as const,
   },
-  getProjectRoles: (...args: unknown[]) => mockGetProjectRoles(...args),
-  createProjectRole: vi.fn(),
-  updateProjectRole: vi.fn(),
+  getDesignations: (...args: unknown[]) => mockGetDesignations(...args),
+  createDesignation: vi.fn(),
+  updateDesignation: vi.fn(),
 }));
 
 const mockUseAuth = vi.fn();
@@ -44,6 +44,7 @@ const defaultConfig = {
     standardMonthlyHours: 160,
     healthyMarginThreshold: 0.2,
     atRiskMarginThreshold: 0.05,
+    annualOverheadPerEmployee: 18000000,
   },
 };
 
@@ -66,13 +67,13 @@ describe('SystemConfig', () => {
     vi.clearAllMocks();
     mockGetConfig.mockResolvedValue(defaultConfig);
     mockUpdateConfig.mockResolvedValue({ success: true });
-    mockGetProjectRoles.mockResolvedValue({ data: [], meta: { total: 0 } });
+    mockGetDesignations.mockResolvedValue({ data: [], meta: { total: 0 } });
     mockUseAuth.mockReturnValue({
       user: { id: '1', name: 'Admin', email: 'admin@test.com', role: 'ADMIN', isActive: true },
       isLoading: false,
       isError: false,
       isAuthenticated: true,
-      mustChangePassword: false,
+      status: 'ACTIVE',
     });
   });
 
@@ -148,21 +149,21 @@ describe('SystemConfig', () => {
     expect(document.querySelector('.ant-spin')).toBeInTheDocument();
   });
 
-  it('should show Project Roles section for Admin users', async () => {
+  it('should show Designations section for Admin users', async () => {
     renderSystemConfig();
 
     await waitFor(() => {
-      expect(screen.getByText('Project Roles')).toBeInTheDocument();
+      expect(screen.getByText('Designations')).toBeInTheDocument();
     });
   });
 
-  it('should hide Project Roles section for non-Admin users', async () => {
+  it('should hide Designations section for non-Admin users', async () => {
     mockUseAuth.mockReturnValue({
       user: { id: '2', name: 'Finance User', email: 'finance@test.com', role: 'FINANCE', isActive: true },
       isLoading: false,
       isError: false,
       isAuthenticated: true,
-      mustChangePassword: false,
+      status: 'ACTIVE',
     });
 
     renderSystemConfig();
@@ -171,6 +172,6 @@ describe('SystemConfig', () => {
       expect(screen.getByText('System Configuration')).toBeInTheDocument();
     });
 
-    expect(screen.queryByText('Project Roles')).not.toBeInTheDocument();
+    expect(screen.queryByText('Designations')).not.toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ import {
   uploadSalaryFile,
   downloadErrorReport,
   downloadTemplate,
+  getTemplateType,
 } from '../../services/uploads.api';
 import type {
   TimesheetUploadResult,
@@ -41,7 +42,7 @@ const ZONES: ZoneConfig[] = [
     key: 'timesheet',
     label: 'Upload Timesheet Data (.xlsx)',
     hint: 'Click or drag a timesheet .xlsx file to upload',
-    roles: ['FINANCE', 'ADMIN'],
+    roles: ['FINANCE', 'ADMIN', 'DELIVERY_MANAGER'],
     testId: 'upload-zone-timesheet',
   },
   {
@@ -97,6 +98,7 @@ export default function UploadCenter() {
   const [billState, setBillState] = useState<BillingState>({});
   const [salState, setSalState] = useState<SalaryState>({});
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadingType, setDownloadingType] = useState<UploadType | null>(null);
 
   // SSE progress for billing uploads
   const billingProgress = useUploadProgress(billState.sseTrackingId ?? null);
@@ -237,10 +239,21 @@ export default function UploadCenter() {
               </Spin>
 
               <Typography.Link
-                onClick={downloadTemplate}
+                onClick={async () => {
+                  try {
+                    setDownloadingType(zone.key);
+                    await downloadTemplate(getTemplateType(zone.key));
+                  } catch {
+                    message.error('Failed to download template');
+                  } finally {
+                    setDownloadingType(null);
+                  }
+                }}
+                disabled={downloadingType === zone.key}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8 }}
+                data-testid={`download-template-${zone.key}`}
               >
-                <DownloadOutlined /> Download Template
+                <DownloadOutlined /> {downloadingType === zone.key ? 'Downloading...' : 'Download Template'}
               </Typography.Link>
             </Col>
           );

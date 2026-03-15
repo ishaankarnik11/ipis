@@ -1,7 +1,7 @@
 import type { UserRole } from '@ipis/shared';
 import type { CreateUserInput, UpdateUserInput } from '@ipis/shared';
 import { get, post, patch } from './api';
-import type { DataResponse, ListResponse } from './types';
+import type { DataResponse, ListResponse, SuccessResponse } from './types';
 
 export const userKeys = {
   all: ['users'] as const,
@@ -10,16 +10,12 @@ export const userKeys = {
 
 export interface User {
   id: string;
-  name: string;
+  name: string | null;
   email: string;
   role: UserRole;
   departmentId: string | null;
   departmentName: string | null;
-  isActive: boolean;
-}
-
-export interface CreatedUser extends User {
-  temporaryPassword: string;
+  status: string;
 }
 
 export interface Department {
@@ -31,8 +27,8 @@ export function getUsers(): Promise<ListResponse<User>> {
   return get<ListResponse<User>>('/users');
 }
 
-export function createUser(data: CreateUserInput): Promise<DataResponse<CreatedUser>> {
-  return post<DataResponse<CreatedUser>>('/users', data);
+export function createUser(data: CreateUserInput): Promise<DataResponse<User>> {
+  return post<DataResponse<User>>('/users', data);
 }
 
 export function updateUser(id: string, data: UpdateUserInput): Promise<DataResponse<User>> {
@@ -41,4 +37,8 @@ export function updateUser(id: string, data: UpdateUserInput): Promise<DataRespo
 
 export function getDepartments(): Promise<DataResponse<Department[]>> {
   return get<DataResponse<Department[]>>('/departments');
+}
+
+export function resendInvitation(userId: string): Promise<SuccessResponse> {
+  return post<SuccessResponse>(`/users/${userId}/resend-invitation`);
 }

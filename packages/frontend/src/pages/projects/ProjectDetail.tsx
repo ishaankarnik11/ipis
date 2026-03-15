@@ -43,7 +43,7 @@ export default function ProjectDetail() {
     (user?.role === 'ADMIN' || (user?.role === 'DELIVERY_MANAGER' && user?.id === project?.deliveryManagerId));
 
   const addMutation = useMutation({
-    mutationFn: (data: { employeeId: string; roleId: string; billingRatePaise?: number }) =>
+    mutationFn: (data: { employeeId: string; designationId: string; billingRatePaise?: number }) =>
       addTeamMember(id!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: projectKeys.teamMembers(id!) });
@@ -63,7 +63,7 @@ export default function ProjectDetail() {
     },
   });
 
-  const handleAddSubmit = async (data: { employeeId: string; roleId: string; billingRatePaise?: number }) => {
+  const handleAddSubmit = async (data: { employeeId: string; designationId: string; billingRatePaise?: number; allocationPercent?: number }) => {
     try {
       await addMutation.mutateAsync(data);
     } catch (err) {
@@ -108,8 +108,20 @@ export default function ProjectDetail() {
 
   const teamColumns: ColumnsType<TeamMember> = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Designation', dataIndex: 'designation', key: 'designation' },
-    { title: 'Role', dataIndex: 'roleName', key: 'roleName' },
+    { title: 'Employee Designation', dataIndex: 'employeeDesignation', key: 'employeeDesignation' },
+    { title: 'Designation', dataIndex: 'designationName', key: 'designationName' },
+    {
+      title: 'Allocation %',
+      dataIndex: 'allocationPercent',
+      key: 'allocationPercent',
+      align: 'right',
+      render: (val: number | undefined) =>
+        val != null ? (
+          <span style={{ fontVariantNumeric: 'tabular-nums', color: val > 0.5 ? undefined : '#d48806' }}>
+            {Math.round(val * 100)}%
+          </span>
+        ) : '—',
+    },
     {
       title: 'Selling Rate (₹/hr)',
       dataIndex: 'billingRatePaise',
@@ -121,6 +133,16 @@ export default function ProjectDetail() {
         ) : (
           '—'
         ),
+    },
+    {
+      title: 'Monthly Cost',
+      dataIndex: 'monthlyCostPaise',
+      key: 'monthlyCost',
+      align: 'right',
+      render: (paise: number | undefined) =>
+        paise != null ? (
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(Math.round(paise))}</span>
+        ) : '—',
     },
     {
       title: 'Joined Date',

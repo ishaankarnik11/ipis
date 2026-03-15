@@ -1,8 +1,5 @@
-import bcrypt from 'bcrypt';
 import { prisma } from '../lib/prisma.js';
-import type { UserRole } from '@prisma/client';
-
-const TEST_BCRYPT_ROUNDS = 4;
+import type { UserRole, UserStatus } from '@prisma/client';
 
 /**
  * Truncates all tables in dependency order using CASCADE.
@@ -20,7 +17,8 @@ export async function cleanDb() {
       employee_projects,
       project_roles,
       employees,
-      password_reset_tokens,
+      otp_tokens,
+      invitation_tokens,
       audit_events,
       system_config,
       projects,
@@ -53,36 +51,29 @@ export async function seedTestDepartments(): Promise<Map<string, string>> {
 }
 
 /**
- * Creates a test user with a bcrypt-hashed password (fast salt rounds).
- * Returns the created user record plus the plain-text password.
+ * Creates a test user (no password — OTP-based auth).
+ * Returns the created user record.
  */
 export async function createTestUser(
   role: UserRole,
   overrides: {
     email?: string;
     name?: string;
-    password?: string;
     departmentId?: string;
-    isActive?: boolean;
-    mustChangePassword?: boolean;
+    status?: UserStatus;
   } = {},
 ) {
-  const password = overrides.password ?? 'test-password-123';
-  const passwordHash = await bcrypt.hash(password, TEST_BCRYPT_ROUNDS);
-
   const user = await prisma.user.create({
     data: {
       email: overrides.email ?? `${role.toLowerCase()}-${Date.now()}@test.com`,
       name: overrides.name ?? `Test ${role}`,
       role,
-      passwordHash,
       departmentId: overrides.departmentId ?? null,
-      isActive: overrides.isActive ?? true,
-      mustChangePassword: overrides.mustChangePassword ?? false,
+      status: overrides.status ?? 'ACTIVE',
     },
   });
 
-  return { ...user, password };
+  return user;
 }
 
 /**

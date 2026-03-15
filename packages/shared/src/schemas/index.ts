@@ -1,17 +1,9 @@
 export {
-  loginSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  changePasswordSchema,
-  type LoginInput,
-  type ForgotPasswordInput,
-  type ResetPasswordInput,
-  type ChangePasswordInput,
-} from './auth.schema.js';
-export {
   createUserSchema,
   updateUserSchema,
   systemConfigSchema,
+  UserRole,
+  UserStatus,
   type CreateUserInput,
   type UpdateUserInput,
   type SystemConfigInput,
@@ -51,8 +43,18 @@ export {
   type ShareResponse,
 } from './report.schema.js';
 export {
+  createDepartmentSchema,
+  updateDepartmentSchema,
+  type CreateDepartmentInput,
+  type UpdateDepartmentInput,
+} from './department.schema.js';
+export {
+  createDesignationSchema,
+  updateDesignationSchema,
   createProjectRoleSchema,
   updateProjectRoleSchema,
+  type CreateDesignationInput,
+  type UpdateDesignationInput,
   type CreateProjectRoleInput,
   type UpdateProjectRoleInput,
 } from './project-role.schema.js';

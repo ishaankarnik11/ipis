@@ -29,6 +29,25 @@ export async function createShareLink(params: ShareLinkParams): Promise<ShareLin
   return body.data;
 }
 
+export interface ShareUrlResult {
+  url: string;
+  expiresAt: string;
+}
+
+/**
+ * Creates a share link and returns the full URL + expiry for display in a modal.
+ */
+export async function createShareUrl(params: ShareLinkParams): Promise<ShareUrlResult> {
+  const result = await createShareLink(params);
+  return {
+    url: `${window.location.origin}${result.shareUrl}`,
+    expiresAt: result.expiresAt,
+  };
+}
+
+/**
+ * @deprecated Use createShareUrl + ShareLinkModal instead
+ */
 export async function shareReport(params: ShareLinkParams): Promise<void> {
   try {
     const result = await createShareLink(params);

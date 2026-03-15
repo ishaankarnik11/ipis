@@ -1,6 +1,6 @@
 import { AUDIT_ACTIONS } from '@ipis/shared';
 import { prisma } from '../lib/prisma.js';
-import { parseExcelToRows, type ParsedRow } from '../lib/excel.js';
+import { parseExcelToRows, type ParsedRow, generateRecordsExport } from '../lib/excel.js';
 import { logger } from '../lib/logger.js';
 import { UploadRejectedError, ValidationError } from '../lib/errors.js';
 import { logAuditEvent } from './audit.service.js';
@@ -390,7 +390,7 @@ function validateBillingRowShapes(rows: ParsedRow[]): BillingRowInput[] {
 // Recalculation Engine Orchestration
 // ---------------------------------------------------------------------------
 
-interface RecalcResult {
+export interface RecalcResult {
   status: 'COMPLETE' | 'FAILED';
   runId?: string;
   projectsProcessed?: number;
@@ -477,6 +477,7 @@ export async function triggerRecalculation(
           billingRatePaise: ep.billingRatePaise ? Number(ep.billingRatePaise) : null,
           billableHours: ep.employee.isBillable ? empHours : 0,
           availableHours: standardMonthlyHours,
+          isBillable: ep.employee.isBillable,
         });
       }
 
@@ -594,6 +595,7 @@ export async function triggerRecalculation(
       periodMonth,
       periodYear,
       projectResults,
+      standardMonthlyHours,
     });
 
     // 6. Emit SSE success event
@@ -707,11 +709,11 @@ export async function processSalaryUpload(
     });
 
     if (!parsed.success) {
-      const firstIssue = parsed.error.issues[0]!;
+      const allErrors = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
       failedRows.push({
         row: rowNum,
-        employeeCode: String(raw.employee_code ?? ''),
-        error: firstIssue.message,
+        employeeCode: String(raw.employee_code ?? '').slice(0, 255),
+        error: allErrors,
       });
       continue;
     }
@@ -875,4 +877,179 @@ export async function processSalaryUpload(
     uploadEventId: uploadEvent.id,
     failedRows,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Upload Record Detail (Story 11.1)
+// ---------------------------------------------------------------------------
+
+export interface UploadRecordRow {
+  rowNumber: number;
+  status: 'success' | 'failed';
+  reason?: string;
+  [key: string]: unknown;
+}
+
+export async function getUploadRecords(
+  uploadEventId: string,
+  statusFilter: 'all' | 'success' | 'failed' = 'all',
+): Promise<{ records: UploadRecordRow[]; uploadType: string }> {
+  const uploadEvent = await prisma.uploadEvent.findUnique({
+    where: { id: uploadEventId },
+    select: { id: true, type: true, errorSummary: true, rowCount: true },
+  });
+
+  if (!uploadEvent) {
+    throw new ValidationError('Upload event not found');
+  }
+
+  const records: UploadRecordRow[] = [];
+
+  // Parse failed rows from errorSummary — handle different structures per upload type
+  const rawErrors = (uploadEvent.errorSummary as unknown[]) ?? [];
+
+  if (statusFilter !== 'success') {
+    for (const entry of rawErrors) {
+      if (typeof entry !== 'object' || entry === null) continue;
+      const obj = entry as Record<string, unknown>;
+
+      // SALARY uploads: { row, employeeCode, error }
+      // TIMESHEET/BILLING uploads: { row, field, message } or { row, error }
+      const rowNum = typeof obj.row === 'number' ? obj.row : 0;
+      const reason = typeof obj.error === 'string' ? obj.error
+        : typeof obj.message === 'string' ? obj.message
+        : 'Unknown error';
+
+      records.push({
+        rowNumber: rowNum,
+        status: 'failed',
+        reason,
+        ...(typeof obj.employeeCode === 'string' ? { employeeCode: obj.employeeCode } : {}),
+        ...(typeof obj.field === 'string' ? { field: obj.field } : {}),
+      });
+    }
+  }
+
+  // Fetch success rows from linked tables based on type
+  if (statusFilter !== 'failed') {
+    if (uploadEvent.type === 'TIMESHEET') {
+      const entries = await prisma.timesheetEntry.findMany({
+        where: { uploadEventId },
+        select: {
+          employeeId: true,
+          hours: true,
+          periodMonth: true,
+          periodYear: true,
+          employee: { select: { name: true, employeeCode: true } },
+          project: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      let rowNum = 1;
+      for (const entry of entries) {
+        records.push({
+          rowNumber: rowNum++,
+          status: 'success',
+          employeeId: entry.employeeId,
+          employeeCode: entry.employee.employeeCode,
+          employeeName: entry.employee.name,
+          projectName: entry.project.name,
+          hours: entry.hours,
+          periodMonth: entry.periodMonth,
+          periodYear: entry.periodYear,
+        });
+      }
+    } else if (uploadEvent.type === 'BILLING') {
+      const billingRecords = await prisma.billingRecord.findMany({
+        where: { uploadEventId },
+        select: {
+          projectId: true,
+          clientName: true,
+          invoiceAmountPaise: true,
+          invoiceDate: true,
+          projectType: true,
+          vertical: true,
+          periodMonth: true,
+          periodYear: true,
+          project: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      let rowNum = 1;
+      for (const rec of billingRecords) {
+        records.push({
+          rowNumber: rowNum++,
+          status: 'success',
+          projectId: rec.projectId,
+          projectName: rec.project.name,
+          clientName: rec.clientName,
+          invoiceAmountPaise: Number(rec.invoiceAmountPaise),
+          invoiceDate: rec.invoiceDate.toISOString().split('T')[0],
+          projectType: rec.projectType,
+          vertical: rec.vertical,
+          periodMonth: rec.periodMonth,
+          periodYear: rec.periodYear,
+        });
+      }
+    } else if (uploadEvent.type === 'SALARY') {
+      // Salary uploads don't link back via uploadEventId on Employee table.
+      // Success rows = rowCount - failed count. Show as summary placeholders
+      // since we can't reconstruct which specific employees were updated.
+      const failedCount = rawErrors.length;
+      const successCount = Math.max(0, uploadEvent.rowCount - failedCount);
+      for (let i = 0; i < successCount; i++) {
+        records.push({
+          rowNumber: i + 1,
+          status: 'success',
+          note: 'Employee record imported successfully',
+        });
+      }
+    }
+  }
+
+  // Sort by row number
+  records.sort((a, b) => a.rowNumber - b.rowNumber);
+
+  return { records, uploadType: uploadEvent.type };
+}
+
+export function generateUploadRecordsExport(
+  records: UploadRecordRow[],
+  uploadType: string,
+): Buffer {
+  const exportRows = records.map(({ rowNumber, status, reason, ...data }) => ({
+    'Row #': rowNumber,
+    Status: status === 'success' ? 'Success' : 'Failed',
+    ...(reason ? { 'Error Reason': reason } : {}),
+    ...data,
+  }));
+
+  const sheetName = uploadType === 'TIMESHEET' ? 'Timesheet Records'
+    : uploadType === 'BILLING' ? 'Revenue Records'
+    : 'Employee Records';
+
+  return generateRecordsExport(exportRows, sheetName);
+}
+
+// ---------------------------------------------------------------------------
+// Recalculation for non-upload triggers (team changes, config changes)
+// ---------------------------------------------------------------------------
+
+export async function triggerRecalculationForLatestPeriod(): Promise<RecalcResult> {
+  // Find the latest period with timesheet data
+  const latestTimesheet = await prisma.timesheetEntry.findFirst({
+    orderBy: [{ periodYear: 'desc' }, { periodMonth: 'desc' }],
+    select: { periodMonth: true, periodYear: true, uploadEventId: true },
+  });
+
+  if (!latestTimesheet) {
+    logger.warn('No timesheet data found — cannot trigger recalculation');
+    return { status: 'FAILED', error: 'No timesheet data found' };
+  }
+
+  return triggerRecalculation(
+    latestTimesheet.uploadEventId,
+    latestTimesheet.periodMonth,
+    latestTimesheet.periodYear,
+  );
 }

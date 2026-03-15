@@ -278,7 +278,7 @@ const priya: PersonaConfig = {
       name: 'department-dashboard',
       steps: [
         async (page) => {
-          await clickSidebar(page, 'Department Dashboard');
+          await clickSidebar(page, 'Dept Dashboard');
           await page.waitForTimeout(500);
           await screenshot(page, 'Priya', 'dept-dashboard', '01-overview');
         },
@@ -288,7 +288,7 @@ const priya: PersonaConfig = {
       name: 'employee-dashboard',
       steps: [
         async (page) => {
-          await clickSidebar(page, 'Employee Dashboard');
+          await clickSidebar(page, 'Employees');
           await page.waitForTimeout(500);
           await screenshot(page, 'Priya', 'emp-dashboard', '01-overview');
         },
@@ -305,23 +305,44 @@ const neha: PersonaConfig = {
     {
       name: 'landing',
       steps: [
-        async (page) => { await screenshot(page, 'Neha', 'landing', '01-employee-list'); },
+        async (page) => {
+          await screenshot(page, 'Neha', 'landing', '01-after-login');
+          await screenshot(page, 'Neha', 'sidebar', '01-full-sidebar');
+        },
       ],
     },
     {
-      name: 'employee-list',
+      name: 'employee-dashboard',
       steps: [
         async (page) => {
+          // Story 10.2: HR gets Employee Dashboard access (consolidated as "Employees" per 10.4)
           await clickSidebar(page, 'Employees');
           await page.waitForTimeout(500);
-          await screenshot(page, 'Neha', 'employees', '01-full-list');
-          // Try clicking an employee row
-          const firstRow = page.locator('table tbody tr').first();
-          if (await firstRow.isVisible()) {
-            await firstRow.click();
+          await screenshot(page, 'Neha', 'emp-dashboard', '01-overview');
+          await page.evaluate(() => window.scrollTo(0, 600));
+          await page.waitForTimeout(300);
+          await screenshot(page, 'Neha', 'emp-dashboard', '02-scroll');
+        },
+      ],
+    },
+    {
+      name: 'employee-detail',
+      steps: [
+        async (page) => {
+          // Story 10.5: Employee detail full-page view
+          // Navigate to employee dashboard and click the employee NAME LINK (not the row)
+          await clickSidebar(page, 'Employees');
+          await page.waitForTimeout(500);
+          const empNameLink = page.locator('table tbody tr td a').first();
+          if (await empNameLink.isVisible()) {
+            await empNameLink.click();
+            await page.waitForURL(/\/dashboards\/employees\//, { timeout: 10000 });
             await page.waitForLoadState('networkidle');
-            await page.waitForTimeout(800);
-            await screenshot(page, 'Neha', 'employees', '02-after-row-click');
+            await page.waitForTimeout(1000);
+            await screenshot(page, 'Neha', 'emp-detail', '01-profile');
+            await page.evaluate(() => window.scrollTo(0, 600));
+            await page.waitForTimeout(300);
+            await screenshot(page, 'Neha', 'emp-detail', '02-allocations');
           }
         },
       ],
@@ -332,6 +353,10 @@ const neha: PersonaConfig = {
         async (page) => {
           await clickSidebar(page, 'Upload Center');
           await screenshot(page, 'Neha', 'upload', '01-upload-center');
+          // Story 10.7: Upload history should be role-filtered (HR sees salary uploads only)
+          await page.evaluate(() => window.scrollTo(0, 400));
+          await page.waitForTimeout(300);
+          await screenshot(page, 'Neha', 'upload', '02-upload-history');
         },
       ],
     },
@@ -346,13 +371,17 @@ const vikram: PersonaConfig = {
     {
       name: 'landing-projects',
       steps: [
-        async (page) => { await screenshot(page, 'Vikram', 'landing', '01-my-projects'); },
+        async (page) => {
+          await screenshot(page, 'Vikram', 'landing', '01-my-projects');
+          await screenshot(page, 'Vikram', 'sidebar', '01-full-sidebar');
+        },
       ],
     },
     {
       name: 'project-list',
       steps: [
         async (page) => {
+          // Story 10.6: DM project list "My Projects" filter by default
           await clickSidebar(page, 'Projects');
           await page.waitForTimeout(500);
           await screenshot(page, 'Vikram', 'projects', '01-project-list');
@@ -362,6 +391,7 @@ const vikram: PersonaConfig = {
             await firstRow.click();
             await page.waitForLoadState('networkidle');
             await page.waitForTimeout(800);
+            // Story 10.9: Project Detail Financials should show Revenue/Cost/Profit
             await screenshot(page, 'Vikram', 'projects', '02-project-detail');
             await page.evaluate(() => window.scrollTo(0, 600));
             await page.waitForTimeout(300);
@@ -384,10 +414,25 @@ const vikram: PersonaConfig = {
       ],
     },
     {
+      name: 'upload-center',
+      steps: [
+        async (page) => {
+          // Story 10.3: DM gets Upload Center access (timesheet upload)
+          await clickSidebar(page, 'Upload Center');
+          await page.waitForTimeout(500);
+          await screenshot(page, 'Vikram', 'upload', '01-upload-center');
+          // Story 10.7: Upload history role-filtered (DM sees timesheet uploads only)
+          await page.evaluate(() => window.scrollTo(0, 400));
+          await page.waitForTimeout(300);
+          await screenshot(page, 'Vikram', 'upload', '02-upload-history');
+        },
+      ],
+    },
+    {
       name: 'department-dashboard',
       steps: [
         async (page) => {
-          await clickSidebar(page, 'Department Dashboard');
+          await clickSidebar(page, 'Dept Dashboard');
           await page.waitForTimeout(500);
           await screenshot(page, 'Vikram', 'dept-dashboard', '01-overview');
         },
@@ -411,7 +456,7 @@ const arjun: PersonaConfig = {
       name: 'department-dashboard-detail',
       steps: [
         async (page) => {
-          await clickSidebar(page, 'Department Dashboard');
+          await clickSidebar(page, 'Dept Dashboard');
           await page.waitForTimeout(500);
           await screenshot(page, 'Arjun', 'dept-dashboard', '01-overview');
           await page.evaluate(() => window.scrollTo(0, 600));
@@ -454,7 +499,7 @@ const arjun: PersonaConfig = {
       name: 'employee-dashboard',
       steps: [
         async (page) => {
-          await clickSidebar(page, 'Employee Dashboard');
+          await clickSidebar(page, 'Employees');
           await page.waitForTimeout(500);
           await screenshot(page, 'Arjun', 'emp-dashboard', '01-overview');
         },

@@ -19,6 +19,7 @@ export interface EmployeeSnapshotData {
   billingRatePaise: number | null;
   billableHours: number;
   availableHours: number;
+  isBillable: boolean;
 }
 
 export interface ProjectResult {
@@ -40,6 +41,7 @@ export interface PersistSnapshotsInput {
   periodMonth: number;
   periodYear: number;
   projectResults: ProjectResult[];
+  standardMonthlyHours: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +364,36 @@ function buildCompanyRows(input: PersistSnapshotsInput, now: Date): SnapshotRow[
 
   const profit = totalRevenue - totalCost;
   const margin = totalRevenue === 0 ? 0 : profit / totalRevenue;
+
+  // Compute company-level billable utilisation:
+  // Utilization % = Total Billable Hours / (Billable Employee Count * Standard Working Hours)
+  const uniqueEmployees = new Map<string, { billableHours: number; isBillable: boolean }>();
+  for (const pr of input.projectResults) {
+    for (const emp of pr.employees) {
+      const existing = uniqueEmployees.get(emp.employeeId);
+      if (existing) {
+        existing.billableHours += emp.billableHours;
+      } else {
+        uniqueEmployees.set(emp.employeeId, {
+          billableHours: emp.billableHours,
+          isBillable: emp.isBillable,
+        });
+      }
+    }
+  }
+
+  let totalBillableHours = 0;
+  let billableEmployeeCount = 0;
+  for (const [, emp] of uniqueEmployees) {
+    if (emp.isBillable) {
+      billableEmployeeCount++;
+      totalBillableHours += emp.billableHours;
+    }
+  }
+
+  const totalAvailableHours = billableEmployeeCount * input.standardMonthlyHours;
+  const utilisationPercent = totalAvailableHours === 0 ? 0 : totalBillableHours / totalAvailableHours;
+
   const base = {
     recalculationRunId: input.recalculationRunId,
     entityType: 'COMPANY',
@@ -389,6 +421,12 @@ function buildCompanyRows(input: PersistSnapshotsInput, now: Date): SnapshotRow[
       ...base,
       figureType: 'REVENUE_CONTRIBUTION',
       valuePaise: BigInt(totalRevenue),
+      breakdownJson: {},
+    },
+    {
+      ...base,
+      figureType: 'UTILIZATION_PERCENT',
+      valuePaise: BigInt(Math.round(utilisationPercent * 10000)),
       breakdownJson: {},
     },
   ];

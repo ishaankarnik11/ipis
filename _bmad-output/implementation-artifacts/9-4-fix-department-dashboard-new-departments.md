@@ -1,6 +1,6 @@
 # Story 9.4: Fix Department Dashboard — New Departments
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -89,36 +89,36 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Diagnose the dashboard query (AC: 2)
-  - [ ] 1.1 Read the Department Dashboard query in `dashboard.service.ts`
-  - [ ] 1.2 Identify whether it queries `departments` table or only `calculation_snapshots`
-  - [ ] 1.3 If it only queries snapshots, departments without snapshots are invisible — this is the bug
+- [x] Task 1: Diagnose the dashboard query (AC: 2)
+  - [x] 1.1 Read the Department Dashboard query in `dashboard.service.ts`
+  - [x] 1.2 Identify whether it queries `departments` table or only `calculation_snapshots`
+  - [x] 1.3 If it only queries snapshots, departments without snapshots are invisible — this is the bug
 
-- [ ] Task 2: Fix Department Dashboard query (AC: 1, 2, 3)
-  - [ ] 2.1 Change the query to start from `departments` table with LEFT JOIN to `calculation_snapshots`
-  - [ ] 2.2 Use COALESCE to default null financial values to 0
-  - [ ] 2.3 Include employee count per department (LEFT JOIN employees)
-  - [ ] 2.4 Return all departments sorted by name
+- [x] Task 2: Fix Department Dashboard query (AC: 1, 2, 3)
+  - [x] 2.1 Change the query to start from `departments` table with LEFT JOIN to `calculation_snapshots`
+  - [x] 2.2 Use COALESCE to default null financial values to 0
+  - [x] 2.3 Include employee count per department (LEFT JOIN employees)
+  - [x] 2.4 Return all departments sorted by name
 
-- [ ] Task 3: Fix Company Dashboard query (AC: 5)
-  - [ ] 3.1 Apply the same LEFT JOIN fix to the Company Dashboard department breakdown query
-  - [ ] 3.2 Ensure new departments appear in the company-level breakdown
+- [x] Task 3: Fix Company Dashboard query (AC: 5)
+  - [x] 3.1 Apply the same LEFT JOIN fix to the Company Dashboard department breakdown query
+  - [x] 3.2 Ensure new departments appear in the company-level breakdown
 
-- [ ] Task 4: Frontend handling of zero values (AC: 1, 3)
-  - [ ] 4.1 Ensure the Department Dashboard table renders zero values correctly (not blank or undefined)
-  - [ ] 4.2 Use `formatCurrency(0)` for financial columns showing zero
-  - [ ] 4.3 Show `0%` for margin and utilisation, `0` for employee count
+- [x] Task 4: Frontend handling of zero values (AC: 1, 3)
+  - [x] 4.1 Ensure the Department Dashboard table renders zero values correctly (not blank or undefined)
+  - [x] 4.2 Use `formatCurrency(0)` for financial columns showing zero
+  - [x] 4.3 Show `0%` for margin and utilisation, `0` for employee count
 
-- [ ] Task 5: Backend tests (AC: 6)
-  - [ ] 5.1 Add test: department with no snapshots appears in dashboard results
-  - [ ] 5.2 Add test: department with snapshots shows correct values
-  - [ ] 5.3 Add test: company dashboard includes all departments
-  - [ ] 5.4 Add test: newly created department appears without recalculation
+- [x] Task 5: Backend tests (AC: 6)
+  - [x] 5.1 Add test: department with no snapshots appears in dashboard results
+  - [x] 5.2 Add test: department with snapshots shows correct values
+  - [x] 5.3 Add test: company dashboard includes all departments
+  - [x] 5.4 Add test: newly created department appears without recalculation
 
-- [ ] Task 6: E2E tests (E2E-P1 through E2E-N2)
-  - [ ] 6.1 Create or extend `packages/e2e/tests/department-dashboard.spec.ts`
-  - [ ] 6.2 Implement E2E-P1 through E2E-P3
-  - [ ] 6.3 Implement E2E-N1, E2E-N2
+- [x] Task 6: E2E tests (E2E-P1 through E2E-N2)
+  - [x] 6.1 Create or extend `packages/e2e/tests/department-dashboard.spec.ts`
+  - [x] 6.2 Implement E2E-P1 through E2E-P3
+  - [x] 6.3 Implement E2E-N1, E2E-N2
 
 ## Dev Notes
 

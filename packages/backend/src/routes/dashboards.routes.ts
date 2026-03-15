@@ -56,10 +56,50 @@ router.get(
 router.get(
   '/dashboards/department',
   authMiddleware,
-  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER']),
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER', 'HR']),
   asyncHandler(async (req, res) => {
-    const data = await dashboardService.getDepartmentDashboard(req.user!);
-    res.json({ data, meta: { total: data.length } });
+    const monthsParam = req.query['months'] as string | undefined;
+
+    if (monthsParam) {
+      // Multi-month comparison mode: months=2026-01,2026-02,2026-03
+      const months = monthsParam.split(',').map((m) => {
+        const parts = m.trim().split('-');
+        if (parts.length !== 2) return null;
+        const year = parseInt(parts[0]!, 10);
+        const month = parseInt(parts[1]!, 10);
+        if (isNaN(year) || isNaN(month) || month < 1 || month > 12) return null;
+        return { year, month };
+      }).filter((m): m is { year: number; month: number } => m !== null);
+
+      if (months.length === 0) {
+        res.status(400).json({ error: { code: 'INVALID_MONTHS', message: 'No valid months provided. Format: YYYY-MM (e.g., 2026-01,2026-02)' } });
+        return;
+      }
+
+      // Limit to 12 months max
+      const limited = months.slice(0, 12);
+      const data = await dashboardService.getDepartmentComparison(req.user!, limited);
+      res.json({ data, meta: { total: data.length, mode: 'comparison' } });
+    } else {
+      // Default single-month mode (backward compatible)
+      const data = await dashboardService.getDepartmentDashboard(req.user!);
+      res.json({ data, meta: { total: data.length } });
+    }
+  }),
+);
+
+// GET /api/v1/reports/dashboards/department/:id/drilldown
+router.get(
+  '/dashboards/department/:id/drilldown',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD', 'DELIVERY_MANAGER', 'HR']),
+  asyncHandler(async (req, res) => {
+    const data = await dashboardService.getDepartmentDrilldown(req.user!, req.params.id as string);
+    if (!data) {
+      res.status(404).json({ error: { code: 'DEPARTMENT_NOT_FOUND', message: 'Department not found or access denied' } });
+      return;
+    }
+    res.json({ data });
   }),
 );
 
@@ -82,7 +122,7 @@ router.get(
 router.get(
   '/dashboards/employees',
   authMiddleware,
-  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD']),
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD', 'HR']),
   asyncHandler(async (req, res) => {
     const filters = {
       department: req.query['department'] as string | undefined,
@@ -97,7 +137,7 @@ router.get(
 router.get(
   '/dashboards/employees/:id',
   authMiddleware,
-  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD']),
+  rbacMiddleware(['FINANCE', 'ADMIN', 'DEPT_HEAD', 'HR']),
   asyncHandler(async (req, res) => {
     const data = await dashboardService.getEmployeeDetail(req.user!, req.params.id as string);
     if (!data) {
@@ -105,6 +145,28 @@ router.get(
       return;
     }
     res.json({ data });
+  }),
+);
+
+// GET /api/v1/reports/dashboards/clients
+router.get(
+  '/dashboards/clients',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN']),
+  asyncHandler(async (_req, res) => {
+    const data = await dashboardService.getClientDashboard();
+    res.json({ data, meta: { total: data.length } });
+  }),
+);
+
+// GET /api/v1/reports/dashboards/clients/:name/projects
+router.get(
+  '/dashboards/clients/:name/projects',
+  authMiddleware,
+  rbacMiddleware(['FINANCE', 'ADMIN']),
+  asyncHandler(async (req, res) => {
+    const data = await dashboardService.getClientProjects(decodeURIComponent(req.params.name as string));
+    res.json({ data, meta: { total: data.length } });
   }),
 );
 

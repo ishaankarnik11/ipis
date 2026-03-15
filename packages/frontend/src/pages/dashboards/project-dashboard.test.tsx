@@ -98,7 +98,7 @@ describe('ProjectDashboard', () => {
 
   it('renders page title', () => {
     renderDashboard();
-    expect(screen.getByText('Project Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Projects')).toBeInTheDocument();
   });
 
   it('renders dashboard table and filter bar', async () => {

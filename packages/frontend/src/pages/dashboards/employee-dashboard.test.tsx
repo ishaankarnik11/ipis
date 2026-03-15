@@ -14,6 +14,7 @@ global.ResizeObserver = class {
 
 // Mock API functions
 const mockGetEmployeeDashboard = vi.fn();
+const mockResignEmployee = vi.fn();
 
 vi.mock('../../services/dashboards.api', () => ({
   reportKeys: {
@@ -22,6 +23,19 @@ vi.mock('../../services/dashboards.api', () => ({
       ['reports', 'employees', filters ?? {}] as const,
   },
   getEmployeeDashboard: (...args: unknown[]) => mockGetEmployeeDashboard(...args),
+}));
+
+vi.mock('../../services/employees.api', () => ({
+  employeeKeys: {
+    all: ['employees'] as const,
+    detail: (id: string) => ['employees', id] as const,
+  },
+  resignEmployee: (...args: unknown[]) => mockResignEmployee(...args),
+}));
+
+vi.mock('../employees/EmployeeFormModal', () => ({
+  default: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="employee-form-modal">Employee Form Modal</div> : null,
 }));
 
 // Mock useNavigate
@@ -112,7 +126,7 @@ describe('EmployeeDashboard', () => {
 
   it('renders page title and structure', () => {
     renderDashboard();
-    expect(screen.getByText('Employee Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Employees')).toBeInTheDocument();
     expect(screen.getByTestId('employee-dashboard')).toBeInTheDocument();
     expect(screen.getByTestId('employee-dashboard-table')).toBeInTheDocument();
     expect(screen.getByTestId('filter-bar')).toBeInTheDocument();
@@ -223,9 +237,9 @@ describe('EmployeeDashboard', () => {
     expect(dataRows).toBeDefined();
     expect(dataRows!.length).toBeGreaterThanOrEqual(3);
 
-    // First row → rank 1, Top Earner
+    // First row → rank #1, Top Earner
     expect(dataRows![0]!.textContent).toContain('Top Earner');
-    expect(dataRows![0]!.querySelector('td')!.textContent).toBe('1');
+    expect(dataRows![0]!.querySelector('td')!.textContent).toBe('#1');
 
     // Second row → rank 2, Mid Earner
     expect(dataRows![1]!.textContent).toContain('Mid Earner');
@@ -282,6 +296,18 @@ describe('EmployeeDashboard', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/dashboards/employees/emp123');
   });
 
+  // Story 12.2: Employee name link has proper href for accessibility
+  it('employee name link has href attribute for accessibility', async () => {
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem({ employeeId: 'emp456', name: 'Jane Smith' })],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    const nameLink = await screen.findByText('Jane Smith');
+    expect(nameLink.closest('a')).toHaveAttribute('href', '/dashboards/employees/emp456');
+  });
+
   // AC7: Filter interaction propagates to API [M2 review fix]
   it('calls API with combined filters from URL', async () => {
     renderDashboard(['/dashboards/employees?department=Engineering&designation=Senior%20Developer']);
@@ -291,5 +317,179 @@ describe('EmployeeDashboard', () => {
         expect.objectContaining({ department: 'Engineering', designation: 'Senior Developer' }),
       );
     });
+  });
+
+  // Story 10.2 AC3: HR role sees only utilization columns, no financial columns
+  it('HR role: hides financial columns and shows utilization columns', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u-hr', name: 'HR User', role: 'HR', email: 'hr@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem({ billableUtilisationPercent: 0.75 })],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    await waitFor(() => {
+      expect(screen.getByText('Test Employee')).toBeInTheDocument();
+    });
+
+    // Utilization columns present (Designation/Department also appear in filter bar, so use getAllByText)
+    expect(screen.getByText('Billable Utilisation')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getAllByText('Designation').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Department').length).toBeGreaterThanOrEqual(1);
+
+    // Financial columns absent
+    expect(screen.queryByText('Revenue Contribution')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+    expect(screen.queryByText('Profit Contribution')).not.toBeInTheDocument();
+    expect(screen.queryByText('Margin %')).not.toBeInTheDocument();
+  });
+
+  // Story 10.2 AC8: HR sees under-utilisation amber highlight
+  it('HR role: under-utilisation amber highlight still appears', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u-hr', name: 'HR User', role: 'HR', email: 'hr@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem({ billableUtilisationPercent: 0.3 })],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    await waitFor(() => {
+      const underUtil = screen.getByTestId('under-utilisation');
+      expect(underUtil).toBeInTheDocument();
+      expect(underUtil.style.color).toBe('rgb(212, 136, 6)');
+    });
+  });
+
+  // Story 10.2: Finance still sees all financial columns (regression check)
+  it('Finance role: still sees all financial columns', async () => {
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem()],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    await waitFor(() => {
+      expect(screen.getByText('Test Employee')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Revenue Contribution')).toBeInTheDocument();
+    expect(screen.getByText('Profit Contribution')).toBeInTheDocument();
+    expect(screen.getByText('Margin %')).toBeInTheDocument();
+  });
+
+  // Story 10.4 AC1: Admin sees Add Employee button and per-row Edit/Resign actions
+  it('Admin role: shows Add Employee button and action column', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u-admin', name: 'Admin User', role: 'ADMIN', email: 'admin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem({ employeeId: 'emp1', name: 'Alice' })],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    await waitFor(() => {
+      expect(screen.getByText('Alice')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Add Employee')).toBeInTheDocument();
+    expect(screen.getByText('Edit')).toBeInTheDocument();
+    expect(screen.getByText('Mark as Resigned')).toBeInTheDocument();
+  });
+
+  // Story 10.4 AC2: HR sees Add Employee button and action column
+  it('HR role: shows Add Employee button and action column', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u-hr', name: 'HR User', role: 'HR', email: 'hr@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem({ employeeId: 'emp1', name: 'Alice' })],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    await waitFor(() => {
+      expect(screen.getByText('Alice')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Add Employee')).toBeInTheDocument();
+    expect(screen.getByText('Edit')).toBeInTheDocument();
+    expect(screen.getByText('Mark as Resigned')).toBeInTheDocument();
+  });
+
+  // Story 10.4 AC2: Finance does NOT see Add/Edit/Resign buttons
+  it('Finance role: does NOT show Add Employee button or action column', async () => {
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem({ employeeId: 'emp1', name: 'Alice' })],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    await waitFor(() => {
+      expect(screen.getByText('Alice')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Add Employee')).not.toBeInTheDocument();
+    expect(screen.queryByText('Edit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mark as Resigned')).not.toBeInTheDocument();
+  });
+
+  // Story 10.4 AC2: DEPT_HEAD does NOT see Add/Edit/Resign buttons
+  it('DEPT_HEAD role: does NOT show Add Employee button or action column', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u-dh', name: 'Dept Head', role: 'DEPT_HEAD', email: 'dh@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    mockGetEmployeeDashboard.mockResolvedValue({
+      data: [makeEmployeeItem({ employeeId: 'emp1', name: 'Alice' })],
+      meta: { total: 1 },
+    });
+
+    renderDashboard();
+    await waitFor(() => {
+      expect(screen.getByText('Alice')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Add Employee')).not.toBeInTheDocument();
+    expect(screen.queryByText('Edit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mark as Resigned')).not.toBeInTheDocument();
+  });
+
+  // Story 10.4 AC9: Add Employee modal opens when button clicked
+  it('Admin: clicking Add Employee opens the modal', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u-admin', name: 'Admin User', role: 'ADMIN', email: 'admin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    mockGetEmployeeDashboard.mockResolvedValue({ data: [], meta: { total: 0 } });
+
+    renderDashboard();
+    await waitFor(() => {
+      expect(screen.getByText('Add Employee')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add Employee'));
+    expect(screen.getByTestId('employee-form-modal')).toBeInTheDocument();
+  });
+
+  // Story 10.4: Page title is "Employees" not "Employee Dashboard"
+  it('page title is "Employees"', () => {
+    renderDashboard();
+    expect(screen.getByText('Employees')).toBeInTheDocument();
   });
 });

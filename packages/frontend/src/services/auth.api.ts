@@ -8,44 +8,83 @@ export const authKeys = {
 
 export interface AuthUser {
   id: string;
-  name: string;
+  name: string | null;
   role: UserRole;
   email: string;
   departmentId: string | null;
-  mustChangePassword: boolean;
+  status: string;
 }
 
 export interface LoginUser {
   id: string;
-  name: string;
+  name: string | null;
   role: UserRole;
   email: string;
+}
+
+export interface OtpErrorResponse {
+  success: false;
+  error: { code: string; message: string };
+  retryAfterSeconds?: number;
+  attemptsRemaining?: number;
 }
 
 export function getMe(): Promise<DataResponse<AuthUser>> {
   return get<DataResponse<AuthUser>>('/auth/me');
 }
 
-export function login(email: string, password: string): Promise<DataResponse<LoginUser>> {
-  return post<DataResponse<LoginUser>>('/auth/login', { email, password });
-}
-
 export function logout(): Promise<SuccessResponse> {
   return post<SuccessResponse>('/auth/logout');
 }
 
-export function forgotPassword(email: string): Promise<SuccessResponse> {
-  return post<SuccessResponse>('/auth/forgot-password', { email });
+export async function requestOtp(email: string): Promise<{ success: true } | OtpErrorResponse> {
+  const res = await fetch('/api/v1/auth/request-otp', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  return res.json();
 }
 
-export function validateResetToken(token: string): Promise<DataResponse<{ valid: boolean }>> {
-  return get<DataResponse<{ valid: boolean }>>(`/auth/validate-reset-token?token=${encodeURIComponent(token)}`);
+export async function verifyOtp(email: string, otp: string): Promise<DataResponse<LoginUser> | OtpErrorResponse> {
+  const res = await fetch('/api/v1/auth/verify-otp', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp }),
+  });
+
+  return res.json();
 }
 
-export function resetPassword(token: string, newPassword: string): Promise<SuccessResponse> {
-  return post<SuccessResponse>('/auth/reset-password', { token, newPassword });
+export interface InvitationData {
+  email: string;
+  role: string;
+  departments: { id: string; name: string }[];
 }
 
-export function changePassword(newPassword: string): Promise<SuccessResponse> {
-  return post<SuccessResponse>('/auth/change-password', { newPassword });
+export interface ValidateInvitationResult {
+  valid: boolean;
+  error?: string;
+  message?: string;
+  data?: InvitationData;
+}
+
+export async function validateInvitation(token: string): Promise<ValidateInvitationResult> {
+  const res = await fetch(`/api/v1/auth/validate-invitation?token=${encodeURIComponent(token)}`, {
+    credentials: 'include',
+  });
+  return res.json();
+}
+
+export async function completeProfile(data: { token: string; name: string; departmentId?: string | null }): Promise<DataResponse<LoginUser> | OtpErrorResponse> {
+  const res = await fetch('/api/v1/auth/complete-profile', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return res.json();
 }

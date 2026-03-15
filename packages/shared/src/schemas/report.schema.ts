@@ -11,7 +11,7 @@ export const reportTypeEnum = z.enum([
 
 export const pdfExportRequestSchema = z.object({
   reportType: reportTypeEnum,
-  entityId: z.string().uuid(),
+  entityId: z.string().uuid().optional(),
   period: z.string().regex(/^\d{4}-\d{2}$/, 'Period must be in YYYY-MM format'),
 });
 
@@ -20,7 +20,7 @@ export type ReportType = z.infer<typeof reportTypeEnum>;
 
 export const shareRequestSchema = z.object({
   reportType: reportTypeEnum,
-  entityId: z.string().uuid(),
+  entityId: z.string().uuid().optional(),
   period: z.string().regex(/^\d{4}-\d{2}$/, 'Period must be in YYYY-MM format'),
 });
 

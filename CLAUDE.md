@@ -2,88 +2,110 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What This Repository Is
+## Project Overview
 
-This project uses the **BMad Method v6** — an AI-driven agile development platform that guides projects from ideation through implementation using specialized agents, structured workflows, and reusable tasks. Everything lives under `_bmad/`.
+**IPIS — Internal Profitability Intelligence System.** A full-stack business intelligence platform for tracking project profitability, resource utilization, employee costs, and financial metrics across departments. Serves 5 roles: Admin, Finance, HR, Delivery Manager, Department Head.
 
-## Getting Started
+## Tech Stack
+
+- **Monorepo:** pnpm workspaces (`packages/backend`, `packages/frontend`, `packages/shared`, `packages/e2e`)
+- **Backend:** Express 5, Prisma 6 (PostgreSQL), JWT auth via HTTP-only cookies, Zod validation, Vitest
+- **Frontend:** React 19, Vite, Ant Design 6, TanStack React Query, react-router 7, Vitest + Testing Library
+- **Shared:** Zod schemas, TypeScript types, utility functions (currency/percent formatting)
+- **E2E:** Playwright with role-based test accounts and isolated test database
+
+## Build & Dev Commands
+
+```bash
+pnpm dev                                  # Start backend (port 3000) + frontend (port 5173)
+pnpm test                                 # Run all unit/integration tests
+pnpm typecheck                            # tsc --noEmit across all packages
+pnpm lint                                 # ESLint across all packages
+
+# Package-specific
+pnpm --filter backend test                # Backend tests only (needs PostgreSQL)
+pnpm --filter frontend test               # Frontend tests only (no DB needed)
+pnpm --filter backend test -- --testPathPattern="dashboard.service"  # Single test file
+
+# Database
+pnpm --filter backend migrate:deploy      # Apply migrations
+pnpm --filter backend db:seed             # Seed dev data
+pnpm --filter backend db:studio           # Prisma Studio (port 5555)
+pnpm --filter backend db:generate         # Regenerate Prisma client
+
+# E2E (requires running app + separate test DB: ipis_test_e2e)
+pnpm test:e2e
+```
+
+## Architecture
+
+### Backend Pattern: Route → Middleware → Service → Prisma
 
 ```
-/bmad-help          # Context-aware help — ask what to do next
-/bmad-party-mode    # Start a multi-agent discussion
+routes/*.routes.ts     → authMiddleware → rbacMiddleware(['ROLE']) → asyncHandler(handler)
+services/*.service.ts  → Business logic, Prisma queries, audit logging
+lib/                   → JWT, Excel (xlsx), PDF (Puppeteer), SSE, logger (pino)
+middleware/            → auth, rbac, validation (Zod), error handling, file upload (Multer)
 ```
 
-## Agents
+All API responses follow `{ data, meta }` structure. Routes registered at `/api/v1/*` in `routes/index.ts`.
 
-Invoke agents via `/bmad-agent-<name>`. Each agent presents a numbered menu on load.
+### Frontend Pattern: Page → API Service → React Query
 
-| Command | Agent | Role |
-|---|---|---|
-| `/bmad-agent-bmad-master` | BMAD Master | Workflow orchestrator, knowledge custodian |
-| `/bmad-agent-bmm-analyst` | Mary | Business analyst — research, briefs |
-| `/bmad-agent-bmm-pm` | John | Product manager — PRD, epics, stories |
-| `/bmad-agent-bmm-architect` | Winston | System architect — architecture, tech design |
-| `/bmad-agent-bmm-dev` | Amelia | Senior developer — story implementation |
-| `/bmad-agent-bmm-sm` | Bob | Scrum master — sprint planning, backlog |
-| `/bmad-agent-bmm-qa` | Quinn | QA engineer — test automation |
-| `/bmad-agent-bmm-ux-designer` | Sally | UX designer — interaction design, specs |
-| `/bmad-agent-bmm-tech-writer` | Paige | Technical writer — docs, diagrams |
-| `/bmad-agent-bmm-quick-flow-solo-dev` | Barry | Solo dev — fast spec + implementation |
+```
+pages/                 → Route-level components (admin/, dashboards/, projects/, upload/)
+components/            → Reusable UI (modals, badges, tables)
+services/*.api.ts      → API functions + query key factories (e.g., projectKeys.all())
+hooks/useAuth.ts       → Auth state via React Query, role-based landing pages
+router/                → Guards: AuthGuard, LoginGuard, RoleGuard, ChangePasswordGuard
+```
 
-## Workflows
+### Calculation Engine (`services/calculation-engine/`)
 
-Run directly via `/bmad-bmm-<workflow-name>` or through an agent's menu.
+Modular calculators per engagement model (T&M, Fixed Cost, AMC, Infrastructure). Results persisted as `CalculationSnapshot` records with entity type, figure type, period, value (paise), and breakdown JSON. Dashboards read from snapshots, never recalculate at query time.
 
-**Phase 1 — Analysis**
-- `/bmad-brainstorming` — Facilitated brainstorming session
-- `/bmad-bmm-create-product-brief` — Product discovery (6+ steps)
-- `/bmad-bmm-market-research`, `/bmad-bmm-domain-research`, `/bmad-bmm-technical-research`
+### Key Conventions
 
-**Phase 2 — Planning**
-- `/bmad-bmm-create-prd` — Create PRD (12+ steps)
-- `/bmad-bmm-validate-prd` — 13-point PRD quality check
-- `/bmad-bmm-create-ux-design` — UX specs (13+ steps)
+- **Monetary values:** BigInt in paise (₹1 = 100 paise). Use `formatCurrency()` for display.
+- **IDs:** UUID v4 everywhere.
+- **Auth:** JWT in HTTP-only cookie `ipis_token`, 2-hour sliding expiry. RBAC via middleware.
+- **Roles:** `ADMIN | FINANCE | HR | DELIVERY_MANAGER | DEPT_HEAD`
+- **Error classes:** `NotFoundError`, `ForbiddenError`, `ValidationError`, `ConflictError`, `UploadRejectedError`
+- **Soft operations:** No hard deletes — use `isActive`, `isResigned` flags.
+- **Tests:** Backend tests need PostgreSQL running. Frontend tests use jsdom mocks. Each test file creates isolated fixtures.
+- **Prisma selects:** Use projection objects (`const FIELD_SELECT = {...}`) to shape responses.
 
-**Phase 3 — Solutioning**
-- `/bmad-bmm-create-architecture` — Technical solution design
-- `/bmad-bmm-create-epics-and-stories` — Break PRD into epics/stories
-- `/bmad-bmm-check-implementation-readiness` — Validate alignment across PRD, UX, architecture
+### Database Models (Prisma)
 
-**Phase 4 — Implementation**
-- `/bmad-bmm-sprint-planning` — Generate sprint tracking from epics
-- `/bmad-bmm-create-story` — Prepare a story with full dev context
-- `/bmad-bmm-dev-story` — Execute a story (TDD-driven)
-- `/bmad-bmm-code-review` — Adversarial code review
-- `/bmad-bmm-retrospective` — Post-epic review
+Core: `User`, `Department`, `Employee`, `Project`, `EmployeeProject` (junction with billing rates), `ProjectRole`
+Financial: `TimesheetEntry`, `BillingRecord`, `CalculationSnapshot`, `RecalculationRun`
+System: `UploadEvent` (with `errorSummary` JSON), `AuditEvent`, `SystemConfig`, `SharedReportToken`
 
-**Quick Flow (small changes, no ceremony)**
-- `/bmad-bmm-quick-spec` → `/bmad-bmm-quick-dev`
+## BMAD Method Integration
 
-## Tasks (standalone, anytime)
+This project uses **BMad Method v6** for AI-driven agile development. All BMAD artifacts live under `_bmad/` and `_bmad-output/`.
 
-- `/bmad-help` — What should I do next?
-- `/bmad-editorial-review-prose` — Copy-editing
-- `/bmad-editorial-review-structure` — Structural analysis
-- `/bmad-review-adversarial-general` — Critical/cynical review
-- `/bmad-shard-doc` — Split large markdown into smaller files
-- `/bmad-index-docs` — Generate/update folder index.md
+```
+/bmad-help              # Context-aware help
+/bmad-dev-story         # Execute a story (TDD-driven)
+/bmad-create-story      # Prepare a story with full dev context
+/bmad-sprint-planning   # Generate sprint tracking from epics
+/bmad-code-review       # Adversarial code review
+/bmad-party-mode        # Multi-agent discussion
+```
 
-## Output & Artifacts
-
+**Artifacts:**
 - `_bmad-output/planning-artifacts/` — PRDs, briefs, research
-- `_bmad-output/implementation-artifacts/` — Architecture, stories, sprint plans
-- `docs/` — Project knowledge base (scanned by workflows for context)
-
-## Key Architecture
-
-- **`_bmad/core/`** — Workflow engine (`tasks/workflow.xml`), base protocols
-- **`_bmad/bmm/`** — BMad Method Module: agents, workflows, tasks, config
-- **`_bmad/_config/`** — Manifests (agent, workflow, task), agent customization files
-- **`.claude/commands/`** — 41 slash command definitions (one per agent/workflow/task)
-- **`_bmad/bmm/config.yaml`** — Project config: name, user, language, output paths
-
-Workflows are step-based (each step is a separate `.md` file); frontmatter tracks `stepsCompleted`. Agents accept numbered menu selections or fuzzy-matched command shortcuts. Input discovery scans `docs/` for existing context documents automatically.
+- `_bmad-output/implementation-artifacts/` — Stories, sprint plans, architecture
+- `docs/` — Project knowledge base
 
 ## Implementation Gate — Sprint Status (MANDATORY)
 
-After completing ANY story implementation — whether via `/bmad-bmm-dev-story`, a direct implementation plan, ad-hoc coding, or any other method — you MUST update `_bmad-output/implementation-artifacts/sprint-status.yaml` to reflect the current story status (`in-progress` while working, `review` when implementation is complete and ready for code review). This applies regardless of which workflow or agent was used. Skipping this step is a process violation.
+After completing ANY story implementation — whether via `/bmad-dev-story`, a direct implementation plan, ad-hoc coding, or any other method — you MUST update `_bmad-output/implementation-artifacts/sprint-status.yaml` to reflect the current story status (`in-progress` while working, `review` when implementation is complete and ready for code review). This applies regardless of which workflow or agent was used. Skipping this step is a process violation.
+
+
+Add under a ## Testing section at the top level of CLAUDE.md\n\nAfter any code changes, always run the full test suite and fix any failing tests before marking work as complete. Pay special attention to mock updates when adding new API functions.
+Add under a ## Workflow Conventions section in CLAUDE.md\n\nWhen updating project tracking (sprint status, story files), always update ALL related status files in the same step as the implementation. Never consider a story complete without updating sprint-status.md.
+Add under ## Testing section in CLAUDE.md\n\nWhen fixing frontend tests, be aware of ambiguous text matching. Use getAllByText, getByRole with exact matchers, or data-testid attributes instead of getByText when text appears in multiple DOM elements.
+Add under a ## Git section in CLAUDE.md\n\nFor Git authentication issues: prefer Personal Access Tokens (PATs) via HTTPS as the first approach. Don't cycle through SSH keys, gh CLI, and brew if they aren't already configured.
+Add under a ## Setup / Onboarding section in CLAUDE.md\n\nWhen providing setup instructions or seed credentials, verify them against the actual seed data files in the codebase before telling the user.

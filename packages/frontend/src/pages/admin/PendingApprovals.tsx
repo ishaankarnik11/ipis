@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, notification } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Descriptions, Tag, Alert, notification } from 'antd';
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ColumnsType } from 'antd/es/table';
@@ -20,11 +20,11 @@ export default function PendingApprovals() {
 
   const { data, isLoading } = useQuery({
     queryKey: projectKeys.all,
-    queryFn: getProjects,
+    queryFn: () => getProjects(),
   });
 
   const pendingProjects = (data?.data ?? []).filter(
-    (p) => p.status === 'PENDING_APPROVAL',
+    (p: Project) => p.status === 'PENDING_APPROVAL',
   );
 
   const approveMutation = useMutation({
@@ -81,11 +81,12 @@ export default function PendingApprovals() {
   };
 
   const formatCurrency = (paise: number | null) => {
-    if (paise == null) return '-';
+    if (paise == null) return '—';
     return `₹${(paise / 100).toLocaleString('en-IN')}`;
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
@@ -123,7 +124,10 @@ export default function PendingApprovals() {
             type="primary"
             icon={<CheckOutlined />}
             size="small"
-            onClick={() => approveMutation.mutate({ id: record.id, name: record.name })}
+            onClick={(e) => {
+              e.stopPropagation();
+              approveMutation.mutate({ id: record.id, name: record.name });
+            }}
             loading={approveMutation.isPending && approveMutation.variables?.id === record.id}
           >
             Approve
@@ -132,7 +136,10 @@ export default function PendingApprovals() {
             danger
             icon={<CloseOutlined />}
             size="small"
-            onClick={() => openRejectModal(record)}
+            onClick={(e) => {
+              e.stopPropagation();
+              openRejectModal(record);
+            }}
           >
             Reject
           </Button>
@@ -140,6 +147,47 @@ export default function PendingApprovals() {
       ),
     },
   ];
+
+  const expandedRowRender = (project: Project) => (
+    <div style={{ padding: '8px 0' }}>
+      {project.rejectionComment && (
+        <Alert
+          type="warning"
+          message="Previously Rejected"
+          description={project.rejectionComment}
+          style={{ marginBottom: 16 }}
+          showIcon
+        />
+      )}
+      <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 3 }}>
+        <Descriptions.Item label="Client">{project.client}</Descriptions.Item>
+        <Descriptions.Item label="Vertical">{project.vertical}</Descriptions.Item>
+        <Descriptions.Item label="Engagement Model">
+          <Tag>{engagementModelLabels[project.engagementModel] ?? project.engagementModel}</Tag>
+        </Descriptions.Item>
+        <Descriptions.Item label="Start Date">{formatDate(project.startDate)}</Descriptions.Item>
+        <Descriptions.Item label="End Date">{formatDate(project.endDate)}</Descriptions.Item>
+        <Descriptions.Item label="Delivery Manager">{project.deliveryManagerName ?? '—'}</Descriptions.Item>
+        {project.contractValuePaise != null && (
+          <Descriptions.Item label="Contract Value">{formatCurrency(project.contractValuePaise)}</Descriptions.Item>
+        )}
+        {project.slaDescription && (
+          <Descriptions.Item label="SLA Description" span={2}>{project.slaDescription}</Descriptions.Item>
+        )}
+        {project.infraCostMode && (
+          <Descriptions.Item label="Infrastructure Cost Mode">
+            <Tag>{project.infraCostMode === 'SIMPLE' ? 'Simple' : 'Detailed'}</Tag>
+          </Descriptions.Item>
+        )}
+        {project.manpowerCostPaise != null && (
+          <Descriptions.Item label="Manpower Cost">{formatCurrency(project.manpowerCostPaise)}</Descriptions.Item>
+        )}
+        {project.vendorCostPaise != null && (
+          <Descriptions.Item label="Vendor Cost">{formatCurrency(project.vendorCostPaise)}</Descriptions.Item>
+        )}
+      </Descriptions>
+    </div>
+  );
 
   return (
     <div>
@@ -151,6 +199,10 @@ export default function PendingApprovals() {
         rowKey="id"
         loading={isLoading}
         pagination={false}
+        expandable={{
+          expandedRowRender,
+          expandRowByClick: true,
+        }}
       />
 
       <Modal

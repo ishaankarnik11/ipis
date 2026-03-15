@@ -4,7 +4,7 @@ import type { UserRole } from '@ipis/shared';
 import { useAuth, getRoleLandingPage } from '../hooks/useAuth';
 
 export function AuthGuard() {
-  const { user, isLoading, isAuthenticated, mustChangePassword } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -16,32 +16,6 @@ export function AuthGuard() {
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
-  }
-
-  if (mustChangePassword) {
-    return <Navigate to="/change-password" replace />;
-  }
-
-  return <Outlet />;
-}
-
-export function ChangePasswordGuard() {
-  const { user, isLoading, isAuthenticated, mustChangePassword } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!mustChangePassword) {
-    return <Navigate to={getRoleLandingPage(user.role)} replace />;
   }
 
   return <Outlet />;

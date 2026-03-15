@@ -40,12 +40,12 @@ vi.mock('../../services/employees.api', () => ({
   searchEmployees: vi.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
 }));
 
-vi.mock('../../services/project-roles.api', () => ({
-  projectRoleKeys: {
-    all: ['project-roles'],
-    active: ['project-roles', 'active'],
+vi.mock('../../services/designations.api', () => ({
+  designationKeys: {
+    all: ['designations'],
+    active: ['designations', 'active'],
   },
-  getActiveProjectRoles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
+  getActiveDesignations: vi.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
 }));
 
 vi.mock('../../services/projects.api', () => ({

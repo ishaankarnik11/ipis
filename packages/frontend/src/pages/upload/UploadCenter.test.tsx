@@ -42,6 +42,7 @@ vi.mock('../../services/uploads.api', () => ({
     history: ['uploads', 'history'] as const,
     latestByType: ['uploads', 'latestByType'] as const,
     progress: (id: string) => ['uploads', 'progress', id] as const,
+    records: (id: string, status?: string) => ['uploads', 'records', id, status ?? 'all'] as const,
   },
   uploadTimesheetFile: (...args: unknown[]) => mockUploadTimesheetFile(...args),
   uploadBillingFile: (...args: unknown[]) => mockUploadBillingFile(...args),
@@ -50,6 +51,9 @@ vi.mock('../../services/uploads.api', () => ({
   getLatestByType: (...args: unknown[]) => mockGetLatestByType(...args),
   downloadErrorReport: (...args: unknown[]) => mockDownloadErrorReport(...args),
   downloadTemplate: (...args: unknown[]) => mockDownloadTemplate(...args),
+  getTemplateType: (key: string) => key,
+  getUploadRecords: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, uploadType: '' } }),
+  downloadUploadRecords: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../services/employees.api', () => ({
@@ -462,6 +466,32 @@ describe('UploadCenter', () => {
     await waitFor(() => {
       expect(screen.getByTestId('validation-error-panel-timesheet')).toBeInTheDocument();
     });
+  });
+
+  // Story 10.3 AC2: DM sees only timesheet zone, no billing or salary
+  it('should show only timesheet zone for DELIVERY_MANAGER user', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u-dm', name: 'DM User', role: 'DELIVERY_MANAGER', email: 'dm@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    renderUploadCenter();
+    expect(screen.getByTestId('upload-zone-timesheet')).toBeInTheDocument();
+    expect(screen.queryByTestId('upload-zone-billing')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('upload-zone-salary')).not.toBeInTheDocument();
+  });
+
+  // Story 10.3: Admin still sees all three zones (regression check)
+  it('should still show all three zones for Admin after DM access added (regression)', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u3', name: 'Admin User', role: 'ADMIN', email: 'admin@test.com' },
+      isLoading: false,
+      isAuthenticated: true,
+    });
+    renderUploadCenter();
+    expect(screen.getByTestId('upload-zone-timesheet')).toBeInTheDocument();
+    expect(screen.getByTestId('upload-zone-billing')).toBeInTheDocument();
+    expect(screen.getByTestId('upload-zone-salary')).toBeInTheDocument();
   });
 
   // AC 10: Tablet viewport warning

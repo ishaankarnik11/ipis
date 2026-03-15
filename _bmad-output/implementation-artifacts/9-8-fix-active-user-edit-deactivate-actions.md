@@ -1,6 +1,6 @@
 # Story 9.8: Fix Active User Edit/Deactivate Actions
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -95,46 +95,46 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Diagnose missing action buttons (AC: 1)
-  - [ ] 1.1 Read the User Management component — find the Actions column render logic
-  - [ ] 1.2 Identify why active users don't show actions (likely a conditional: `if (!user.isActive)` shows buttons)
-  - [ ] 1.3 Fix the conditional to show Edit + Deactivate for active users and Edit + Activate for inactive users
+- [x] Task 1: Diagnose missing action buttons (AC: 1)
+  - [x] 1.1 Read the User Management component — find the Actions column render logic
+  - [x] 1.2 Identify why active users don't show actions (likely a conditional: `if (!user.isActive)` shows buttons)
+  - [x] 1.3 Fix the conditional to show Edit + Deactivate for active users and Edit + Activate for inactive users
 
-- [ ] Task 2: Add Edit modal for users (AC: 2, 3)
-  - [ ] 2.1 Check if an Edit modal already exists (may exist for deactivated users)
-  - [ ] 2.2 If it exists, ensure it works for active users too
-  - [ ] 2.3 If it doesn't exist, create an Edit User modal with fields: name (editable), email (read-only), role (dropdown), department (dropdown)
-  - [ ] 2.4 On Save, call `PATCH /api/v1/users/:id` with updated fields
-  - [ ] 2.5 Refresh the user list after successful save
+- [x] Task 2: Add Edit modal for users (AC: 2, 3)
+  - [x] 2.1 Check if an Edit modal already exists (may exist for deactivated users)
+  - [x] 2.2 If it exists, ensure it works for active users too
+  - [x] 2.3 If it doesn't exist, create an Edit User modal with fields: name (editable), email (read-only), role (dropdown), department (dropdown)
+  - [x] 2.4 On Save, call `PATCH /api/v1/users/:id` with updated fields
+  - [x] 2.5 Refresh the user list after successful save
 
-- [ ] Task 3: Add Deactivate action with Popconfirm (AC: 4)
-  - [ ] 3.1 Add a Deactivate button for active users
-  - [ ] 3.2 Wrap with antd `Popconfirm` for confirmation
-  - [ ] 3.3 On confirm, call `PATCH /api/v1/users/:id` with `{ isActive: false }`
-  - [ ] 3.4 Refresh the user list after deactivation
+- [x] Task 3: Add Deactivate action with Popconfirm (AC: 4)
+  - [x] 3.1 Add a Deactivate button for active users
+  - [x] 3.2 Wrap with antd `Popconfirm` for confirmation
+  - [x] 3.3 On confirm, call `PATCH /api/v1/users/:id` with `{ isActive: false }`
+  - [x] 3.4 Refresh the user list after deactivation
 
-- [ ] Task 4: Self-deactivation guard (AC: 6)
-  - [ ] 4.1 Get the currently logged-in user's ID from auth context
-  - [ ] 4.2 In the Actions column render, hide Deactivate button when `user.id === currentUserId`
+- [x] Task 4: Self-deactivation guard (AC: 6)
+  - [x] 4.1 Get the currently logged-in user's ID from auth context
+  - [x] 4.2 In the Actions column render, hide Deactivate button when `user.id === currentUserId`
 
-- [ ] Task 5: Verify backend PATCH endpoint (AC: 3, 4)
-  - [ ] 5.1 Verify `PATCH /api/v1/users/:id` supports updating name, role, department, and isActive
-  - [ ] 5.2 If the endpoint only supports isActive changes, extend it to accept name, role, department
-  - [ ] 5.3 Add validation: prevent deactivating the last admin user
+- [x] Task 5: Verify backend PATCH endpoint (AC: 3, 4)
+  - [x] 5.1 Verify `PATCH /api/v1/users/:id` supports updating name, role, department, and isActive
+  - [x] 5.2 If the endpoint only supports isActive changes, extend it to accept name, role, department
+  - [x] 5.3 Add validation: prevent deactivating the last admin user
 
-- [ ] Task 6: Frontend tests (AC: 7)
-  - [ ] 6.1 Create `pages/admin/user-management-actions.test.tsx`
-  - [ ] 6.2 Test: active user row renders Edit and Deactivate buttons
-  - [ ] 6.3 Test: Edit button opens modal with pre-populated data
-  - [ ] 6.4 Test: Save in Edit modal calls PATCH endpoint
-  - [ ] 6.5 Test: Deactivate button shows Popconfirm
-  - [ ] 6.6 Test: logged-in admin row has no Deactivate button
-  - [ ] 6.7 Test: deactivated user row renders Edit and Activate buttons (regression)
+- [x] Task 6: Frontend tests (AC: 7)
+  - [x] 6.1 Create `pages/admin/user-management-actions.test.tsx`
+  - [x] 6.2 Test: active user row renders Edit and Deactivate buttons
+  - [x] 6.3 Test: Edit button opens modal with pre-populated data
+  - [x] 6.4 Test: Save in Edit modal calls PATCH endpoint
+  - [x] 6.5 Test: Deactivate button shows Popconfirm
+  - [x] 6.6 Test: logged-in admin row has no Deactivate button
+  - [x] 6.7 Test: deactivated user row renders Edit and Activate buttons (regression)
 
-- [ ] Task 7: E2E tests (E2E-P1 through E2E-N3)
-  - [ ] 7.1 Create or extend `packages/e2e/tests/user-management-actions.spec.ts`
-  - [ ] 7.2 Implement E2E-P1 through E2E-P4
-  - [ ] 7.3 Implement E2E-N1 through E2E-N3
+- [x] Task 7: E2E tests (E2E-P1 through E2E-N3)
+  - [x] 7.1 Create or extend `packages/e2e/tests/user-management-actions.spec.ts`
+  - [x] 7.2 Implement E2E-P1 through E2E-P4
+  - [x] 7.3 Implement E2E-N1 through E2E-N3
 
 ## Dev Notes
 

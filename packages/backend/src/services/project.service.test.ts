@@ -148,17 +148,17 @@ describe('project.service', () => {
       const emp = await prisma.employee.create({
         data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
       });
-      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+      const role = await prisma.designation.create({ data: { name: 'Developer' } });
 
       const result = await projectService.createProject(
-        { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id, billingRatePaise: 500000 }] },
+        { ...validCreateInput, members: [{ employeeId: emp.id, designationId: role.id, billingRatePaise: 500000 }] },
         dm,
       );
 
       const members = await prisma.employeeProject.findMany({ where: { projectId: result.id } });
       expect(members).toHaveLength(1);
       expect(members[0]!.employeeId).toBe(emp.id);
-      expect(members[0]!.roleId).toBe(role.id);
+      expect(members[0]!.designationId).toBe(role.id);
       expect(Number(members[0]!.billingRatePaise)).toBe(500000);
     });
 
@@ -177,11 +177,11 @@ describe('project.service', () => {
       const emp = await prisma.employee.create({
         data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
       });
-      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+      const role = await prisma.designation.create({ data: { name: 'Developer' } });
 
       await expect(
         projectService.createProject(
-          { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id }, { employeeId: emp.id, roleId: role.id }] },
+          { ...validCreateInput, members: [{ employeeId: emp.id, designationId: role.id }, { employeeId: emp.id, designationId: role.id }] },
           dm,
         ),
       ).rejects.toThrow('Duplicate employee in members array');
@@ -196,11 +196,11 @@ describe('project.service', () => {
       const emp = await prisma.employee.create({
         data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000), isResigned: true },
       });
-      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+      const role = await prisma.designation.create({ data: { name: 'Developer' } });
 
       await expect(
         projectService.createProject(
-          { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id }] },
+          { ...validCreateInput, members: [{ employeeId: emp.id, designationId: role.id }] },
           dm,
         ),
       ).rejects.toThrow(/resigned/i);
@@ -214,14 +214,14 @@ describe('project.service', () => {
       const emp = await prisma.employee.create({
         data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
       });
-      const role = await prisma.projectRole.create({ data: { name: 'Inactive Role', isActive: false } });
+      const role = await prisma.designation.create({ data: { name: 'Inactive Role', isActive: false } });
 
       await expect(
         projectService.createProject(
-          { ...validCreateInput, members: [{ employeeId: emp.id, roleId: role.id }] },
+          { ...validCreateInput, members: [{ employeeId: emp.id, designationId: role.id }] },
           dm,
         ),
-      ).rejects.toThrow('Invalid or inactive project role');
+      ).rejects.toThrow('Invalid or inactive designation');
 
       const projects = await prisma.project.findMany();
       expect(projects).toHaveLength(0);
@@ -232,7 +232,7 @@ describe('project.service', () => {
       const emp = await prisma.employee.create({
         data: { employeeCode: 'EMP001', name: 'Alice', departmentId: departments.get('Engineering')!, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
       });
-      const role = await prisma.projectRole.create({ data: { name: 'Developer' } });
+      const role = await prisma.designation.create({ data: { name: 'Developer' } });
 
       await expect(
         projectService.createProject(
@@ -240,7 +240,7 @@ describe('project.service', () => {
             name: 'TM Proj', client: 'X', vertical: 'Tech',
             engagementModel: 'TIME_AND_MATERIALS' as const,
             startDate: '2026-03-01', endDate: '2026-12-31',
-            members: [{ employeeId: emp.id, roleId: role.id }],
+            members: [{ employeeId: emp.id, designationId: role.id }],
           },
           dm,
         ),
@@ -322,6 +322,23 @@ describe('project.service', () => {
       expect(result[0].deliveryManagerId).toBe(dm.id);
     });
 
+    it('should return all projects for DM with scope=all', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      await projectService.createProject(validCreateInput, dm);
+
+      const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
+      await projectService.createProject({ ...validCreateInput, name: 'Other Project' }, otherDm);
+
+      // Without scope — DM sees only own
+      const ownResult = await projectService.getAll(dm);
+      expect(ownResult).toHaveLength(1);
+
+      // With scope=all — DM sees all projects
+      const allResult = await projectService.getAll(dm, { scope: 'all' });
+      expect(allResult).toHaveLength(2);
+    });
+
     it('should return all projects for Admin', async () => {
       const dm = await makeDmUser();
       const admin = await makeAdminUser();
@@ -343,23 +360,83 @@ describe('project.service', () => {
       expect(result.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should scope DEPT_HEAD to their department projects', async () => {
+    it('should scope DEPT_HEAD to projects with employees from their department', async () => {
       const engDeptId = departments.get('Engineering')!;
-      const dm = await createTestUser('DELIVERY_MANAGER', {
-        email: 'dm1@test.com',
-        departmentId: engDeptId,
-      });
+      const hrDeptId = departments.get('HR')!;
+      const dm = await makeDmUser();
       await makeAdminUser();
+
+      // Create two projects
+      const proj1 = await projectService.createProject(validCreateInput, dm);
+      const proj2 = await projectService.createProject({ ...validCreateInput, name: 'Other Project' }, dm);
+
+      // Approve both
+      await projectService.approveProject(proj1.id);
+      await projectService.approveProject(proj2.id);
+
+      // Create employees in Engineering and HR departments
+      const engEmployee = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Eng Employee', departmentId: engDeptId, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const hrEmployee = await prisma.employee.create({
+        data: { employeeCode: 'EMP002', name: 'HR Employee', departmentId: hrDeptId, designation: 'HR', annualCtcPaise: BigInt(1500000) },
+      });
+      const role = await prisma.designation.create({ data: { name: 'Developer' } });
+
+      // Assign Engineering employee to proj1, HR employee to proj2
+      await projectService.addTeamMember(proj1.id, { employeeId: engEmployee.id, designationId: role.id }, dm);
+      await projectService.addTeamMember(proj2.id, { employeeId: hrEmployee.id, designationId: role.id }, dm);
+
+      // Engineering DEPT_HEAD should only see proj1
+      const dh = await makeDeptHeadUser(engDeptId);
+      const result = await projectService.getAll(dh);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(proj1.id);
+    });
+
+    it('should not show duplicate projects when multiple dept employees are on same project', async () => {
+      const engDeptId = departments.get('Engineering')!;
+      const dm = await makeDmUser();
+      await makeAdminUser();
+
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.approveProject(proj.id);
+
+      // Create two Engineering employees
+      const emp1 = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Eng 1', departmentId: engDeptId, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const emp2 = await prisma.employee.create({
+        data: { employeeCode: 'EMP002', name: 'Eng 2', departmentId: engDeptId, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const role = await prisma.designation.create({ data: { name: 'Developer' } });
+
+      // Assign both to same project
+      await projectService.addTeamMember(proj.id, { employeeId: emp1.id, designationId: role.id }, dm);
+      await projectService.addTeamMember(proj.id, { employeeId: emp2.id, designationId: role.id }, dm);
+
+      const dh = await makeDeptHeadUser(engDeptId);
+      const result = await projectService.getAll(dh);
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('should return empty list for DEPT_HEAD with no department employees on any project', async () => {
+      const engDeptId = departments.get('Engineering')!;
+      const dm = await makeDmUser();
+      await makeAdminUser();
+
+      // Create a project but don't assign any Engineering employees
       await projectService.createProject(validCreateInput, dm);
 
       const dh = await makeDeptHeadUser(engDeptId);
-
       const result = await projectService.getAll(dh);
 
-      expect(result.length).toBeGreaterThanOrEqual(1);
+      expect(result).toHaveLength(0);
     });
 
-    it('should fall back to own projects for DEPT_HEAD without department', async () => {
+    it('should return empty list for DEPT_HEAD without department', async () => {
       const dh = await makeDeptHeadUser();
       await makeAdminUser();
 
@@ -380,14 +457,16 @@ describe('project.service', () => {
       expect(result.id).toBe(proj.id);
     });
 
-    it('should throw ForbiddenError for DM who does not own the project', async () => {
+    it('should allow DM to read any project detail (cross-project visibility per Story 10.6)', async () => {
       const dm = await makeDmUser();
       await makeAdminUser();
       const proj = await projectService.createProject(validCreateInput, dm);
 
       const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 
-      await expect(projectService.getById(proj.id, otherDm)).rejects.toThrow('Access denied');
+      // DMs have read-only cross-project visibility — no ForbiddenError
+      const result = await projectService.getById(proj.id, otherDm);
+      expect(result.id).toBe(proj.id);
     });
 
     it('should throw NotFoundError for non-existent project', async () => {
@@ -396,6 +475,36 @@ describe('project.service', () => {
       await expect(
         projectService.getById('00000000-0000-4000-8000-000000000001', admin),
       ).rejects.toThrow('Project not found');
+    });
+
+    it('should allow DEPT_HEAD to access project with department employees', async () => {
+      const engDeptId = departments.get('Engineering')!;
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.approveProject(proj.id);
+
+      const emp = await prisma.employee.create({
+        data: { employeeCode: 'EMP001', name: 'Eng', departmentId: engDeptId, designation: 'Dev', annualCtcPaise: BigInt(1500000) },
+      });
+      const role = await prisma.designation.create({ data: { name: 'Developer' } });
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId: role.id }, dm);
+
+      const dh = await makeDeptHeadUser(engDeptId);
+      const result = await projectService.getById(proj.id, dh);
+
+      expect(result.id).toBe(proj.id);
+    });
+
+    it('should throw ForbiddenError for DEPT_HEAD accessing project without department employees', async () => {
+      const engDeptId = departments.get('Engineering')!;
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      const dh = await makeDeptHeadUser(engDeptId);
+
+      await expect(projectService.getById(proj.id, dh)).rejects.toThrow('Access denied');
     });
   });
 
@@ -618,8 +727,8 @@ describe('project.service', () => {
     });
   }
 
-  async function seedProjectRole(name: string = 'Developer'): Promise<string> {
-    const role = await prisma.projectRole.create({ data: { name } });
+  async function seedDesignation(name: string = 'Developer'): Promise<string> {
+    const role = await prisma.designation.create({ data: { name } });
     return role.id;
   }
 
@@ -628,16 +737,16 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const result = await projectService.addTeamMember(
         proj.id,
-        { employeeId: emp.id, roleId },
+        { employeeId: emp.id, designationId },
         dm,
       );
 
       expect(result.employeeId).toBe(emp.id);
-      expect(result.roleId).toBe(roleId);
+      expect(result.designationId).toBe(designationId);
       expect(result.billingRatePaise).toBeNull();
     });
 
@@ -645,10 +754,10 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm, 'TIME_AND_MATERIALS');
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, dm),
       ).rejects.toThrow('billingRatePaise is required for T&M projects');
     });
 
@@ -656,11 +765,11 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm, 'TIME_AND_MATERIALS');
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const result = await projectService.addTeamMember(
         proj.id,
-        { employeeId: emp.id, roleId, billingRatePaise: 500000 },
+        { employeeId: emp.id, designationId, billingRatePaise: 500000 },
         dm,
       );
 
@@ -671,12 +780,12 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, otherDm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, otherDm),
       ).rejects.toThrow('Access denied');
     });
 
@@ -684,25 +793,25 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
-      const roleId2 = await seedProjectRole('Tester');
+      const designationId = await seedDesignation('Developer');
+      const designationId2 = await seedDesignation('Tester');
 
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, dm);
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId: roleId2 }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId: designationId2 }, dm),
       ).rejects.toThrow('Employee is already assigned to this project');
     });
 
     it('should throw NotFoundError for non-existent project', async () => {
       const dm = await makeDmUser();
       await makeAdminUser();
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await expect(
         projectService.addTeamMember(
           '00000000-0000-4000-8000-000000000001',
-          { employeeId: '00000000-0000-4000-8000-000000000002', roleId },
+          { employeeId: '00000000-0000-4000-8000-000000000002', designationId },
           dm,
         ),
       ).rejects.toThrow('Project not found');
@@ -711,12 +820,12 @@ describe('project.service', () => {
     it('should throw NotFoundError for non-existent employee', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await expect(
         projectService.addTeamMember(
           proj.id,
-          { employeeId: '00000000-0000-4000-8000-000000000002', roleId },
+          { employeeId: '00000000-0000-4000-8000-000000000002', designationId },
           dm,
         ),
       ).rejects.toThrow('Employee not found');
@@ -727,17 +836,17 @@ describe('project.service', () => {
       await makeAdminUser();
       const proj = await projectService.createProject(validCreateInput, dm);
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, dm),
       ).rejects.toThrow('Project must be in ACTIVE status');
     });
 
     it('should throw ValidationError for resigned employee', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
       const emp = await prisma.employee.create({
         data: {
           employeeCode: 'EMP001',
@@ -750,22 +859,22 @@ describe('project.service', () => {
       });
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm),
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, dm),
       ).rejects.toThrow('Cannot assign a resigned employee to a project');
     });
 
-    it('should throw ValidationError for inactive roleId', async () => {
+    it('should throw ValidationError for inactive designationId', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      const role = await prisma.projectRole.create({ data: { name: 'Inactive Role', isActive: false } });
+      const role = await prisma.designation.create({ data: { name: 'Inactive Role', isActive: false } });
 
       await expect(
-        projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId: role.id }, dm),
-      ).rejects.toThrow('Invalid or inactive project role');
+        projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId: role.id }, dm),
+      ).rejects.toThrow('Invalid or inactive designation');
     });
 
-    it('should throw ValidationError for non-existent roleId', async () => {
+    it('should throw ValidationError for non-existent designationId', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
@@ -773,29 +882,29 @@ describe('project.service', () => {
       await expect(
         projectService.addTeamMember(
           proj.id,
-          { employeeId: emp.id, roleId: '00000000-0000-0000-0000-000000000000' },
+          { employeeId: emp.id, designationId: '00000000-0000-0000-0000-000000000000' },
           dm,
         ),
-      ).rejects.toThrow('Invalid or inactive project role');
+      ).rejects.toThrow('Invalid or inactive designation');
     });
   });
 
   describe('getTeamMembers', () => {
-    it('should return team members with employee details and roleName', async () => {
+    it('should return team members with employee details and designationName', async () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
+      const designationId = await seedDesignation('Developer');
 
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, dm);
 
       const result = await projectService.getTeamMembers(proj.id, dm);
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Employee EMP001');
-      expect(result[0].designation).toBe('Developer');
-      expect(result[0].roleId).toBe(roleId);
-      expect(result[0].roleName).toBe('Developer');
+      expect(result[0].employeeDesignation).toBe('Developer');
+      expect(result[0].designationId).toBe(designationId);
+      expect(result[0].designationName).toBe('Developer');
     });
 
     it('should throw ForbiddenError for non-owning DM', async () => {
@@ -824,7 +933,107 @@ describe('project.service', () => {
     async function seedSnapshotsForProject(
       projectId: string,
       userId: string,
-      figures: Array<{ figureType: string; valuePaise: bigint }>,
+      opts: { revenue: number; cost: number; marginBp: number },
+      calculatedAt?: Date,
+    ) {
+      const uploadEvent = await prisma.uploadEvent.create({
+        data: {
+          type: 'TIMESHEET',
+          status: 'SUCCESS',
+          uploadedBy: userId,
+          periodMonth: 3,
+          periodYear: 2026,
+          rowCount: 1,
+        },
+      });
+      const run = await prisma.recalculationRun.create({
+        data: {
+          uploadEventId: uploadEvent.id,
+          projectsProcessed: 1,
+          completedAt: calculatedAt ?? new Date(),
+        },
+      });
+      await prisma.calculationSnapshot.create({
+        data: {
+          recalculationRunId: run.id,
+          entityType: 'PROJECT',
+          entityId: projectId,
+          figureType: 'MARGIN_PERCENT',
+          periodMonth: 3,
+          periodYear: 2026,
+          valuePaise: BigInt(opts.marginBp),
+          breakdownJson: { revenue: opts.revenue, cost: opts.cost, profit: opts.revenue - opts.cost },
+          engineVersion: '1.0.0',
+          calculatedAt: calculatedAt ?? new Date(),
+        },
+      });
+    }
+
+    it('should return financials: null when no snapshots exist', async () => {
+      const dm = await makeDmUser();
+      await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(result.financials).toBeNull();
+    });
+
+    it('should return financials object when snapshots exist', async () => {
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      await seedSnapshotsForProject(proj.id, admin.id, { revenue: 1000000, cost: 500000, marginBp: 2500 });
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(result.financials).not.toBeNull();
+      expect(result.financials!.revenuePaise).toBe(1000000);
+      expect(result.financials!.costPaise).toBe(500000);
+      expect(result.financials!.profitPaise).toBe(500000);
+      expect(result.financials!.marginPercent).toBe(0.25);
+    });
+
+    it('should return latest snapshot when multiple exist', async () => {
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      // Older snapshot
+      await seedSnapshotsForProject(proj.id, admin.id, { revenue: 500000, cost: 400000, marginBp: 1000 }, new Date('2026-01-01'));
+      // Newer snapshot
+      await seedSnapshotsForProject(proj.id, admin.id, { revenue: 2000000, cost: 800000, marginBp: 3000 }, new Date('2026-02-01'));
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(result.financials!.revenuePaise).toBe(2000000);
+      expect(result.financials!.costPaise).toBe(800000);
+      expect(result.financials!.profitPaise).toBe(1200000);
+      expect(result.financials!.marginPercent).toBe(0.30);
+    });
+
+    it('should return number types for financials values (not BigInt)', async () => {
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      await seedSnapshotsForProject(proj.id, admin.id, { revenue: 1000000, cost: 500000, marginBp: 2500 });
+
+      const result = await projectService.getById(proj.id, dm);
+
+      expect(typeof result.financials!.revenuePaise).toBe('number');
+      expect(typeof result.financials!.costPaise).toBe('number');
+      expect(typeof result.financials!.profitPaise).toBe('number');
+      expect(typeof result.financials!.marginPercent).toBe('number');
+    });
+  });
+
+  describe('getAll — financials', () => {
+    async function seedSnapshotsForProjectList(
+      projectId: string,
+      userId: string,
+      figures: Array<{ figureType: string; valuePaise: bigint; breakdownJson?: Record<string, unknown> }>,
       calculatedAt?: Date,
     ) {
       const uploadEvent = await prisma.uploadEvent.create({
@@ -854,7 +1063,7 @@ describe('project.service', () => {
             periodMonth: 3,
             periodYear: 2026,
             valuePaise: fig.valuePaise,
-            breakdownJson: {},
+            breakdownJson: fig.breakdownJson ?? ({} as any),
             engineVersion: '1.0.0',
             calculatedAt: calculatedAt ?? new Date(),
           },
@@ -862,80 +1071,96 @@ describe('project.service', () => {
       }
     }
 
-    it('should return financials: null when no snapshots exist', async () => {
+    it('should return financials: null for projects with no snapshots', async () => {
       const dm = await makeDmUser();
       await makeAdminUser();
-      const proj = await projectService.createProject(validCreateInput, dm);
+      await projectService.createProject(validCreateInput, dm);
 
-      const result = await projectService.getById(proj.id, dm);
+      const result = await projectService.getAll(dm);
 
-      expect(result.financials).toBeNull();
+      expect(result).toHaveLength(1);
+      expect(result[0].financials).toBeNull();
     });
 
-    it('should return financials object when snapshots exist', async () => {
+    it('should return financials for projects with snapshots', async () => {
       const dm = await makeDmUser();
       const admin = await makeAdminUser();
       const proj = await projectService.createProject(validCreateInput, dm);
 
-      await seedSnapshotsForProject(proj.id, admin.id, [
+      await seedSnapshotsForProjectList(proj.id, admin.id, [
         { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(1000000) },
         { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(500000) },
-        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(2500) },
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(2500), breakdownJson: { revenue: 1000000, cost: 500000, profit: 500000 } },
       ]);
 
-      const result = await projectService.getById(proj.id, dm);
+      const result = await projectService.getAll(dm);
 
-      expect(result.financials).not.toBeNull();
-      expect(result.financials!.revenuePaise).toBe(1000000);
-      expect(result.financials!.costPaise).toBe(500000);
-      expect(result.financials!.profitPaise).toBe(500000);
-      expect(result.financials!.marginPercent).toBe(0.25);
+      expect(result).toHaveLength(1);
+      expect(result[0].financials).not.toBeNull();
+      expect(result[0].financials!.revenuePaise).toBe(1000000);
+      expect(result[0].financials!.costPaise).toBe(500000);
+      expect(result[0].financials!.profitPaise).toBe(500000);
+      expect(result[0].financials!.marginPercent).toBe(0.25);
     });
 
-    it('should return latest snapshot when multiple exist', async () => {
+    it('should return latest snapshot when multiple exist for same project', async () => {
       const dm = await makeDmUser();
       const admin = await makeAdminUser();
       const proj = await projectService.createProject(validCreateInput, dm);
 
       // Older snapshots
-      await seedSnapshotsForProject(proj.id, admin.id, [
-        { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(500000) },
-        { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(400000) },
-        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(1000) },
+      await seedSnapshotsForProjectList(proj.id, admin.id, [
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(1000), breakdownJson: { revenue: 500000, cost: 400000, profit: 100000 } },
       ], new Date('2026-01-01'));
 
       // Newer snapshots
-      await seedSnapshotsForProject(proj.id, admin.id, [
-        { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(2000000) },
-        { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(800000) },
-        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(3000) },
+      await seedSnapshotsForProjectList(proj.id, admin.id, [
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(3000), breakdownJson: { revenue: 2000000, cost: 800000, profit: 1200000 } },
       ], new Date('2026-02-01'));
 
-      const result = await projectService.getById(proj.id, dm);
+      const result = await projectService.getAll(dm);
 
-      expect(result.financials!.revenuePaise).toBe(2000000);
-      expect(result.financials!.costPaise).toBe(800000);
-      expect(result.financials!.profitPaise).toBe(1200000);
-      expect(result.financials!.marginPercent).toBe(0.30);
+      expect(result[0].financials!.revenuePaise).toBe(2000000);
+      expect(result[0].financials!.costPaise).toBe(800000);
+      expect(result[0].financials!.profitPaise).toBe(1200000);
+      expect(result[0].financials!.marginPercent).toBe(0.30);
     });
 
-    it('should return number types for financials values (not BigInt)', async () => {
+    it('should derive profitPaise from revenue - cost when profit key is missing from breakdownJson', async () => {
       const dm = await makeDmUser();
       const admin = await makeAdminUser();
       const proj = await projectService.createProject(validCreateInput, dm);
 
-      await seedSnapshotsForProject(proj.id, admin.id, [
-        { figureType: 'REVENUE_CONTRIBUTION', valuePaise: BigInt(1000000) },
-        { figureType: 'EMPLOYEE_COST', valuePaise: BigInt(500000) },
-        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(2500) },
+      // breakdownJson has revenue and cost but NO profit key
+      await seedSnapshotsForProjectList(proj.id, admin.id, [
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(2500), breakdownJson: { revenue: 1000000, cost: 750000 } },
       ]);
 
-      const result = await projectService.getById(proj.id, dm);
+      const listResult = await projectService.getAll(dm);
+      expect(listResult[0].financials!.revenuePaise).toBe(1000000);
+      expect(listResult[0].financials!.costPaise).toBe(750000);
+      expect(listResult[0].financials!.profitPaise).toBe(250000); // derived: 1000000 - 750000
 
-      expect(typeof result.financials!.revenuePaise).toBe('number');
-      expect(typeof result.financials!.costPaise).toBe('number');
-      expect(typeof result.financials!.profitPaise).toBe('number');
-      expect(typeof result.financials!.marginPercent).toBe('number');
+      const detailResult = await projectService.getById(proj.id, dm);
+      expect(detailResult.financials!.profitPaise).toBe(250000); // same fallback in getById
+    });
+
+    it('should return financials that match getById for same project', async () => {
+      const dm = await makeDmUser();
+      const admin = await makeAdminUser();
+      const proj = await projectService.createProject(validCreateInput, dm);
+
+      await seedSnapshotsForProjectList(proj.id, admin.id, [
+        { figureType: 'MARGIN_PERCENT', valuePaise: BigInt(4000), breakdownJson: { revenue: 1500000, cost: 700000, profit: 800000 } },
+      ]);
+
+      const listResult = await projectService.getAll(dm);
+      const detailResult = await projectService.getById(proj.id, dm);
+
+      expect(listResult[0].financials!.revenuePaise).toBe(detailResult.financials!.revenuePaise);
+      expect(listResult[0].financials!.costPaise).toBe(detailResult.financials!.costPaise);
+      expect(listResult[0].financials!.profitPaise).toBe(detailResult.financials!.profitPaise);
+      expect(listResult[0].financials!.marginPercent).toBe(detailResult.financials!.marginPercent);
     });
   });
 
@@ -944,8 +1169,8 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
+      const designationId = await seedDesignation('Developer');
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, dm);
 
       await projectService.removeTeamMember(proj.id, emp.id, dm);
 
@@ -957,8 +1182,8 @@ describe('project.service', () => {
       const dm = await makeDmUser();
       const proj = await createActiveProject(dm);
       const emp = await createTestEmployee('EMP001');
-      const roleId = await seedProjectRole('Developer');
-      await projectService.addTeamMember(proj.id, { employeeId: emp.id, roleId }, dm);
+      const designationId = await seedDesignation('Developer');
+      await projectService.addTeamMember(proj.id, { employeeId: emp.id, designationId }, dm);
 
       const otherDm = await createTestUser('DELIVERY_MANAGER', { email: 'other@test.com' });
 

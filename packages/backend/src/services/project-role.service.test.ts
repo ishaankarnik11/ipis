@@ -28,7 +28,7 @@ describe('project-role.service', () => {
 
       await expect(
         projectRoleService.createRole({ name: 'developer' }),
-      ).rejects.toThrow('A project role with this name already exists');
+      ).rejects.toThrow('A designation with this name already exists');
     });
 
     it('throws ConflictError for exact duplicate', async () => {
@@ -36,7 +36,7 @@ describe('project-role.service', () => {
 
       await expect(
         projectRoleService.createRole({ name: 'Developer' }),
-      ).rejects.toThrow('A project role with this name already exists');
+      ).rejects.toThrow('A designation with this name already exists');
     });
   });
 
@@ -97,7 +97,7 @@ describe('project-role.service', () => {
     it('throws NotFoundError for non-existent role', async () => {
       await expect(
         projectRoleService.updateRole('00000000-0000-0000-0000-000000000000', { isActive: false }),
-      ).rejects.toThrow('Project role not found');
+      ).rejects.toThrow('Designation not found');
     });
   });
 
@@ -113,14 +113,14 @@ describe('project-role.service', () => {
       await projectRoleService.updateRole(role.id, { isActive: false });
 
       await expect(projectRoleService.validateRoleId(role.id)).rejects.toThrow(
-        'Invalid or inactive project role',
+        'Invalid or inactive designation',
       );
     });
 
     it('throws ValidationError for non-existent role', async () => {
       await expect(
         projectRoleService.validateRoleId('00000000-0000-0000-0000-000000000000'),
-      ).rejects.toThrow('Invalid or inactive project role');
+      ).rejects.toThrow('Invalid or inactive designation');
     });
   });
 });

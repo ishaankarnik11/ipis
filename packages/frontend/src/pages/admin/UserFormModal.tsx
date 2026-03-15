@@ -22,17 +22,18 @@ export default function UserFormModal({ open, editingUser, onClose }: UserFormMo
   const queryClient = useQueryClient();
   const isEditing = !!editingUser;
 
+  // Only fetch departments when editing (for department dropdown)
   const { data: deptData } = useQuery({
     queryKey: userKeys.departments,
     queryFn: getDepartments,
-    enabled: open,
+    enabled: open && isEditing,
   });
 
   const createMutation = useMutation({
     mutationFn: createUser,
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [...userKeys.all] });
-      message.success(`User ${variables.name} created successfully`);
+      message.success(`Invitation sent to ${variables.email}`);
       onClose();
     },
   });
@@ -71,7 +72,7 @@ export default function UserFormModal({ open, editingUser, onClose }: UserFormMo
   }, [open, editingUser, form, resetMutations]);
 
   const handleSubmit = async (values: {
-    name: string;
+    name?: string;
     email: string;
     role: UserRole;
     departmentId?: string | null;
@@ -83,10 +84,8 @@ export default function UserFormModal({ open, editingUser, onClose }: UserFormMo
       });
     } else {
       createMutation.mutate({
-        name: values.name,
         email: values.email,
         role: values.role,
-        departmentId: values.departmentId ?? null,
       });
     }
   };
@@ -95,7 +94,7 @@ export default function UserFormModal({ open, editingUser, onClose }: UserFormMo
 
   return (
     <Modal
-      title={isEditing ? 'Edit User' : 'Add User'}
+      title={isEditing ? 'Edit User' : 'Invite User'}
       open={open}
       onCancel={onClose}
       footer={null}
@@ -119,13 +118,14 @@ export default function UserFormModal({ open, editingUser, onClose }: UserFormMo
         onFinish={handleSubmit}
         validateTrigger="onBlur"
       >
-        <Form.Item
-          label="Name"
-          name="name"
-          rules={[{ required: true, message: 'Name is required' }]}
-        >
-          <Input placeholder="Enter name" />
-        </Form.Item>
+        {isEditing && (
+          <Form.Item
+            label="Name"
+            name="name"
+          >
+            <Input placeholder="Enter name" />
+          </Form.Item>
+        )}
 
         <Form.Item
           label="Email"
@@ -146,13 +146,15 @@ export default function UserFormModal({ open, editingUser, onClose }: UserFormMo
           <Select placeholder="Select role" options={roleOptions} />
         </Form.Item>
 
-        <Form.Item label="Department" name="departmentId">
-          <Select
-            placeholder="Select department"
-            allowClear
-            options={departments.map((d) => ({ value: d.id, label: d.name }))}
-          />
-        </Form.Item>
+        {isEditing && (
+          <Form.Item label="Department" name="departmentId">
+            <Select
+              placeholder="Select department"
+              allowClear
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            />
+          </Form.Item>
+        )}
 
         <Form.Item>
           <Button
@@ -161,7 +163,7 @@ export default function UserFormModal({ open, editingUser, onClose }: UserFormMo
             loading={mutation.isPending}
             block
           >
-            {isEditing ? 'Save Changes' : 'Create User'}
+            {isEditing ? 'Save Changes' : 'Send Invitation'}
           </Button>
         </Form.Item>
       </Form>

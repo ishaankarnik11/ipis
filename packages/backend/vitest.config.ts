@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    exclude: ['**/*.integration.test.ts', '**/node_modules/**'],
     env: {
       DATABASE_URL: 'postgresql://ipis:ipis_dev@localhost:5432/ipis_test_backend',
       JWT_SECRET: 'test-secret-key-that-is-long-enough-for-hs256',

@@ -2,67 +2,67 @@ import { useState } from 'react';
 import { List, Tag, Switch, Input, Button, Alert, Spin, Card } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  projectRoleKeys,
-  getProjectRoles,
-  createProjectRole,
-  updateProjectRole,
-} from '../services/project-roles.api';
-import type { ProjectRole } from '../services/project-roles.api';
+  designationKeys,
+  getDesignations,
+  createDesignation,
+  updateDesignation,
+} from '../services/designations.api';
+import type { Designation } from '../services/designations.api';
 import { ApiError } from '../services/api';
 
 export default function ProjectRoleManagement() {
   const queryClient = useQueryClient();
-  const [newRoleName, setNewRoleName] = useState('');
+  const [newDesignationName, setNewDesignationName] = useState('');
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: projectRoleKeys.all,
-    queryFn: getProjectRoles,
+    queryKey: designationKeys.all,
+    queryFn: getDesignations,
   });
 
   const createMutation = useMutation({
-    mutationFn: createProjectRole,
+    mutationFn: createDesignation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...projectRoleKeys.all] });
-      setNewRoleName('');
+      queryClient.invalidateQueries({ queryKey: [...designationKeys.all] });
+      setNewDesignationName('');
       setTouched(false);
       setError(null);
     },
     onError: (err: Error) => {
       if (err instanceof ApiError && err.status === 409) {
-        setError('A role with this name already exists');
+        setError('A designation with this name already exists');
       } else {
-        setError('Failed to create role');
+        setError('Failed to create designation');
       }
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      updateProjectRole(id, { isActive }),
+      updateDesignation(id, { isActive }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...projectRoleKeys.all] });
+      queryClient.invalidateQueries({ queryKey: [...designationKeys.all] });
     },
   });
 
-  const handleAddRole = () => {
-    const trimmed = newRoleName.trim();
+  const handleAddDesignation = () => {
+    const trimmed = newDesignationName.trim();
     if (!trimmed) return;
     setError(null);
     createMutation.mutate({ name: trimmed });
   };
 
-  const handleToggle = (role: ProjectRole) => {
-    updateMutation.mutate({ id: role.id, isActive: !role.isActive });
+  const handleToggle = (designation: Designation) => {
+    updateMutation.mutate({ id: designation.id, isActive: !designation.isActive });
   };
 
-  const roles = data?.data ?? [];
-  const isInputEmpty = newRoleName.trim().length === 0;
+  const designations = data?.data ?? [];
+  const isInputEmpty = newDesignationName.trim().length === 0;
 
   if (isLoading) {
     return (
-      <Card title="Project Roles" style={{ marginTop: 24 }}>
+      <Card title="Designations" style={{ marginTop: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
           <Spin />
         </div>
@@ -71,33 +71,36 @@ export default function ProjectRoleManagement() {
   }
 
   return (
-    <Card title="Project Roles" style={{ marginTop: 24 }}>
+    <Card title="Designations" style={{ marginTop: 24 }}>
+      <p style={{ color: '#666', marginBottom: 16, fontSize: 13 }}>
+        Designations define the available designations when assigning employees to projects.
+      </p>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <Input
-          placeholder="Enter role name"
-          value={newRoleName}
+          placeholder="Enter designation name"
+          value={newDesignationName}
           onChange={(e) => {
-            setNewRoleName(e.target.value);
+            setNewDesignationName(e.target.value);
             setTouched(true);
             if (error) setError(null);
           }}
-          onPressEnter={handleAddRole}
+          onPressEnter={handleAddDesignation}
           style={{ maxWidth: 300 }}
           status={touched && isInputEmpty ? 'error' : undefined}
         />
         <Button
           type="primary"
-          onClick={handleAddRole}
+          onClick={handleAddDesignation}
           loading={createMutation.isPending}
           disabled={isInputEmpty}
         >
-          Add Role
+          Add Designation
         </Button>
       </div>
 
       {touched && isInputEmpty && (
         <Alert
-          message="Role name is required"
+          message="Designation name is required"
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
@@ -114,23 +117,23 @@ export default function ProjectRoleManagement() {
       )}
 
       <List
-        dataSource={roles}
-        renderItem={(role: ProjectRole) => (
+        dataSource={designations}
+        renderItem={(designation: Designation) => (
           <List.Item
             actions={[
               <Switch
                 key="toggle"
-                checked={role.isActive}
-                onChange={() => handleToggle(role)}
-                loading={updateMutation.isPending && updateMutation.variables?.id === role.id}
+                checked={designation.isActive}
+                onChange={() => handleToggle(designation)}
+                loading={updateMutation.isPending && updateMutation.variables?.id === designation.id}
               />,
             ]}
           >
             <List.Item.Meta
-              title={role.name}
+              title={designation.name}
               description={
-                <Tag color={role.isActive ? 'green' : 'default'}>
-                  {role.isActive ? 'Active' : 'Inactive'}
+                <Tag color={designation.isActive ? 'green' : 'default'}>
+                  {designation.isActive ? 'Active' : 'Inactive'}
                 </Tag>
               }
             />

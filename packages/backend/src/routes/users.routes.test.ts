@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp } from '../app.js';
 import { prisma } from '../lib/prisma.js';
 import { cleanDb, seedTestDepartments, createTestUser, disconnectTestDb } from '../test-utils/db.js';
+import { signToken } from '../lib/jwt.js';
 
 describe('User & Department Routes', () => {
   const app = createApp();
@@ -18,10 +19,9 @@ describe('User & Department Routes', () => {
 
   async function loginAs(role: string, overrides = {}) {
     const user = await createTestUser(role as any, overrides);
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ email: user.email, password: user.password });
-    return { cookies: res.headers['set-cookie'] as unknown as string[], user };
+    const token = await signToken({ sub: user.id, role: user.role, email: user.email });
+    const cookies = [`ipis_token=${token}`];
+    return { cookies, user };
   }
 
   describe('POST /api/v1/users', () => {
@@ -38,11 +38,10 @@ describe('User & Department Routes', () => {
         name: 'New User',
         email: 'new@test.com',
         role: 'FINANCE',
-        isActive: true,
+        status: 'INVITED',
       });
       expect(res.body.data.id).toBeDefined();
-      expect(res.body.data.temporaryPassword).toBeDefined();
-      expect(typeof res.body.data.temporaryPassword).toBe('string');
+      // No temporaryPassword in OTP auth — user is invited via link
       // Password hash should NOT be in response
       expect(res.body.data.passwordHash).toBeUndefined();
 
@@ -50,6 +49,7 @@ describe('User & Department Routes', () => {
       const dbUser = await prisma.user.findUnique({ where: { email: 'new@test.com' } });
       expect(dbUser).not.toBeNull();
       expect(dbUser!.name).toBe('New User');
+      expect(dbUser!.status).toBe('INVITED');
     });
   });
 
@@ -73,7 +73,7 @@ describe('User & Department Routes', () => {
       expect(first).toHaveProperty('email');
       expect(first).toHaveProperty('role');
       expect(first).toHaveProperty('departmentName');
-      expect(first).toHaveProperty('isActive');
+      expect(first).toHaveProperty('status');
     });
   });
 
@@ -93,21 +93,21 @@ describe('User & Department Routes', () => {
       expect(res.body.data.departmentName).toBeNull();
     });
 
-    it('should deactivate user via isActive: false (AC 4)', async () => {
+    it('should deactivate user via status: DEACTIVATED (AC 4)', async () => {
       const { cookies } = await loginAs('ADMIN');
       const target = await createTestUser('FINANCE', { email: 'deactivate@test.com' });
 
       const res = await request(app)
         .patch(`/api/v1/users/${target.id}`)
         .set('Cookie', cookies)
-        .send({ isActive: false });
+        .send({ status: 'DEACTIVATED' });
 
       expect(res.status).toBe(200);
-      expect(res.body.data.isActive).toBe(false);
+      expect(res.body.data.status).toBe('DEACTIVATED');
 
       // Verify in DB
       const dbUser = await prisma.user.findUnique({ where: { id: target.id } });
-      expect(dbUser!.isActive).toBe(false);
+      expect(dbUser!.status).toBe('DEACTIVATED');
     });
   });
 
@@ -227,14 +227,14 @@ describe('User & Department Routes', () => {
       expect(res.status).toBe(200);
     });
 
-    it('should return 403 for unauthorized roles', async () => {
+    it('should return 200 for all authenticated users (departments are publicly readable)', async () => {
       const { cookies } = await loginAs('DELIVERY_MANAGER');
 
       const res = await request(app)
         .get('/api/v1/departments')
         .set('Cookie', cookies);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
     });
   });
 });

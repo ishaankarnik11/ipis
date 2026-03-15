@@ -198,7 +198,7 @@ export default function CreateEditProject() {
     } else {
       // Create flow — validate T&M selling rates
       const isTm = values.engagementModel === 'TIME_AND_MATERIALS';
-      const filledMembers = members.filter((m) => m.employeeId && m.roleId);
+      const filledMembers = members.filter((m) => m.employeeId && m.designationId);
       if (isTm && filledMembers.some((m) => !m.sellingRate)) {
         setMemberError('Selling rate is required for all team members in T&M projects');
         return;
@@ -208,7 +208,7 @@ export default function CreateEditProject() {
       const membersPayload = filledMembers.length > 0
         ? filledMembers.map((m) => ({
             employeeId: m.employeeId!,
-            roleId: m.roleId!,
+            designationId: m.designationId!,
             billingRatePaise: m.sellingRate != null ? Math.round(m.sellingRate * 100) : undefined,
           }))
         : undefined;

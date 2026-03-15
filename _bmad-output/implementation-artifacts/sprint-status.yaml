@@ -129,78 +129,87 @@ development_status:
   # Epic 9: Stabilization — Fix What's Broken
   # Goal: Zero P0 bugs. Every existing feature works correctly.
   # Exit criteria: All 5 persona agents run UAT, zero FAILs on existing features.
-  epic-9: backlog
+  epic-9: done
 
   # 9.1 Fix download template endpoints + create missing templates (Emp Master, Timesheet)
   # Backlog: B1, B11 | Personas: Priya, Neha
-  9-1-fix-download-templates-and-create-missing-templates: backlog
+  9-1-fix-download-templates-and-create-missing-templates: done
 
   # 9.2 Fix shared report links — render proper read-only view (not raw JSON)
   # Backlog: B2 | Personas: Priya, Arjun
-  9-2-fix-shared-report-links-render-proper-view: backlog
+  9-2-fix-shared-report-links-render-proper-view: done
 
   # 9.3 Fix Revenue/Cost/Profit blank on Project View — trace upload→snapshot→query
   # Backlog: B3 | Personas: Vikram, Priya
-  9-3-fix-project-view-financial-data-blank: backlog
+  9-3-fix-project-view-financial-data-blank: done
 
   # 9.4 Fix Department Dashboard to include newly created departments
   # Backlog: B4 | Personas: Arjun
-  9-4-fix-department-dashboard-new-departments: backlog
+  9-4-fix-department-dashboard-new-departments: done
 
   # 9.5 Fix Billable Utilisation calculation (shows 0.0% on Exec Dashboard)
   # Backlog: B12 | Personas: Priya, Rajesh
-  9-5-fix-billable-utilisation-calculation: backlog
+  9-5-fix-billable-utilisation-calculation: done
 
   # 9.6 Fix Dept Head project scoping — "No projects found" bug
   # Backlog: B20 | Personas: Arjun
-  9-6-fix-dept-head-project-list-scoping: backlog
+  9-6-fix-dept-head-project-list-scoping: done
 
   # 9.7 UI polish — sidebar truncation, pending approval badge, active project sort
   # Backlog: B8, B22, B23 | Personas: All
-  9-7-ui-polish-sidebar-badge-sort-order: backlog
+  9-7-ui-polish-sidebar-badge-sort-order: done
 
   # 9.8 Fix active user Edit/Deactivate actions in User Management
   # Backlog: B21 | Personas: Rajesh
-  9-8-fix-active-user-edit-deactivate-actions: backlog
+  9-8-fix-active-user-edit-deactivate-actions: done
 
   epic-9-retrospective: optional
 
   # Epic 10: Consolidation — Simplify & Fix Role Confusion
   # Goal: One clear path per user. No duplicate screens. Correct RBAC.
   # Exit criteria: Each persona completes full daily workflow end-to-end. No dead ends.
-  epic-10: backlog
+  epic-10: done
+
+  # 10.0 Epic 9 UAT Fixes — Revenue/Cost/Profit detail, Utilisation calc, User actions
+  # Source: uat-report-2026-03-14.md P0-1, P0-2, P0-3
+  # Personas: Vikram, Priya, Rajesh
+  10-0-epic-9-uat-fixes: done
 
   # 10.1 RBAC audit & simplification — match brief's 5 roles exactly
   # Backlog: B7 | Personas: All
-  10-1-rbac-audit-and-simplification: backlog
+  10-1-rbac-audit-and-simplification: done
 
   # 10.2 HR gets Employee Dashboard + Utilization access
   # Backlog: B13 | Personas: Neha
-  10-2-hr-employee-dashboard-utilization-access: backlog
+  10-2-hr-employee-dashboard-utilization-access: done
 
   # 10.3 DM gets Upload Center access (timesheet upload)
   # Backlog: B18 | Personas: Vikram
-  10-3-dm-upload-center-access: backlog
+  10-3-dm-upload-center-access: done
 
   # 10.4 Consolidate Employee screen into Employee Dashboard (remove redundancy)
   # Backlog: B5 | Personas: Neha, Rajesh
-  10-4-consolidate-employee-screen-into-dashboard: backlog
+  10-4-consolidate-employee-screen-into-dashboard: done
 
   # 10.5 Employee detail full-page view (profile + all project allocations + % time)
   # Backlog: B9 | Personas: Neha
-  10-5-employee-detail-full-page-view: backlog
+  10-5-employee-detail-full-page-view: done
 
   # 10.6 DM project list filtered to "MY projects" by default
   # Backlog: B14 | Personas: Vikram
-  10-6-dm-project-list-my-projects-filter: backlog
+  10-6-dm-project-list-my-projects-filter: done
 
   # 10.7 Upload History filtered by role (each user sees own type uploads)
   # Backlog: B15 | Personas: Priya, Neha
-  10-7-upload-history-role-filtered: backlog
+  10-7-upload-history-role-filtered: done
 
   # 10.8 Project Role ↔ Department consolidation review
   # Backlog: B6 | Personas: Rajesh
-  10-8-project-role-department-consolidation: backlog
+  10-8-project-role-department-consolidation: done
+
+  # 10.9 UAT P0 Fixes — Project Detail Financials & Billable Utilisation
+  # Source: uat-report-2026-03-14-v2.md | Personas: Vikram, Priya
+  10-9-uat-p0-fixes-financials-and-utilisation: done
 
   epic-10-retrospective: optional
 
@@ -209,36 +218,279 @@ development_status:
   # Exit criteria: Full persona UAT pass. Brief requirements checklist 100% complete.
   epic-11: backlog
 
+  # 11.0 Fix Billable Utilisation 0.0% — seed data + recalculation pipeline
+  # Source: UAT-v3 P0-2 (persists from v1). Root cause: seed EMPLOYEE_COST snapshots have empty
+  # breakdownJson missing totalHours/billableHours/availableHours fields.
+  # Fix: seed.ts line 594 breakdownJson must include hour fields matching snapshot.service.ts.
+  # Also verify recalculation pipeline writes UTILIZATION_PERCENT snapshot for executive dashboard.
+  # Personas: Priya, Neha, Rajesh
+  11-0-fix-billable-utilisation-calculation: review
+
+  # 11.0a Verify Employee Detail page works + fix walkthrough script to click name link not row
+  # Source: UAT-v3 BUG 1 (P1) — detail page never visually verified
+  # Personas: Neha
+  11-0a-verify-employee-detail-page-and-fix-walkthrough: review
+
+  # 11.0b Fix cost-center departments showing -100.0% margin on Dept Dashboard
+  # Source: UAT-v3 BUG 2 (P2) — Finance/HR/Operations show -100% with zero revenue
+  # Personas: Priya, Arjun
+  11-0b-fix-cost-center-department-margin-display: review
+
+  # 11.0c Project Dashboard "My Team" count column for Dept Head
+  # Source: UAT-v3 BUG 3 (P2) — all projects show "Delivery" dept, confusing for Engineering head
+  # Personas: Arjun
+  11-0c-project-dashboard-department-context-for-dept-head: review
+
+  # 11.0d Employee action buttons always visible (not hover-only) for HR
+  # Source: UAT-v3 BUG 4 (P3) — Edit/Resign buttons only appear on hover
+  # Personas: Neha
+  11-0d-employee-action-buttons-always-visible: review
+
   # 11.1 Upload record detail view — click row → view records → filter success/fail → download failures with reasons
   # Backlog: B10 | Personas: Priya, Neha
-  11-1-upload-record-detail-view-and-failure-download: backlog
+  11-1-upload-record-detail-view-and-failure-download: review
 
   # 11.2 Month-over-month comparison on Department Dashboard
   # Backlog: B16 | Personas: Arjun
-  11-2-department-dashboard-month-over-month: backlog
+  11-2-department-dashboard-month-over-month: review
 
   # 11.3 Department Dashboard drill-down (dept → employees → projects)
   # Backlog: B17 | Personas: Arjun
-  11-3-department-dashboard-drill-down: backlog
+  11-3-department-dashboard-drill-down: review
 
   # 11.4 Burn rate on Project Dashboard
   # Backlog: B19 | Personas: Vikram
-  11-4-project-dashboard-burn-rate: backlog
+  11-4-project-dashboard-burn-rate: review
 
   # 11.5 Budget vs Actual for Fixed Cost projects
   # Backlog: B24 | Personas: Vikram, Priya
-  11-5-budget-vs-actual-fixed-cost-projects: backlog
+  11-5-budget-vs-actual-fixed-cost-projects: review
 
   # 11.6 Employee Profitability Rank on Employee Dashboard
   # Backlog: B25 | Personas: Neha
-  11-6-employee-profitability-rank: backlog
+  11-6-employee-profitability-rank: review
 
   # 11.7 Client-wise profitability view
   # Backlog: B26 | Personas: Priya
-  11-7-client-wise-profitability-view: backlog
+  11-7-client-wise-profitability-view: review
 
   # 11.8 Overhead cost configurable + standard hours default alignment (160 per brief)
   # Backlog: B27, B28 | Personas: Rajesh
-  11-8-overhead-cost-configurable-standard-hours: backlog
+  11-8-overhead-cost-configurable-standard-hours: review
 
   epic-11-retrospective: optional
+
+  # ══════════════════════════════════════════════════════════════════
+  # BROWSER UAT FIXES SPRINT
+  # Source: Browser-based UAT with 5 persona agents (2026-03-15)
+  # Report: _bmad-output/implementation-artifacts/uat-report-2026-03-15-browser-uat.md
+  # All 16 findings addressed across 10 stories
+  # ══════════════════════════════════════════════════════════════════
+
+  # Epic 12: Browser UAT Fixes — Zero Remaining Defects
+  # Goal: Address ALL 16 findings from browser UAT. Zero FAILs on re-test.
+  # Exit criteria: All 5 persona agents re-run browser UAT and report zero FAILs.
+  epic-12: done
+
+  # 12.1 Fix Billable Utilisation 0.0% system-wide (3rd fix attempt)
+  # UAT: P0 #1 | Flagged by: ALL 5 agents | Previous: 9-5, 11-0
+  12-1-fix-billable-utilisation-system-wide: done
+
+  # 12.2 Fix Employee Detail page navigation (broken links)
+  # UAT: P0 #2 | Flagged by: Rajesh, Neha, Priya | Previous: 11-0a
+  12-2-fix-employee-detail-navigation: done
+
+  # 12.3 Fix revenue total mismatch between dashboards (₹12.5L discrepancy)
+  # UAT: P0 #3 | Flagged by: Priya | NEW — not previously tracked
+  12-3-fix-revenue-mismatch-between-dashboards: done
+
+  # 12.4 Fix Department drill-down for DM role (empty data)
+  # UAT: P1 #4 | Flagged by: Vikram | Previous: 11-3 (works for Admin/DeptHead, broken for DM)
+  12-4-fix-department-drilldown-dm-role: done
+
+  # 12.5 Share Link for Dept Head + toast feedback on all dashboards
+  # UAT: P1 #5, #8 | Flagged by: Arjun, Rajesh | NEW
+  12-5-share-link-dept-head-and-toast-feedback: done
+
+  # 12.6 HR access to Department Dashboard + salary on Employee Detail
+  # UAT: P1 #6, #9 | Flagged by: Neha | NEW (10-2 was done but route guard still excludes HR)
+  12-6-hr-department-dashboard-access-and-salary-display: done
+
+  # 12.7 Upload detail drawer click-through verification and fix
+  # UAT: P1 #7 | Flagged by: Priya, Neha | Previous: 11-1 (code exists but drawer doesn't open)
+  12-7-upload-detail-drawer-verification: done
+
+  # 12.8 Upload history "My Uploads" filter
+  # UAT: P2 #11 | Flagged by: Vikram | NEW
+  12-8-upload-history-my-uploads-filter: done
+
+  # 12.9 Team allocation % and internal cost on project roster
+  # UAT: P2 #12 | Flagged by: Vikram | NEW
+  12-9-team-allocation-percentage-and-cost: done
+
+  # 12.10 UI polish: employee search, ON_HOLD enum, float precision, cost-center margin, dept column
+  # UAT: P2 #10, #13, #14, #15, #16 | Flagged by: Priya, Neha, Rajesh, Arjun | Partially from 11-0b, 11-0c
+  12-10-ui-polish-search-enum-float-deptcol: done
+
+  epic-12-retrospective: optional
+
+  # ══════════════════════════════════════════════════════════════════
+  # BACKEND COMPLETENESS & STABILIZATION
+  # Source: Party Mode review session (2026-03-15) — 11 user-reported
+  #         issues + backend audit revealing 6 architectural gaps
+  # Testing philosophy: No mock-only features. Every feature has real
+  #         integration tests. Persona journey tests verify cross-screen
+  #         consequences. "I would rather not have a feature than have
+  #         a false sense of security that feature is built."
+  # ══════════════════════════════════════════════════════════════════
+
+  # Epic 13: Backend Completeness & Stabilization
+  # Goal: Complete all half-wired features, rename Role→Designation,
+  #        fix all UI issues, overhaul testing to eliminate mock-driven false confidence.
+  # Exit criteria: All 5 persona journeys pass. Zero mock-only features.
+  epic-13: done
+
+  # --- Sprint A: Foundation (Schema + Core Wiring) ---
+
+  # 13.1 Rename ProjectRole → Designation + schema migration + departmentId FK
+  # Source: Party mode feedback | Personas: All (terminology confusion)
+  13-1-rename-project-role-to-designation: done
+
+  # 13.2 Add allocationPercent to EmployeeProject (DB field, API input, default 100)
+  # Source: Party mode feedback — system assumes 100%, all downstream numbers wrong
+  # Personas: Vikram, Priya
+  13-2-add-allocation-percent-to-employee-project: done
+
+  # 13.3 Wire recalculation triggers — team add/remove, config update, timesheet upload
+  # Source: Backend audit — recalc only fires on billing upload
+  # Personas: Vikram, Rajesh, Priya
+  13-3-wire-recalculation-triggers: done
+
+  # 13.4 Department full CRUD — create, update, soft-delete
+  # Source: Backend audit — departments are read-only, no write API
+  # Personas: Rajesh
+  13-4-department-full-crud: done
+
+  # 13.5 Designation CRUD improvements + department mapping
+  # Source: Party mode feedback — "Scrum Master is not a department"
+  # Depends: 13.1, 13.4 | Personas: Rajesh
+  13-5-designation-crud-and-department-mapping: done
+
+  # --- Sprint B: Feature Fixes ---
+
+  # 13.6 Fix share link — copy button modal + snapshot specific entity + respect period
+  # Source: Party mode feedback + backend audit (snapshots all projects, ignores period)
+  # Personas: Priya, Arjun
+  13-6-fix-share-link-ux-and-backend: done
+
+  # 13.7 Fix PDF export — verify Puppeteer pipeline, fix UUID schema, integration test
+  # Source: Party mode feedback — "PDF not working, not caught in testing"
+  # Personas: Priya, Vikram
+  13-7-fix-pdf-export-and-verify-pipeline: done
+
+  # 13.8 Fix add team member modal layout — selling rate input shrinks
+  # Source: Party mode feedback | Depends: 13.2 | Personas: Vikram
+  13-8-fix-add-team-member-modal-layout: done
+
+  # 13.9 Pending approvals — show project details (expandable row)
+  # Source: Party mode feedback — admin can't see what they're approving
+  # Personas: Rajesh
+  13-9-pending-approvals-show-project-details: done
+
+  # 13.10 Consolidate Projects page into Project Dashboard (remove redundancy)
+  # Source: Party mode feedback | Personas: All
+  13-10-consolidate-projects-into-project-dashboard: done
+
+  # --- Sprint C: UX Polish & Testing Overhaul ---
+
+  # 13.11 Upload centre row click affordance — hover states, cursor, expand icon
+  # Source: Party mode feedback | Personas: Priya, Neha
+  13-11-upload-centre-row-click-affordance: done
+
+  # 13.12 Config change → visible recalculation feedback notification
+  # Source: Party mode feedback | Depends: 13.3 | Personas: Rajesh
+  13-12-config-change-recalc-feedback: done
+
+  # 13.13 Persona journey E2E tests — Vikram, Priya, Rajesh daily workflows
+  # Source: Testing gap analysis — "We tested features, not workflows"
+  # Depends: All Sprint A+B | Personas: Vikram, Priya, Rajesh
+  13-13-persona-journey-e2e-tests: done
+
+  # 13.14 PDF integration test — real Puppeteer, no mocks
+  # Source: Testing gap — Puppeteer mocked in all existing tests
+  # Depends: 13.7 | Personas: N/A (testing infrastructure)
+  13-14-pdf-integration-test-real-puppeteer: done
+
+  epic-13-retrospective: optional
+
+  # ══════════════════════════════════════════════════════════════════
+  # OTP-BASED AUTH & USER ONBOARDING
+  # Source: Party Mode session (2026-03-15) — reinvent user onboarding
+  # Architecture: Gmail SMTP + OTP login + invitation-based onboarding
+  # Key: No passwords anywhere. No mock email. No seed users.
+  #      ADMIN_EMAIL env var bootstraps first admin on app start.
+  #      MASTER_OTP env var for local dev bypass.
+  # ══════════════════════════════════════════════════════════════════
+
+  # Epic 14: OTP-Based Authentication & User Onboarding
+  # Goal: Replace password auth with OTP-via-email. Real Gmail SMTP.
+  #        Admin creates user (email+role), system sends welcome link,
+  #        user completes profile. Bootstrap admin from ADMIN_EMAIL env var.
+  # Exit criteria: Zero passwords. Real email. Full onboarding journey works E2E.
+  epic-14: done
+
+  # --- Sprint A: Infrastructure & Schema ---
+
+  # 14.1 Gmail SMTP email service — real Nodemailer, no stubs
+  # Replaces: email.service.ts no-op stub
+  14-1-gmail-smtp-email-service: done
+
+  # 14.2 Schema migration — remove passwords, add OtpToken/InvitationToken, user status enum
+  # Breaking change: passwordHash dropped, isActive → status enum
+  14-2-schema-migration-otp-auth: done
+
+  # 14.3 App bootstrap — auto-create admin from ADMIN_EMAIL on first start
+  # Depends: 14.1, 14.2
+  14-3-app-bootstrap-admin-from-env: done
+
+  # --- Sprint B: Auth Flows ---
+
+  # 14.4 OTP request + verify API — 6-digit, 5-min expiry, 3 attempts, rate limit 5/10min
+  # Depends: 14.1, 14.2
+  14-4-otp-request-verify-api: done
+
+  # 14.5 OTP login UX — email screen, 6-digit input, countdown, resend, error states
+  # Depends: 14.4 | Persona-consulted: Rajesh, Priya, Vikram
+  14-5-otp-login-ux: done
+
+  # 14.6 Invitation link API — create, validate, complete profile
+  # Depends: 14.1, 14.2
+  14-6-invitation-link-api: done
+
+  # 14.7 User onboarding UX — welcome page, profile setup (name + optional dept)
+  # Depends: 14.6
+  14-7-user-onboarding-ux: done
+
+  # --- Sprint C: Admin & Cleanup ---
+
+  # 14.8 Admin user creation — simplified modal (email + role only) + invitation email
+  # Depends: 14.6 | Personas: Rajesh
+  14-8-admin-user-creation-simplified: done
+
+  # 14.9 Admin resend invitation + user status management (deactivate/reactivate)
+  # Depends: 14.8
+  14-9-admin-resend-invitation-and-status-management: done
+
+  # 14.10 Remove password infrastructure — delete routes, bcrypt, guards, dead code
+  # Depends: 14.4, 14.5 (OTP must be working before passwords removed)
+  14-10-remove-password-infrastructure: done
+
+  # 14.11 Update seed script — no users, bootstrap-only admin
+  # Depends: 14.3
+  14-11-update-seed-script-no-users: done
+
+  # 14.12 E2E tests — bootstrap, onboarding, OTP login, admin management journeys
+  # Depends: all above
+  14-12-e2e-onboarding-otp-login-journeys: done
+
+  epic-14-retrospective: optional

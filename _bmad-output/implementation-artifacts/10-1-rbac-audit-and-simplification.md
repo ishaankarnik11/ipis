@@ -1,6 +1,6 @@
 # Story 10.1: RBAC Audit & Simplification
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -111,33 +111,33 @@ tests/journeys/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Backend API endpoint audit (AC: 1)
-  - [ ] 1.1 Catalogue every route in `routes/index.ts` and all sub-route files
-  - [ ] 1.2 For each route, record: HTTP method, path, RBAC middleware roles, any additional scoping logic
-  - [ ] 1.3 Identify routes with no RBAC middleware (public or auth-only)
+- [x] Task 1: Backend API endpoint audit (AC: 1)
+  - [x] 1.1 Catalogue every route in `routes/index.ts` and all sub-route files
+  - [x] 1.2 For each route, record: HTTP method, path, RBAC middleware roles, any additional scoping logic
+  - [x] 1.3 Identify routes with no RBAC middleware (public or auth-only)
 
-- [ ] Task 2: Frontend route audit (AC: 2)
-  - [ ] 2.1 Catalogue every route in `router/index.tsx`
-  - [ ] 2.2 For each route, record: path, RoleGuard roles, redirect behavior for unauthorized
-  - [ ] 2.3 Cross-reference with backend API endpoints used by each page
+- [x] Task 2: Frontend route audit (AC: 2)
+  - [x] 2.1 Catalogue every route in `router/index.tsx`
+  - [x] 2.2 For each route, record: path, RoleGuard roles, redirect behavior for unauthorized
+  - [x] 2.3 Cross-reference with backend API endpoints used by each page
 
-- [ ] Task 3: Sidebar/navigation audit (AC: 3)
-  - [ ] 3.1 Catalogue sidebar items per role from `config/navigation.ts` or equivalent
-  - [ ] 3.2 Cross-reference with `packages/e2e/helpers/constants.ts` roleSidebarItems
-  - [ ] 3.3 Note any discrepancies between frontend config and E2E constants
+- [x] Task 3: Sidebar/navigation audit (AC: 3)
+  - [x] 3.1 Catalogue sidebar items per role from `config/navigation.ts` or equivalent
+  - [x] 3.2 Cross-reference with `packages/e2e/helpers/constants.ts` roleSidebarItems
+  - [x] 3.3 Note any discrepancies between frontend config and E2E constants
 
-- [ ] Task 4: Brief comparison and discrepancy analysis (AC: 4, 6, 7)
-  - [ ] 4.1 Extract Feature-Role Matrix from original product brief/PRD
-  - [ ] 4.2 Map brief features to implemented endpoints/routes
-  - [ ] 4.3 Classify each discrepancy as over-permission or under-permission
-  - [ ] 4.4 Flag HR missing Employee Dashboard (Story 10.2)
-  - [ ] 4.5 Flag DM missing Upload Center (Story 10.3)
+- [x] Task 4: Brief comparison and discrepancy analysis (AC: 4, 6, 7)
+  - [x] 4.1 Extract Feature-Role Matrix from original product brief/PRD
+  - [x] 4.2 Map brief features to implemented endpoints/routes
+  - [x] 4.3 Classify each discrepancy as over-permission or under-permission
+  - [x] 4.4 Flag HR missing Employee Dashboard (Story 10.2)
+  - [x] 4.5 Flag DM missing Upload Center (Story 10.3)
 
-- [ ] Task 5: Create `docs/feature-role-matrix.md` (AC: 5)
-  - [ ] 5.1 Write intended Feature-Role Matrix table
-  - [ ] 5.2 Write current-state matrix table
-  - [ ] 5.3 Write discrepancy table with remediation references
-  - [ ] 5.4 Link to Stories 10.2, 10.3 for permission fixes
+- [x] Task 5: Create `docs/feature-role-matrix.md` (AC: 5)
+  - [x] 5.1 Write intended Feature-Role Matrix table
+  - [x] 5.2 Write current-state matrix table
+  - [x] 5.3 Write discrepancy table with remediation references
+  - [x] 5.4 Link to Stories 10.2, 10.3 for permission fixes
 
 ## Dev Notes
 
@@ -168,9 +168,19 @@ tests/journeys/
 ## Dev Agent Record
 
 ### Agent Model Used
+Claude Opus 4.6 (1M context)
 
 ### Debug Log References
+None — audit-only story, no code changes.
 
 ### Completion Notes List
+- Audited 12 backend route files (40+ endpoints), 20 frontend routes, 11 sidebar nav items
+- Frontend navigation.ts and E2E constants.ts are 100% consistent
+- Identified 6 over-permissions (OP-1 through OP-6) and 4 under-permissions (UP-1 through UP-4)
+- Key finding: Admin has upload access not in PRD matrix but justified by "Full access" brief; DM has PDF export not in PRD
+- HR missing Employee Dashboard (UP-1) → Story 10.2
+- DM missing Upload Center + timesheet upload (UP-2, UP-3) → Story 10.3
+- Created comprehensive `docs/feature-role-matrix.md` as canonical RBAC source of truth
 
 ### File List
+- `docs/feature-role-matrix.md` — NEW: Canonical RBAC source of truth (7 sections)
